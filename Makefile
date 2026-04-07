@@ -12,7 +12,7 @@ init-demo:
 	brew install charmbracelet/tap/vhs ttyd ffmpeg libfaketime
 
 build:
-	go build -o notes .
+	go build -o tnotes .
 
 run:
 	go run . $(ARGS)
@@ -43,4 +43,4 @@ demo-mp4:
 demo: demo-gif
 
 clean:
-	rm -f notes
+	rm -f tnotes

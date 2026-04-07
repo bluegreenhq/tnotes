@@ -13,6 +13,9 @@ const cmdName = "tnotes"
 
 var ErrUnknownCommand = errors.New("unknown command")
 
+// Version はビルド時に注入されるバージョン文字列。未設定時は "dev"。
+var Version string
+
 const minArgsForSubcommand = 2
 
 // Run はCLIサブコマンドを実行する。
@@ -34,6 +37,8 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) {
 		return true, runExport(args, a, w)
 	case "import":
 		return true, runImport(args, a, w)
+	case "version":
+		return true, runVersion(w)
 	case "help":
 		printUsage(w)
 
@@ -54,5 +59,17 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "  %s create [file] ファイルまたは標準入力からノートを作成\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s export <file> データ一式をzipにエクスポート\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s import <file> zipからデータをインポート\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s version       バージョンを表示\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s help         このヘルプを表示\n", cmdName)
+}
+
+func runVersion(w io.Writer) error {
+	v := Version
+	if v == "" {
+		v = "dev"
+	}
+
+	_, err := fmt.Fprintf(w, "tnotes version %s\n", v)
+
+	return err
 }

@@ -12,7 +12,12 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
+// version はGoReleaserによりビルド時に -ldflags で注入される。
+var version string
+
 func main() {
+	cli.Version = version
+
 	dir := os.Getenv("NOTES_DATA_DIR")
 	if dir == "" {
 		dir = store.DefaultDataDir()
