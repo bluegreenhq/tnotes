@@ -47,3 +47,9 @@ make test   # lint + 全テスト
 make lint   # lint のみ
 make demo   # デモGIF録画（要 vhs）
 ```
+
+### リリース
+
+```bash
+make release VERSION=0.1.0  # タグ作成 + push → GitHub Actions でリリース
+```

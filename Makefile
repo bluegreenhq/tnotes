@@ -1,4 +1,4 @@
-.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow lint-release test-unit test-e2e test demo-gif demo-mp4 demo clean
+.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow lint-release test-unit test-e2e test demo-gif demo-mp4 demo release clean
 
 init:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
@@ -47,6 +47,13 @@ demo-mp4:
 	vhs -o demo.mp4 demo.tape
 
 demo: demo-gif
+
+release:
+ifndef VERSION
+	$(error VERSION is required. Usage: make release VERSION=0.1.0)
+endif
+	git tag v$(VERSION)
+	git push origin v$(VERSION)
 
 clean:
 	rm -f tnotes

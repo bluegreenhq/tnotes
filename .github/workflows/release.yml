@@ -12,8 +12,26 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
+  check-permission:
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.check.outputs.allowed }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PERM=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.actor }}/permission" --jq '.role_name')
+          if [ "$PERM" = "admin" ]; then
+            echo "allowed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Only repository admins can create releases (actor: ${{ github.actor }}, role: $PERM)"
+            echo "allowed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
-    needs: ci
+    needs: [ci, check-permission]
+    if: needs.check-permission.outputs.allowed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
