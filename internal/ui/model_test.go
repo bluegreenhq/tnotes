@@ -432,3 +432,42 @@ func TestInfoMsgClearedOnArrowKey(t *testing.T) {
 	view = model.View()
 	assert.NotContains(t, view.Content, "Undo: Ctrl+Z")
 }
+
+func TestWheelOnSidebarDoesNotChangeSelection(t *testing.T) {
+	t.Parallel()
+
+	m := sized(t, newTestModel())
+
+	// ノートを5つ作成
+	var ret tea.Model = m
+	for range 5 {
+		ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
+		ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	}
+
+	model := mustModel(t, ret)
+	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
+
+	// ホイールダウンでサイドバーの選択は変わらない
+	ret, _ = model.Update(tea.MouseWheelMsg(tea.Mouse{X: 5, Y: 5, Button: tea.MouseWheelDown}))
+	model = mustModel(t, ret)
+
+	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
+}
+
+func TestWheelOnEditor(t *testing.T) {
+	t.Parallel()
+
+	m := sized(t, newTestModel())
+
+	// ノートを作成
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	model := mustModel(t, ret)
+	assert.Equal(t, ui.FocusEditor, model.Focus)
+
+	// エディタ領域でホイールイベント送信（エラーにならないことを確認）
+	ret, _ = model.Update(tea.MouseWheelMsg(tea.Mouse{X: 50, Y: 5, Button: tea.MouseWheelDown}))
+	model = mustModel(t, ret)
+	assert.NotNil(t, model)
+}

@@ -1,6 +1,7 @@
 package ui_test
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -182,4 +183,39 @@ func TestSidebarTrashModeNoSections(t *testing.T) {
 	view := sb.View(true, fixedNow)
 	assert.Contains(t, view, "Trash")
 	assert.NotContains(t, view, "Today")
+}
+
+func makeNotes(n int, now time.Time) []note.Note {
+	notes := make([]note.Note, n)
+	for i := range notes {
+		id := note.NoteID(strconv.Itoa(i))
+		notes[i] = note.Note{
+			Metadata: note.Metadata{ID: id, CreatedAt: now, UpdatedAt: now},
+			Body:     "Note " + strconv.Itoa(i),
+		}
+	}
+
+	return notes
+}
+
+func TestSidebarScrollDownDoesNotChangeSelection(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	sb := ui.NewSidebar(makeNotes(5, now), 30, 20)
+	assert.Equal(t, 0, sb.SelectedIndex())
+
+	sb.ScrollDown(3, now)
+	assert.Equal(t, 0, sb.SelectedIndex())
+}
+
+func TestSidebarScrollUpDoesNotChangeSelection(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	sb := ui.NewSidebar(makeNotes(5, now), 30, 20)
+	sb.SelectIndex(4, now)
+
+	sb.ScrollUp(3, now)
+	assert.Equal(t, 4, sb.SelectedIndex())
 }
