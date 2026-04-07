@@ -52,6 +52,10 @@ release:
 ifndef VERSION
 	$(error VERSION is required. Usage: make release VERSION=0.1.0)
 endif
+	@if git log -1 --format='%s' | grep -qi '\[ci skip\]\|\[skip ci\]'; then \
+		echo "Error: HEAD commit contains [ci skip]. Release workflow will not trigger." >&2; \
+		exit 1; \
+	fi
 	git tag v$(VERSION)
 	git push origin v$(VERSION)
 
