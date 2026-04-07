@@ -14,7 +14,7 @@ const cmdName = "tnotes"
 var ErrUnknownCommand = errors.New("unknown command")
 
 // Version はビルド時に注入されるバージョン文字列。未設定時は "dev"。
-var Version string
+var Version string //nolint:gochecknoglobals // ビルド時にmain.goから注入される
 
 const minArgsForSubcommand = 2
 
@@ -70,6 +70,9 @@ func runVersion(w io.Writer) error {
 	}
 
 	_, err := fmt.Fprintf(w, "tnotes version %s\n", v)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
-	return err
+	return nil
 }
