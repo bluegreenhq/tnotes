@@ -102,6 +102,20 @@ func (e *Editor) SetSize(width, height int) {
 	e.textarea.SetHeight(height)
 }
 
+// ScrollUp はカーソルを n 行上に移動する。フォーカス・readOnly に依存しない。
+func (e *Editor) ScrollUp(n int) {
+	for range n {
+		e.textarea.CursorUp()
+	}
+}
+
+// ScrollDown はカーソルを n 行下に移動する。フォーカス・readOnly に依存しない。
+func (e *Editor) ScrollDown(n int) {
+	for range n {
+		e.textarea.CursorDown()
+	}
+}
+
 // SetReadOnly は読み取り専用モードを設定する。
 func (e *Editor) SetReadOnly(v bool) { e.readOnly = v }
 

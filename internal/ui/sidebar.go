@@ -99,6 +99,18 @@ func (s *Sidebar) MoveDown(now time.Time) {
 	}
 }
 
+// ScrollUp は表示オフセットを n 行上にスクロールする。選択は変更しない。
+func (s *Sidebar) ScrollUp(n int, now time.Time) {
+	s.offset = max(s.offset-n, 0)
+	s.clampScrollOffset(now)
+}
+
+// ScrollDown は表示オフセットを n 行下にスクロールする。選択は変更しない。
+func (s *Sidebar) ScrollDown(n int, now time.Time) {
+	s.offset += n
+	s.clampScrollOffset(now)
+}
+
 // SetTitle はサイドバーのヘッダータイトルを設定する。
 func (s *Sidebar) SetTitle(t string) { s.title = t }
 
@@ -144,8 +156,43 @@ func (s *Sidebar) HitTest(x, y int, now time.Time) int {
 	return -1
 }
 
-func (s *Sidebar) visibleRows() int {
+func (s *Sidebar) visibleLines() int {
 	return s.height - sidebarHeaderLines
+}
+
+// rowHeight は sidebarRow 1件の表示行数を返す。
+func rowHeight(r sidebarRow) int {
+	if r.isHeader {
+		return sectionHeaderHeight
+	}
+
+	return itemHeight
+}
+
+// rowsHeightSum は rows[from:to] の合計行数を返す。
+func rowsHeightSum(rows []sidebarRow, from, to int) int {
+	total := 0
+	for i := from; i < to; i++ {
+		total += rowHeight(rows[i])
+	}
+
+	return total
+}
+
+// visibleEndRow は offset から visLines 行に収まる最後のrowインデックス（排他）を返す。
+func visibleEndRow(rows []sidebarRow, offset, visLines int) int {
+	used := 0
+
+	for i := offset; i < len(rows); i++ {
+		h := rowHeight(rows[i])
+		if used+h > visLines {
+			return i
+		}
+
+		used += h
+	}
+
+	return len(rows)
 }
 
 func (s *Sidebar) buildRows(now time.Time) []sidebarRow {
@@ -183,6 +230,31 @@ func (s *Sidebar) buildFlatRows() []sidebarRow {
 	return rows
 }
 
+func (s *Sidebar) clampScrollOffset(now time.Time) {
+	rows := s.buildRows(now)
+	if len(rows) == 0 {
+		s.offset = 0
+
+		return
+	}
+
+	vis := s.visibleLines()
+
+	// 末尾が見える最大オフセットを求める
+	maxOffset := len(rows)
+	for maxOffset > 0 && rowsHeightSum(rows, maxOffset-1, len(rows)) <= vis {
+		maxOffset--
+	}
+
+	if s.offset > maxOffset {
+		s.offset = maxOffset
+	}
+
+	if s.offset < 0 {
+		s.offset = 0
+	}
+}
+
 func (s *Sidebar) clampOffset(now time.Time) {
 	rows := s.buildRows(now)
 	if len(rows) == 0 {
@@ -191,34 +263,32 @@ func (s *Sidebar) clampOffset(now time.Time) {
 		return
 	}
 
-	// 選択中のノートに対応するrowインデックスを見つける
-	targetRow := 0
-
-	for i, row := range rows {
-		if !row.isHeader && row.noteIndex == s.selected {
-			targetRow = i
-
-			break
-		}
-	}
-
-	vis := s.visibleRows()
+	targetRow := findSelectedRow(rows, s.selected)
+	vis := s.visibleLines()
 
 	// 選択中のアイテムの全行が見えるようにオフセットを調整
-	itemEnd := targetRow + itemHeight
-	if itemEnd > s.offset+vis {
-		s.offset = itemEnd - vis
+	endLines := rowsHeightSum(rows, s.offset, targetRow+1)
+	if endLines > vis {
+		s.offset = targetRow
+		for s.offset > 0 && rowsHeightSum(rows, s.offset-1, targetRow+1) <= vis {
+			s.offset--
+		}
 	}
 
 	if targetRow < s.offset {
 		s.offset = targetRow
 	}
 
-	if s.offset < 0 {
-		s.offset = 0
+	s.offset = max(s.offset, 0)
+	s.offset = min(s.offset, len(rows)-1)
+}
+
+func findSelectedRow(rows []sidebarRow, selected int) int {
+	for i, row := range rows {
+		if !row.isHeader && row.noteIndex == selected {
+			return i
+		}
 	}
 
-	if s.offset >= len(rows) {
-		s.offset = len(rows) - 1
-	}
+	return 0
 }

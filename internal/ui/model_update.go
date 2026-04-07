@@ -49,6 +49,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 
 		return m, nil
 
+	case tea.MouseWheelMsg:
+		m.handleWheel(msg, now)
+
+		return m, nil
+
 	case tea.MouseMsg:
 		m.handleMouseMotion(msg)
 
@@ -189,6 +194,30 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	m.Editor.StartDragSelection(edX, msg.Y)
 
 	return cmd
+}
+
+func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) {
+	mouse := msg.Mouse()
+
+	const scrollLines = 1
+
+	if mouse.X < sidebarWidthPx {
+		switch mouse.Button {
+		case tea.MouseWheelUp:
+			m.Sidebar.ScrollUp(scrollLines, now)
+		case tea.MouseWheelDown:
+			m.Sidebar.ScrollDown(scrollLines, now)
+		}
+
+		return
+	}
+
+	switch mouse.Button {
+	case tea.MouseWheelUp:
+		m.Editor.ScrollUp(scrollLines)
+	case tea.MouseWheelDown:
+		m.Editor.ScrollDown(scrollLines)
+	}
 }
 
 func (m *Model) handleMouseMotion(msg tea.MouseMsg) {

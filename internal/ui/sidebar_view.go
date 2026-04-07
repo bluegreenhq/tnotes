@@ -26,8 +26,7 @@ func (s *Sidebar) View(focused bool, now time.Time) string {
 	b.WriteString("\n")
 
 	rows := s.buildRows(now)
-	visEnd := s.offset + s.visibleRows()
-	visEnd = min(visEnd, len(rows))
+	visEnd := visibleEndRow(rows, s.offset, s.visibleLines())
 
 	usedLines := 2
 
