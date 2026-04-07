@@ -23,7 +23,8 @@ universal_binaries:
     replace: true
 
 archives:
-  - format: tar.gz
+  - formats:
+      - tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 checksum:
@@ -37,17 +38,20 @@ changelog:
       - "^test:"
       - "^ci:"
 
-brews:
+homebrew_casks:
   - name: tnotes
     repository:
       owner: bluegreenhq
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    directory: Formula
+    directory: Casks
+    url:
+      verified: github.com/bluegreenhq/tnotes
     homepage: "https://github.com/bluegreenhq/tnotes"
     description: "Terminal-based note-taking app"
-    license: "MIT"
-    install: |
-      bin.install "tnotes"
-    test: |
-      system "#{bin}/tnotes", "version"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tnotes"]
+          end
