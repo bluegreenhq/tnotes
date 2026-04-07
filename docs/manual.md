@@ -18,7 +18,7 @@ tnotes get <id>     # 指定IDのノートを表示
 tnotes create [file] # ファイルまたは標準入力からノートを作成
 tnotes export <file> # データ一式をzipにエクスポート
 tnotes import <file> # zipからデータをインポート
-tnotes help         # ヘ���プを表示
+tnotes help         # ヘルプを表示
 ```
 
 ### list

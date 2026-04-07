@@ -395,3 +395,14 @@ func createEmptyZip(t *testing.T, path string) {
 	zw := zip.NewWriter(f)
 	require.NoError(t, zw.Close())
 }
+
+func TestRun_Version_PrintsVersion(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "version"}, nil, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "tnotes version ")
+}

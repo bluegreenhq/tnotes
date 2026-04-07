@@ -1,8 +1,8 @@
-.PHONY: init init-ci init-demo build run dev lint test-unit test-e2e test demo-gif demo-mp4 demo clean
+.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow test-unit test-e2e test demo-gif demo-mp4 demo clean
 
 init:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	brew install watchexec
+	brew install watchexec actionlint
 	go mod download
 
 init-ci:
@@ -12,7 +12,7 @@ init-demo:
 	brew install charmbracelet/tap/vhs ttyd ffmpeg libfaketime
 
 build:
-	go build -o notes .
+	go build -o tnotes .
 
 run:
 	go run . $(ARGS)
@@ -25,6 +25,9 @@ lint:
 
 lint-fix:
 	golangci-lint run --fix ./...
+
+lint-workflow:
+	actionlint
 
 test-unit:
 	go test -v -run 'Test[^E]' ./...
@@ -43,4 +46,4 @@ demo-mp4:
 demo: demo-gif
 
 clean:
-	rm -f notes
+	rm -f tnotes
