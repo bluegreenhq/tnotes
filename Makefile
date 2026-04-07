@@ -9,7 +9,7 @@ init-ci:
 	go mod download
 
 init-demo:
-	brew install charmbracelet/tap/vhs ttyd ffmpeg
+	brew install charmbracelet/tap/vhs ttyd ffmpeg libfaketime
 
 build:
 	go build -o notes .
