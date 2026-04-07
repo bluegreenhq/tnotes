@@ -34,12 +34,6 @@ type Footer struct {
 // Hover はホバーターゲットを返す。
 func (f *Footer) Hover() HoverTarget { return f.hover }
 
-// SetHover はホバーターゲットを設定する。
-func (f *Footer) SetHover(h HoverTarget) { f.hover = h }
-
-// SetButtons はフッターに表示するボタンリストを設定する。
-func (f *Footer) SetButtons(buttons []FooterButton) { f.buttons = buttons }
-
 // FooterState はフッターのボタン構築に必要な状態。
 type FooterState struct {
 	TrashMode    bool
@@ -78,24 +72,4 @@ func (f *Footer) RebuildButtons(s FooterState) {
 	}
 
 	f.buttons = buttons
-}
-
-// HitTest はフッター行のX座標からホバーターゲットを判定する。
-func (f *Footer) HitTest(x int) HoverTarget {
-	cursor := 1 // 先頭スペース分
-
-	for i, btn := range f.buttons {
-		if i > 0 {
-			cursor += 2 // ボタン間スペース
-		}
-
-		end := cursor + len(btn.Label)
-		if !btn.Disabled && x >= cursor && x < end {
-			return btn.Target
-		}
-
-		cursor = end
-	}
-
-	return HoverNone
 }

@@ -5,14 +5,53 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/cockroachdb/errors"
 	"github.com/mattn/go-runewidth"
 
+	"github.com/bluegreenhq/tnotes/internal/note"
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
+
+// LoadNote はノートをエディタに読み込む。
+func (e *Editor) LoadNote(n note.Note) {
+	e.noteID = n.ID
+	e.original = n.Body
+	e.textarea.SetValue(n.Body)
+	e.ClearSelection()
+	e.UndoMgr.Clear()
+}
+
+// SetValue はテキストエリアの値を設定する。
+func (e *Editor) SetValue(s string) { e.textarea.SetValue(s) }
+
+// MarkClean は現在の値を基準値として記録する。
+func (e *Editor) MarkClean() { e.original = e.textarea.Value() }
+
+// Focus はエディタにフォーカスを当てる。
+func (e *Editor) Focus() tea.Cmd { return e.textarea.Focus() }
+
+// Blur はエディタのフォーカスを外す。
+func (e *Editor) Blur() { e.textarea.Blur() }
+
+// SetSize はサイズを更新する。
+func (e *Editor) SetSize(width, height int) {
+	e.width = width
+	e.height = height
+	e.textarea.SetWidth(width - editorPadding)
+	e.textarea.SetHeight(height)
+}
+
+// SetReadOnly は読み取り専用モードを設定する。
+func (e *Editor) SetReadOnly(v bool) { e.readOnly = v }
+
+// Clear はエディタをクリアする。
+func (e *Editor) Clear() {
+	e.noteID = ""
+	e.original = ""
+	e.textarea.SetValue("")
+	e.ClearSelection()
+}
 
 // --- Update ---
 
@@ -30,9 +69,7 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 	prevLine := e.textarea.Line()
 	prevCol := e.textarea.Column()
 
-	var cmd tea.Cmd
-
-	e.textarea, cmd = e.textarea.Update(msg)
+	cmd := e.textarea.Update(msg)
 
 	newText := e.textarea.Value()
 	if newText != prevText {
@@ -94,9 +131,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 
 	forceSnapshot := msg.Code == tea.KeyEnter || msg.Code == tea.KeyBackspace || msg.Code == tea.KeyDelete
 
-	var cmd tea.Cmd
-
-	e.textarea, cmd = e.textarea.Update(msg)
+	cmd := e.textarea.Update(msg)
 
 	newText := e.textarea.Value()
 	if newText != prevText {
@@ -113,10 +148,7 @@ func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	plainMsg := tea.KeyPressMsg{Code: msg.Code, Mod: 0}
-
-	var cmd tea.Cmd
-
-	e.textarea, cmd = e.textarea.Update(plainMsg)
+	cmd := e.textarea.Update(plainMsg)
 
 	newPos := SelectionAnchor{Line: e.textarea.Line(), Column: e.textarea.Column()}
 	e.selEnd = &newPos
@@ -125,11 +157,6 @@ func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 // --- 選択 ---
-
-// HasSelection は選択範囲があるかを返す。
-func (e *Editor) HasSelection() bool {
-	return e.selStart != nil && e.selEnd != nil && *e.selStart != *e.selEnd
-}
 
 // SetSelection は選択範囲を設定する。
 func (e *Editor) SetSelection(start, end SelectionAnchor) {
@@ -278,9 +305,6 @@ func (e *Editor) DeleteSelection() {
 	e.ClearSelection()
 }
 
-// Selecting はドラッグ中かを返す。
-func (e *Editor) Selecting() bool { return e.selecting }
-
 // StartDragSelection はドラッグ選択を開始する。
 func (e *Editor) StartDragSelection(x, y int) {
 	pos := e.positionFromMouse(x, y)
@@ -333,74 +357,6 @@ func (e *Editor) moveCursorTo(pos SelectionAnchor) {
 	}
 
 	e.textarea.SetCursorColumn(pos.Column)
-}
-
-func (e *Editor) applySelectionHighlight(raw string) string {
-	selectionStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("4")).
-		Foreground(lipgloss.Color("15"))
-
-	if !e.HasSelection() {
-		return raw
-	}
-
-	start, end := e.NormalizedSelection()
-	scrollOffset := e.textarea.ScrollYOffset()
-
-	contentLines := strings.Split(e.textarea.Value(), "\n")
-	viewLines := strings.Split(raw, "\n")
-
-	for i, line := range viewLines {
-		logicalLine := i + scrollOffset
-
-		if logicalLine < start.Line || logicalLine > end.Line {
-			continue
-		}
-
-		// Determine rune-based column range for this line
-		var runes []rune
-		if logicalLine < len(contentLines) {
-			runes = []rune(contentLines[logicalLine])
-		} else {
-			runes = []rune(ansi.Strip(line))
-		}
-
-		var colStart, colEnd int
-		if logicalLine == start.Line {
-			colStart = start.Column
-		} else {
-			colStart = 0
-		}
-
-		if logicalLine == end.Line {
-			colEnd = end.Column
-		} else {
-			colEnd = len(runes)
-		}
-
-		colStart = utils.ClampInt(colStart, 0, len(runes))
-		colEnd = utils.ClampInt(colEnd, 0, len(runes))
-
-		if colStart >= colEnd {
-			continue
-		}
-
-		// ルーンインデックスをセル幅位置に変換し、ビュー行からハイライト部分を切り出す
-		cellStart := runewidth.StringWidth(string(runes[:colStart]))
-		cellEnd := runewidth.StringWidth(string(runes[:colEnd]))
-		totalWidth := ansi.StringWidth(line)
-
-		before := ansi.Cut(line, 0, cellStart)
-		middle := ansi.Cut(line, cellStart, cellEnd)
-		after := ansi.Cut(line, cellEnd, totalWidth)
-
-		// NOTE: bubbletea のレンダラーが全角文字境界での SGR 変更を正しく
-		// 再描画しない既知の問題があり、ハイライト末尾が全角文字の場合に
-		// 右半分のセルが更新されないことがある。
-		viewLines[i] = before + selectionStyle.Render(ansi.Strip(middle)) + after
-	}
-
-	return strings.Join(viewLines, "\n")
 }
 
 // cellToRuneIndex はセル幅の位置をルーンインデックスに変換する。
@@ -489,6 +445,16 @@ func (e *Editor) saveSnapshotBefore(prevText string, prevLine, prevCol int, forc
 	} else {
 		e.UndoMgr.MaybeSave(snap, now)
 	}
+}
+
+// ScrollUp は表示を n 行上にスクロールする。カーソルは動かさない。
+func (e *Editor) ScrollUp(n int) {
+	e.textarea.ScrollUp(n)
+}
+
+// ScrollDown は表示を n 行下にスクロールする。カーソルは動かさない。
+func (e *Editor) ScrollDown(n int) {
+	e.textarea.ScrollDown(n)
 }
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {
