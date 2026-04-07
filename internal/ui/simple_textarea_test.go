@@ -427,6 +427,39 @@ func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
 	assert.Equal(t, 1, ta.LineCount())
 }
 
+func TestSimpleTextArea_InsertText_SingleLine(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+
+	ta.SetValue("ac")
+	ta.row = 0
+	ta.col = 1
+
+	ta.InsertText("b")
+	assert.Equal(t, "abc", ta.Value())
+	assert.Equal(t, 2, ta.Column())
+}
+
+func TestSimpleTextArea_InsertText_MultiLine(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+
+	ta.SetValue("ac")
+	ta.row = 0
+	ta.col = 1
+
+	ta.InsertText("1\n2\n3")
+	assert.Equal(t, "a1\n2\n3c", ta.Value())
+	assert.Equal(t, 2, ta.Line())
+	assert.Equal(t, 1, ta.Column())
+}
+
 func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 	t.Parallel()
 

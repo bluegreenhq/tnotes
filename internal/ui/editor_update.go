@@ -94,9 +94,40 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 		return *e, nil
 	}
 
-	// Ctrl+A: 全選択
+	// Ctrl+Shift+A: 全選択
 	if msg.Code == 'a' && msg.Mod == (tea.ModCtrl|tea.ModShift) {
 		e.SelectAll()
+
+		return *e, nil
+	}
+
+	// Ctrl+C: コピー
+	if msg.Code == 'c' && msg.Mod == tea.ModCtrl {
+		_ = e.CopySelection()
+
+		return *e, nil
+	}
+
+	// Ctrl+X: カット
+	if msg.Code == 'x' && msg.Mod == tea.ModCtrl {
+		if e.HasSelection() {
+			prevText := e.textarea.Value()
+			prevLine := e.textarea.Line()
+			prevCol := e.textarea.Column()
+			e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
+			_ = e.CutSelection()
+		}
+
+		return *e, nil
+	}
+
+	// Ctrl+V: ペースト
+	if msg.Code == 'v' && msg.Mod == tea.ModCtrl {
+		prevText := e.textarea.Value()
+		prevLine := e.textarea.Line()
+		prevCol := e.textarea.Column()
+		e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
+		_ = e.PasteFromClipboard()
 
 		return *e, nil
 	}
@@ -263,6 +294,27 @@ func (e *Editor) CutSelection() error {
 	}
 
 	e.DeleteSelection()
+
+	return nil
+}
+
+// PasteFromClipboard はクリップボードの内容をカーソル位置に挿入する。
+// 選択範囲がある場合は選択テキストを置換する。
+func (e *Editor) PasteFromClipboard() error {
+	text, err := clipboard.ReadAll()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if text == "" {
+		return nil
+	}
+
+	if e.HasSelection() {
+		e.DeleteSelection()
+	}
+
+	e.textarea.InsertText(text)
 
 	return nil
 }

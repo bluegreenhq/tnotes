@@ -39,6 +39,20 @@ func (t *simpleTextArea) SetCursorColumn(col int) {
 	t.col = col
 }
 
+// InsertText はカーソル位置にテキストを挿入する。改行を含むテキストにも対応する。
+func (t *simpleTextArea) InsertText(s string) {
+	lines := strings.Split(s, "\n")
+	for i, l := range lines {
+		if i > 0 {
+			t.insertNewline()
+		}
+
+		t.insertText(l)
+	}
+
+	t.ensureVisible()
+}
+
 // MoveToBegin はカーソルをテキスト先頭に移動する。
 func (t *simpleTextArea) MoveToBegin() {
 	t.row = 0

@@ -46,7 +46,7 @@ func main() {
 	}
 
 	m := ui.InitialModel(a)
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithoutSignalHandler())
 
 	_, err = p.Run()
 	if err != nil {
