@@ -26,8 +26,8 @@ jobs:
         with:
           path: |
             /var/cache/apt/archives/*.deb
-          key: apt-${{ runner.os }}-ffmpeg-ttyd
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg ttyd
+          key: apt-${{ runner.os }}-ffmpeg-ttyd-faketime
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg ttyd faketime
       - run: go mod download
       - uses: golangci/golangci-lint-action@v7
         with:
