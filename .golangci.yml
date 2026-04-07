@@ -1,0 +1,153 @@
+version: "2"
+
+linters:
+  default: all
+  disable:
+    - wsl          # deprecated, wsl_v5を使用
+    - gosmopolitan # 日本語文字列を誤検出するため
+  settings:
+    varnamelen:
+      max-distance: 50
+      ignore-names:
+        - ok
+        - err
+        - id
+        - fs
+        - fn
+        - tt
+        - fm
+        - ta
+        - tm
+        - ed
+        - b
+        - n
+        - s
+        - a
+        - r
+        - w
+        - t
+        - m
+        - p
+      ignore-decls:
+        - i int
+        - j int
+        - v int
+        - w int
+        - x int
+        - y int
+        - n note.Note
+        - n1 note.Note
+        - n2 note.Note
+        - s1 *store.FileStore
+        - s2 *store.FileStore
+    wrapcheck:
+      ignore-package-globs:
+        - github.com/bluegreenhq/tnotes/internal/*
+        - github.com/cockroachdb/errors
+    exhaustruct:
+      exclude:
+        - 'charm\.land/.*'
+        - 'github\.com/charmbracelet/.*'
+    tagliatelle:
+      case:
+        rules:
+          json: snake
+          yaml: snake
+    depguard:
+      rules:
+        note:
+          files:
+            - "**/internal/note/**"
+          deny:
+            - pkg: "github.com/bluegreenhq/tnotes/internal/store"
+              desc: "note パッケージは他の internal パッケージに依存できません"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/app"
+              desc: "note パッケージは他の internal パッケージに依存できません"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/ui"
+              desc: "note パッケージは他の internal パッケージに依存できません"
+        store:
+          files:
+            - "**/internal/store/**"
+          deny:
+            - pkg: "github.com/bluegreenhq/tnotes/internal/app"
+              desc: "store パッケージは note のみに依存できます"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/ui"
+              desc: "store パッケージは note のみに依存できます"
+        app:
+          files:
+            - "**/internal/app/**"
+          deny:
+            - pkg: "github.com/bluegreenhq/tnotes/internal/ui"
+              desc: "app パッケージは store, note のみに依存できます"
+        ui:
+          files:
+            - "**/internal/ui/**"
+          deny:
+            - pkg: "github.com/bluegreenhq/tnotes/internal/store"
+              desc: "ui パッケージは app, note のみに依存できます（store は app 経由で利用）"
+    revive:
+      rules:
+        - name: package-comments
+          disabled: true
+        - name: exported
+          disabled: true
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupword
+        path: "_test\\.go"
+      - linters:
+          - mnd
+        path: "_test\\.go"
+      - linters:
+          - gosec
+        text: "G304"
+      - linters:
+          - varnamelen
+        path: "_test\\.go"
+      - linters:
+          - cyclop
+        path: "_test\\.go"
+      - linters:
+          - exhaustruct
+        path: "_test\\.go"
+      - linters:
+          - paralleltest
+        path: "xdg_test\\.go"
+      - linters:
+          - lll
+        path: "_test\\.go"
+      - linters:
+          - lll
+        source: "nolint:"
+      - linters:
+          - gochecknoglobals
+        path: "(footer|sidebar_item|sidebar|editor)(_view)?\\.go"
+      - linters:
+          - ireturn
+        text: "bubbletea"
+      - linters:
+          - funlen
+        path: "model\\.go"
+        text: "handleClick"
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - localmodule
+      custom-order: true
+  exclusions:
+    generated: lax
