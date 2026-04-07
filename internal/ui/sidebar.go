@@ -35,17 +35,6 @@ func NewSidebar(notes []note.Note, width, height int) Sidebar {
 	}
 }
 
-// Reset はサイドバーの状態をリセットし、先頭を選択する。
-func (s *Sidebar) Reset(title string, sectioned bool, notes []note.Note, now time.Time) {
-	s.SetTitle(title)
-	s.SetSectioned(sectioned)
-	s.SetNotes(notes, now)
-
-	if len(notes) > 0 {
-		s.SelectIndex(0, now)
-	}
-}
-
 // SetNotes はノート一覧を更新する。
 func (s *Sidebar) SetNotes(notes []note.Note, now time.Time) {
 	s.notes = notes
@@ -56,23 +45,8 @@ func (s *Sidebar) SetNotes(notes []note.Note, now time.Time) {
 	s.clampOffset(now)
 }
 
-// SetSize はサイズを更新する。
-func (s *Sidebar) SetSize(width, height int, now time.Time) {
-	s.width = width
-	s.height = height
-	s.clampOffset(now)
-}
-
 // SelectedIndex は選択中のインデックスを返す。
 func (s *Sidebar) SelectedIndex() int { return s.selected }
-
-// SelectIndex はインデックスを指定して選択する。
-func (s *Sidebar) SelectIndex(idx int, now time.Time) {
-	if idx >= 0 && idx < len(s.notes) {
-		s.selected = idx
-		s.clampOffset(now)
-	}
-}
 
 // SelectedNote は選択中のノートを返す。
 func (s *Sidebar) SelectedNote() (note.Note, bool) {
@@ -81,79 +55,6 @@ func (s *Sidebar) SelectedNote() (note.Note, bool) {
 	}
 
 	return s.notes[s.selected], true
-}
-
-// MoveUp は選択を1つ上に移動する。
-func (s *Sidebar) MoveUp(now time.Time) {
-	if s.selected > 0 {
-		s.selected--
-		s.clampOffset(now)
-	}
-}
-
-// MoveDown は選択を1つ下に移動する。
-func (s *Sidebar) MoveDown(now time.Time) {
-	if s.selected < len(s.notes)-1 {
-		s.selected++
-		s.clampOffset(now)
-	}
-}
-
-// ScrollUp は表示オフセットを n 行上にスクロールする。選択は変更しない。
-func (s *Sidebar) ScrollUp(n int, now time.Time) {
-	s.offset = max(s.offset-n, 0)
-	s.clampScrollOffset(now)
-}
-
-// ScrollDown は表示オフセットを n 行下にスクロールする。選択は変更しない。
-func (s *Sidebar) ScrollDown(n int, now time.Time) {
-	s.offset += n
-	s.clampScrollOffset(now)
-}
-
-// SetTitle はサイドバーのヘッダータイトルを設定する。
-func (s *Sidebar) SetTitle(t string) { s.title = t }
-
-// SetSectioned はセクション分け表示を切り替える。
-func (s *Sidebar) SetSectioned(v bool) { s.sectioned = v }
-
-// HitTest は座標からクリックされたノートのインデックスを返す。該当なしは -1。
-func (s *Sidebar) HitTest(x, y int, now time.Time) int {
-	if x < 0 || x >= s.width {
-		return -1
-	}
-
-	contentY := y - sidebarHeaderLines
-	if contentY < 0 {
-		return -1
-	}
-
-	rows := s.buildRows(now)
-
-	currentLine := 0
-
-	for i := s.offset; i < len(rows); i++ {
-		row := rows[i]
-
-		var rowHeight int
-		if row.isHeader {
-			rowHeight = sectionHeaderHeight
-		} else {
-			rowHeight = itemHeight
-		}
-
-		if contentY >= currentLine && contentY < currentLine+rowHeight {
-			if row.isHeader {
-				return -1
-			}
-
-			return row.noteIndex
-		}
-
-		currentLine += rowHeight
-	}
-
-	return -1
 }
 
 func (s *Sidebar) visibleLines() int {
@@ -228,31 +129,6 @@ func (s *Sidebar) buildFlatRows() []sidebarRow {
 	}
 
 	return rows
-}
-
-func (s *Sidebar) clampScrollOffset(now time.Time) {
-	rows := s.buildRows(now)
-	if len(rows) == 0 {
-		s.offset = 0
-
-		return
-	}
-
-	vis := s.visibleLines()
-
-	// 末尾が見える最大オフセットを求める
-	maxOffset := len(rows)
-	for maxOffset > 0 && rowsHeightSum(rows, maxOffset-1, len(rows)) <= vis {
-		maxOffset--
-	}
-
-	if s.offset > maxOffset {
-		s.offset = maxOffset
-	}
-
-	if s.offset < 0 {
-		s.offset = 0
-	}
 }
 
 func (s *Sidebar) clampOffset(now time.Time) {
