@@ -273,6 +273,160 @@ func TestSimpleTextArea_SetCursorColumn(t *testing.T) {
 	assert.Equal(t, 0, ta.Column(), "should clamp to 0")
 }
 
+func TestSimpleTextArea_CtrlA_MoveToLineStart(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("Hello")
+	ta.row = 0
+	ta.col = 3
+
+	ta.Update(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
+	assert.Equal(t, 0, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlE_MoveToLineEnd(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("Hello")
+	ta.row = 0
+	ta.col = 0
+
+	ta.Update(tea.KeyPressMsg{Code: 'e', Mod: tea.ModCtrl})
+	assert.Equal(t, 5, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlFB_CursorLeftRight(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("ab\ncd")
+	ta.row = 0
+	ta.col = 1
+
+	// Ctrl+F: 右移動
+	ta.Update(tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
+	assert.Equal(t, 2, ta.Column())
+
+	// Ctrl+F: 行末→次の行の先頭
+	ta.Update(tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
+	assert.Equal(t, 1, ta.Line())
+	assert.Equal(t, 0, ta.Column())
+
+	// Ctrl+B: 左移動→前の行の末尾
+	ta.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	assert.Equal(t, 0, ta.Line())
+	assert.Equal(t, 2, ta.Column())
+
+	// Ctrl+B: 左移動
+	ta.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	assert.Equal(t, 1, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlNP_CursorUpDown(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("ab\ncd\nef")
+	ta.row = 0
+	ta.col = 1
+
+	// Ctrl+N: 下移動
+	ta.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
+	assert.Equal(t, 1, ta.Line())
+	assert.Equal(t, 1, ta.Column())
+
+	// Ctrl+P: 上移動
+	ta.Update(tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl})
+	assert.Equal(t, 0, ta.Line())
+	assert.Equal(t, 1, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlD_Delete(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("abc")
+	ta.row = 0
+	ta.col = 1
+
+	ta.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	assert.Equal(t, "ac", ta.Value())
+	assert.Equal(t, 1, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlD_DeleteAtLineEnd(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("ab\ncd")
+	ta.row = 0
+	ta.col = 2
+
+	ta.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	assert.Equal(t, "abcd", ta.Value())
+}
+
+func TestSimpleTextArea_CtrlK_KillLine(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("HelloWorld")
+	ta.row = 0
+	ta.col = 5
+
+	ta.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	assert.Equal(t, "Hello", ta.Value())
+	assert.Equal(t, 5, ta.Column())
+}
+
+func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("Hello\nWorld")
+	ta.row = 0
+	ta.col = 5
+
+	// 行末でCtrl+K → 次の行と結合
+	ta.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
+	assert.Equal(t, "HelloWorld", ta.Value())
+	assert.Equal(t, 1, ta.LineCount())
+}
+
 func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 	t.Parallel()
 

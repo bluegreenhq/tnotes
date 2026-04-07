@@ -95,7 +95,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 	}
 
 	// Ctrl+A: 全選択
-	if msg.Code == 'a' && msg.Mod == tea.ModCtrl {
+	if msg.Code == 'a' && msg.Mod == (tea.ModCtrl|tea.ModShift) {
 		e.SelectAll()
 
 		return *e, nil

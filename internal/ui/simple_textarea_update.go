@@ -103,6 +103,22 @@ func (t *simpleTextArea) clampCol() {
 
 func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop // キーバインド分岐
 	switch {
+	case msg.Code == 'a' && msg.Mod == tea.ModCtrl:
+		t.col = 0
+	case msg.Code == 'e' && msg.Mod == tea.ModCtrl:
+		t.col = len(t.lines[t.row])
+	case msg.Code == 'f' && msg.Mod == tea.ModCtrl:
+		t.cursorRight()
+	case msg.Code == 'b' && msg.Mod == tea.ModCtrl:
+		t.cursorLeft()
+	case msg.Code == 'n' && msg.Mod == tea.ModCtrl:
+		t.CursorDown()
+	case msg.Code == 'p' && msg.Mod == tea.ModCtrl:
+		t.CursorUp()
+	case msg.Code == 'd' && msg.Mod == tea.ModCtrl:
+		t.delete()
+	case msg.Code == 'k' && msg.Mod == tea.ModCtrl:
+		t.killLine()
 	case msg.Text != "" && msg.Mod == 0:
 		t.insertText(msg.Text)
 	case msg.Code == tea.KeyEnter:
@@ -176,6 +192,16 @@ func (t *simpleTextArea) delete() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
 		t.lines[t.row] = append(line[:t.col], line[t.col+1:]...)
+	} else if t.row < len(t.lines)-1 {
+		t.lines[t.row] = append(t.lines[t.row], t.lines[t.row+1]...)
+		t.lines = append(t.lines[:t.row+1], t.lines[t.row+2:]...)
+	}
+}
+
+func (t *simpleTextArea) killLine() {
+	line := t.lines[t.row]
+	if t.col < len(line) {
+		t.lines[t.row] = line[:t.col]
 	} else if t.row < len(t.lines)-1 {
 		t.lines[t.row] = append(t.lines[t.row], t.lines[t.row+1]...)
 		t.lines = append(t.lines[:t.row+1], t.lines[t.row+2:]...)
