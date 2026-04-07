@@ -1,8 +1,8 @@
-.PHONY: init init-ci init-demo build run dev lint test-unit test-e2e test demo-gif demo-mp4 demo clean
+.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow test-unit test-e2e test demo-gif demo-mp4 demo clean
 
 init:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	brew install watchexec
+	brew install watchexec actionlint
 	go mod download
 
 init-ci:
@@ -25,6 +25,9 @@ lint:
 
 lint-fix:
 	golangci-lint run --fix ./...
+
+lint-workflow:
+	actionlint
 
 test-unit:
 	go test -v -run 'Test[^E]' ./...
