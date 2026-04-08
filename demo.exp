@@ -1,0 +1,122 @@
+#!/usr/bin/expect -f
+
+# asciinemaのPTYでonlcr（\n→\r\n変換）を無効化
+# bubbletea自身が\r\nを出力するため、二重変換を防ぐ
+exec stty -opost
+
+# spawnされるPTYのサイズを設定
+set stty_init "rows $env(DEMO_ROWS) columns $env(DEMO_COLS)"
+set timeout 10
+log_user 1
+
+# 出力をドレインしながら待機するプロシージャ
+# expectのsleepはspawnの出力を読み取らないため、
+# expect コマンドで定期的にドレインする必要がある
+proc wait {seconds} {
+    set ms [expr {int($seconds * 1000)}]
+    set end [expr {[clock milliseconds] + $ms}]
+    while {[clock milliseconds] < $end} {
+        if {[catch {expect -timeout 0 -re ".+" {} default {}}]} return
+        after 50
+    }
+}
+
+# クリップボードにテスト用テキストを設定
+system "printf 'クリップボードテスト' | pbcopy"
+
+log_user 0
+spawn env NOTES_DATA_DIR=/tmp/tnotes-demo /tmp/tnotes-demo-bin
+log_user 1
+wait 2
+
+# ノート作成（日本語入力）
+send "n"
+wait 1
+send "日本語メモ"
+send "\r"
+send "これはテスト用のメモです。"
+send "\r"
+send "範囲選択のデモを行います。"
+wait 2
+
+# Ctrl+A で行頭に移動
+send "\x01"
+wait 1
+
+# Ctrl+E で行末に移動
+send "\x05"
+wait 1
+
+# Ctrl+P で上に移動
+send "\x10"
+wait 1
+
+# Ctrl+F で右に移動
+send "\x06"
+send "\x06"
+send "\x06"
+wait 1
+
+# Ctrl+B で左に移動
+send "\x02"
+wait 1
+
+# Ctrl+K で行末まで削除
+send "\x0b"
+wait 1
+
+# Ctrl+Z で取り消し
+send "\x1a"
+wait 1
+
+# Ctrl+N で下に移動
+send "\x0e"
+wait 0.5
+# Ctrl+E で行末に移動
+send "\x05"
+wait 0.5
+
+# Ctrl+V でペースト
+send "\x16"
+wait 2
+
+# Ctrl+D で文字削除
+send "\x01"
+send "\x04"
+send "\x04"
+send "\x04"
+wait 2
+
+# Shift+Left で範囲選択（Kittyプロトコル）
+# CSI 1;2 D = Shift+Left
+send "\x1b\[1;2D"
+send "\x1b\[1;2D"
+send "\x1b\[1;2D"
+wait 1
+
+# Ctrl+C でコピー
+send "\x03"
+wait 1
+
+# Ctrl+Shift+A で全選択（Kittyプロトコル）
+# CSI 97;6u = Ctrl+Shift+a (97='a', 6=Ctrl+Shift)
+send "\x1b\[97;6u"
+wait 1
+
+# Ctrl+X でカット
+send "\x18"
+wait 1
+
+# Ctrl+Z で取り消し
+send "\x1a"
+wait 1
+
+# サイドバーに戻る
+send "\x1b"
+wait 1
+
+# 終了
+send "q"
+wait 1
+
+catch {expect eof}

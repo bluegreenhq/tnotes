@@ -18,8 +18,3 @@
   - 自コンポーネントの `_update` 内でしか使わない private メソッド → `_update`
 - **複数の系統から呼ばれる場合は `xxx.go`**: `_update` と `_view` の両方、または初期化処理からも呼ばれるものは本体に置く
 - **getter は `xxx.go`**: 状態を返すだけのメソッドは本体に置く
-
-## VHS (demo.tape)
-
-- VHS v0.11.0 時点で `Shift+Left` / `Shift+Right` / `Shift+Up` / `Shift+Down` などShift+ナビゲーションキーはパーサーが未対応（[charmbracelet/vhs#641](https://github.com/charmbracelet/vhs/issues/641)）
-- `Ctrl+Shift+A` のような構文はパースは通るが、VHSの内部ターミナル（ttyd）がKittyキーボードプロトコル非対応のため、Shift修飾が失われ`Ctrl+A`と同じバイトが送信される。bubbletea v2のCtrl+Shift+キーバインドはVHSデモで再現不可（[charmbracelet/vhs#728](https://github.com/charmbracelet/vhs/issues/728)）

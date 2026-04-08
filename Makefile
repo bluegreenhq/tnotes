@@ -1,4 +1,4 @@
-.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow lint-release test-unit test-e2e test demo-gif demo-mp4 demo release clean
+.PHONY: init init-ci init-demo build run dev lint lint-fix lint-workflow lint-release test-unit test-e2e test demo-gif demo release clean
 
 init:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
@@ -9,7 +9,7 @@ init-ci:
 	go mod download
 
 init-demo:
-	brew install charmbracelet/tap/vhs ttyd ffmpeg libfaketime
+	brew install asciinema agg
 
 build:
 	go build -o tnotes .
@@ -41,10 +41,7 @@ test-e2e:
 test: lint test-unit test-e2e
 
 demo-gif:
-	vhs -o demo.gif demo.tape
-
-demo-mp4:
-	vhs -o demo.mp4 demo.tape
+	bash demo.sh
 
 demo: demo-gif
 

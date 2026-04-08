@@ -80,55 +80,7 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 }
 
 func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐
-	// Ctrl+Z: Undo
-	if msg.Code == 'z' && msg.Mod == tea.ModCtrl {
-		e.Undo()
-
-		return *e, nil
-	}
-
-	// Ctrl+Shift+Z: Redo
-	if msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift) {
-		e.Redo()
-
-		return *e, nil
-	}
-
-	// Ctrl+Shift+A: 全選択
-	if msg.Code == 'a' && msg.Mod == (tea.ModCtrl|tea.ModShift) {
-		e.SelectAll()
-
-		return *e, nil
-	}
-
-	// Ctrl+C: コピー
-	if msg.Code == 'c' && msg.Mod == tea.ModCtrl {
-		_ = e.CopySelection()
-
-		return *e, nil
-	}
-
-	// Ctrl+X: カット
-	if msg.Code == 'x' && msg.Mod == tea.ModCtrl {
-		if e.HasSelection() {
-			prevText := e.textarea.Value()
-			prevLine := e.textarea.Line()
-			prevCol := e.textarea.Column()
-			e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
-			_ = e.CutSelection()
-		}
-
-		return *e, nil
-	}
-
-	// Ctrl+V: ペースト
-	if msg.Code == 'v' && msg.Mod == tea.ModCtrl {
-		prevText := e.textarea.Value()
-		prevLine := e.textarea.Line()
-		prevCol := e.textarea.Column()
-		e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
-		_ = e.PasteFromClipboard()
-
+	if e.handleCtrlKey(msg, now) {
 		return *e, nil
 	}
 
@@ -170,6 +122,37 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 	}
 
 	return *e, cmd
+}
+
+func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) bool { //nolint:cyclop // キーバインド分岐
+	switch {
+	case msg.Code == 'z' && msg.Mod == tea.ModCtrl:
+		e.Undo()
+	case msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift):
+		e.Redo()
+	case msg.Code == 'a' && msg.Mod == (tea.ModCtrl|tea.ModShift):
+		e.SelectAll()
+	case msg.Code == 'c' && msg.Mod == tea.ModCtrl:
+		_ = e.CopySelection()
+	case msg.Code == 'x' && msg.Mod == tea.ModCtrl:
+		if e.HasSelection() {
+			prevText := e.textarea.Value()
+			prevLine := e.textarea.Line()
+			prevCol := e.textarea.Column()
+			e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
+			_ = e.CutSelection()
+		}
+	case msg.Code == 'v' && msg.Mod == tea.ModCtrl:
+		prevText := e.textarea.Value()
+		prevLine := e.textarea.Line()
+		prevCol := e.textarea.Column()
+		e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
+		_ = e.PasteFromClipboard()
+	default:
+		return false
+	}
+
+	return true
 }
 
 func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
