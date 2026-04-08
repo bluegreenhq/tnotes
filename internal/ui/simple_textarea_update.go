@@ -37,6 +37,7 @@ func (t *simpleTextArea) SetCursorColumn(col int) {
 	}
 
 	t.col = col
+	t.ensureVisible()
 }
 
 // InsertText はカーソル位置にテキストを挿入する。改行を含むテキストにも対応する。
@@ -154,6 +155,8 @@ func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclo
 	case msg.Code == tea.KeyEnd:
 		t.col = len(t.lines[t.row])
 	}
+
+	t.ensureVisible()
 
 	return nil
 }

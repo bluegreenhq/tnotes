@@ -43,7 +43,9 @@ func (e *Editor) View() string {
 // applyCursor はカーソル位置の文字を反転表示する。
 func (e *Editor) applyCursor(raw string) string {
 	cursorViewRow := e.textarea.Line() - e.textarea.ScrollYOffset()
-	cursorCol := e.textarea.Column()
+	logicalLine := e.textarea.Line()
+	scrollXRuneOff := cellToRuneIndex(e.textarea.lines[logicalLine], e.textarea.scrollX)
+	cursorCol := e.textarea.Column() - scrollXRuneOff
 
 	viewLines := strings.Split(raw, "\n")
 	if cursorViewRow < 0 || cursorViewRow >= len(viewLines) {
@@ -52,6 +54,10 @@ func (e *Editor) applyCursor(raw string) string {
 
 	line := viewLines[cursorViewRow]
 	runes := []rune(line)
+
+	if cursorCol < 0 || cursorCol > len(runes) {
+		return raw
+	}
 
 	if cursorCol < len(runes) {
 		before := string(runes[:cursorCol])
@@ -88,13 +94,18 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 
 		runes := []rune(line)
 
+		scrollXRuneOff := 0
+		if logicalLine >= 0 && logicalLine < len(e.textarea.lines) {
+			scrollXRuneOff = cellToRuneIndex(e.textarea.lines[logicalLine], e.textarea.scrollX)
+		}
+
 		var colStart, colEnd int
 		if logicalLine == start.Line {
-			colStart = start.Column
+			colStart = start.Column - scrollXRuneOff
 		}
 
 		if logicalLine == end.Line {
-			colEnd = end.Column
+			colEnd = end.Column - scrollXRuneOff
 		} else {
 			colEnd = len(runes)
 		}

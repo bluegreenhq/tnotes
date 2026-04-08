@@ -35,16 +35,19 @@ func (t *simpleTextArea) truncateLine(line []rune) string {
 		return string(line)
 	}
 
+	startRune := cellToRuneIndex(line, t.scrollX)
+	remaining := line[startRune:]
+
 	cellWidth := 0
 
-	for i, r := range line {
+	for i, r := range remaining {
 		rw := runewidth.RuneWidth(r)
 		if cellWidth+rw > t.width {
-			return string(line[:i])
+			return string(remaining[:i])
 		}
 
 		cellWidth += rw
 	}
 
-	return string(line)
+	return string(remaining)
 }

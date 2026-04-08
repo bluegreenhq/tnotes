@@ -475,3 +475,94 @@ func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 	assert.Equal(t, 0, ta.Line())
 	assert.Equal(t, 2, ta.Column(), "col should be clamped to shorter line")
 }
+
+func TestSimpleTextArea_HorizontalScroll(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(5)
+	ta.SetHeight(3)
+	ta.Focus()
+
+	ta.SetValue("abcdefghij")
+	// SetValue moves cursor to end (col=10), ensureVisible adjusts scrollX
+	assert.Equal(t, 10, ta.Column())
+	assert.Positive(t, ta.ScrollXOffset(), "scrollX should follow cursor past right edge")
+
+	// Home key should reset scrollX
+	ta.Update(tea.KeyPressMsg{Code: tea.KeyHome})
+	assert.Equal(t, 0, ta.Column())
+	assert.Equal(t, 0, ta.ScrollXOffset(), "Home should reset scrollX to 0")
+
+	// Move cursor right past visible area
+	for range 7 {
+		ta.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	}
+
+	assert.Equal(t, 7, ta.Column())
+	assert.Positive(t, ta.ScrollXOffset(), "scrollX should adjust when cursor moves right")
+
+	// View should show characters from scrollX offset
+	view := ta.View()
+	// scrollX=3 (7-5+1), so view starts at 'd'
+	assert.Contains(t, view, "h", "view should contain character at cursor")
+}
+
+func TestSimpleTextArea_HorizontalScrollLeftMovement(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(5)
+	ta.SetHeight(3)
+	ta.Focus()
+
+	ta.SetValue("abcdefghij")
+	// cursor at end, scrollX adjusted
+	prevScrollX := ta.ScrollXOffset()
+
+	// Move left back to beginning
+	for range 10 {
+		ta.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	}
+
+	assert.Equal(t, 0, ta.Column())
+	assert.Equal(t, 0, ta.ScrollXOffset(), "scrollX should follow cursor left")
+	assert.Positive(t, prevScrollX, "scrollX should have been non-zero before moving left")
+}
+
+func TestSimpleTextArea_HorizontalScrollWithInsert(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(5)
+	ta.SetHeight(3)
+	ta.Focus()
+
+	ta.SetValue("")
+	ta.row = 0
+	ta.col = 0
+
+	// Type characters beyond width
+	for _, ch := range "abcdefgh" {
+		ta.Update(tea.KeyPressMsg{Text: string(ch)})
+	}
+
+	assert.Equal(t, 8, ta.Column())
+	assert.Positive(t, ta.ScrollXOffset(), "scrollX should adjust during typing")
+}
+
+func TestSimpleTextArea_SetCursorColumnUpdatesScrollX(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea()
+	ta.SetWidth(5)
+	ta.SetHeight(3)
+
+	ta.SetValue("abcdefghij")
+	ta.row = 0
+	ta.SetCursorColumn(0)
+	assert.Equal(t, 0, ta.ScrollXOffset(), "scrollX should be 0 when cursor is at start")
+
+	ta.SetCursorColumn(8)
+	assert.Positive(t, ta.ScrollXOffset(), "scrollX should adjust when SetCursorColumn moves past visible area")
+}
