@@ -8,81 +8,37 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
 
+// --- イベントハンドラ ---
+
 // Update はメッセージに応じて状態を更新する。
-func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funlen // bubbletea Update
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // type switch dispatch
 	now := time.Now()
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		editorWidth := msg.Width - sidebarWidthPx
-		m.Sidebar.SetSize(sidebarWidthPx, msg.Height-1, now)
-		m.Editor.SetSize(editorWidth, msg.Height-1)
-
-		return m, nil
-
+		return m, m.handleResize(msg, now)
 	case tea.KeyPressMsg:
 		return m, m.handleKey(msg, now)
-
 	case tea.MouseClickMsg:
 		return m, m.handleClick(msg, now)
-
 	case tea.MouseMotionMsg:
-		mouse := msg.Mouse()
-		// ドラッグ中の選択範囲更新
-		if m.Focus == FocusEditor && m.Editor.Selecting() {
-			edX := mouse.X - sidebarWidthPx
-			m.Editor.UpdateDragSelection(edX, mouse.Y)
-
-			return m, nil
-		}
-
-		m.handleMouseMotion(msg)
-
-		return m, nil
-
+		return m, m.handleDrag(msg, now)
 	case tea.MouseReleaseMsg:
-		if m.Editor.Selecting() {
-			m.Editor.StopDragSelection()
-		}
-
-		return m, nil
-
+		return m, m.handleRelease()
 	case tea.MouseWheelMsg:
-		m.handleWheel(msg, now)
-
-		return m, nil
-
+		return m, m.handleWheel(msg, now)
 	case tea.MouseMsg:
-		m.handleMouseMotion(msg)
-
-		return m, nil
-
+		return m, m.handleHover(msg)
 	case SidebarMsg:
 		return m, m.handleSidebarMsg(msg, now)
-
 	case FooterMsg:
 		return m, m.handleFooterMsg(msg, now)
-
 	case clearInfoMsg:
-		if msg.id == m.infoMsgID {
-			m.infoMsg = ""
-		}
-
-		return m, nil
+		return m, m.handleClearInfo(msg)
+	default:
+		return m, m.handleDefault(msg, now)
 	}
-
-	if m.Focus == FocusEditor {
-		_, cmd := m.Editor.Update(msg, now)
-
-		return m, cmd
-	}
-
-	return m, nil
 }
-
-// --- キー入力 ---
 
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // キーバインド分岐
 	m.errMsg = ""
@@ -121,7 +77,34 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	return nil
 }
 
-// --- マウス入力 ---
+func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+	m.width = msg.Width
+	m.height = msg.Height
+	m.sidebarWidth = max(m.sidebarWidth, minSidebarWidth)
+	m.sidebarWidth = min(m.sidebarWidth, m.maxSidebarWidth())
+	m.Sidebar.SetSize(m.sidebarWidth, msg.Height-1, now)
+	m.Editor.SetSize(msg.Width-m.sidebarWidth, msg.Height-1)
+
+	return nil
+}
+
+func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd { //nolint:unparam // Update dispatch
+	if msg.id == m.infoMsgID {
+		m.infoMsg = ""
+	}
+
+	return nil
+}
+
+func (m *Model) handleDefault(msg tea.Msg, now time.Time) tea.Cmd {
+	if m.Focus == FocusEditor {
+		_, cmd := m.Editor.Update(msg, now)
+
+		return cmd
+	}
+
+	return nil
+}
 
 func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
@@ -135,7 +118,11 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	switch {
 	case msg.Y == footerY:
 		return m.handleFooterClick(msg.X, now)
-	case msg.X < sidebarWidthPx:
+	case m.isOnSeparator(msg.X):
+		m.resizing = true
+
+		return nil
+	case msg.X < m.sidebarWidth:
 		return m.handleSidebarClick(msg, now)
 	default:
 		return m.handleEditorClick(msg)
@@ -186,18 +173,18 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	cmd := m.Editor.Focus()
 	m.Editor.ClearSelection()
 
-	edX := msg.X - sidebarWidthPx
+	edX := msg.X - m.sidebarWidth
 	m.Editor.StartDragSelection(edX, msg.Y)
 
 	return cmd
 }
 
-func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) {
+func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
 	mouse := msg.Mouse()
 
 	const scrollLines = 1
 
-	if mouse.X < sidebarWidthPx {
+	if mouse.X < m.sidebarWidth {
 		switch mouse.Button {
 		case tea.MouseWheelUp:
 			m.Sidebar.ScrollUp(scrollLines, now)
@@ -205,7 +192,7 @@ func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) {
 			m.Sidebar.ScrollDown(scrollLines, now)
 		}
 
-		return
+		return nil
 	}
 
 	switch mouse.Button {
@@ -214,11 +201,64 @@ func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) {
 	case tea.MouseWheelDown:
 		m.Editor.ScrollDown(scrollLines)
 	}
+
+	return nil
 }
 
-func (m *Model) handleMouseMotion(msg tea.MouseMsg) {
+func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
 	mouse := msg.Mouse()
 
+	m.hoverSeparator = m.resizing || m.isOnSeparator(mouse.X)
+
+	if m.resizing {
+		newWidth := max(mouse.X, minSidebarWidth)
+		newWidth = min(newWidth, m.maxSidebarWidth())
+		m.sidebarWidth = newWidth
+		m.Sidebar.SetSize(m.sidebarWidth, m.height-1, now)
+		m.Editor.SetSize(m.width-m.sidebarWidth, m.height-1)
+
+		return nil
+	}
+
+	if m.Focus == FocusEditor && m.Editor.Selecting() {
+		edX := mouse.X - m.sidebarWidth
+		m.Editor.UpdateDragSelection(edX, mouse.Y)
+
+		return nil
+	}
+
+	m.updateFooterHover(mouse)
+
+	return nil
+}
+
+func (m *Model) handleRelease() tea.Cmd { //nolint:unparam // Update dispatch
+	if m.resizing {
+		m.resizing = false
+
+		return nil
+	}
+
+	if m.Editor.Selecting() {
+		m.Editor.StopDragSelection()
+	}
+
+	return nil
+}
+
+func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd { //nolint:unparam // Update dispatch
+	mouse := msg.Mouse()
+	m.hoverSeparator = m.isOnSeparator(mouse.X)
+	m.updateFooterHover(mouse)
+
+	return nil
+}
+
+func (m *Model) isOnSeparator(x int) bool {
+	return x >= m.sidebarWidth-1 && x <= m.sidebarWidth
+}
+
+func (m *Model) updateFooterHover(mouse tea.Mouse) {
 	footerY := m.height - 1
 	if mouse.Y == footerY {
 		m.rebuildFooterButtons()

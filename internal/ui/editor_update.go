@@ -53,7 +53,7 @@ func (e *Editor) Clear() {
 	e.ClearSelection()
 }
 
-// --- Update ---
+// --- イベントハンドラ ---
 
 // Update はメッセージに応じて状態を更新する。
 func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {

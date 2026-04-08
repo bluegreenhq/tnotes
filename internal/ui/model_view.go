@@ -23,7 +23,8 @@ func (m *Model) renderView(now time.Time) string {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.Sidebar.View(m.Focus == FocusSidebar, now), m.Editor.View())
+	sidebarView := m.Sidebar.View(m.Focus == FocusSidebar, m.hoverSeparator || m.resizing, now)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebarView, m.Editor.View())
 
 	m.rebuildFooterButtons()
 	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.width)

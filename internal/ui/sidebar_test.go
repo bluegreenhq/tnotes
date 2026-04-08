@@ -108,7 +108,7 @@ func TestSidebarViewWithSections(t *testing.T) {
 	}
 	sb := ui.NewSidebar(notes, 30, 40)
 
-	view := sb.View(true, fixedNow)
+	view := sb.View(true, false, fixedNow)
 	assert.Contains(t, view, "Today")
 	assert.Contains(t, view, "Yesterday")
 	assert.Contains(t, view, "Today note")
@@ -180,7 +180,7 @@ func TestSidebarTrashModeNoSections(t *testing.T) {
 	sb.SetTitle("Trash")
 	sb.SetSectioned(false)
 
-	view := sb.View(true, fixedNow)
+	view := sb.View(true, false, fixedNow)
 	assert.Contains(t, view, "Trash")
 	assert.NotContains(t, view, "Today")
 }

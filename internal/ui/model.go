@@ -20,7 +20,10 @@ const (
 
 const (
 	minWidth        = 80
-	sidebarWidthPx  = 32
+	defaultSidebarW = 32
+	minSidebarWidth = 20
+	maxSidebarPct   = 80
+	percentDivisor  = 100
 	defaultHeight   = 24
 	infoMsgDuration = 3 * time.Second
 )
@@ -32,16 +35,19 @@ type clearInfoMsg struct {
 
 // Model はUIの状態を表す。
 type Model struct {
-	App       *app.App
-	Sidebar   Sidebar
-	Editor    Editor
-	Footer    Footer
-	Focus     FocusArea
-	width     int
-	height    int
-	errMsg    string
-	infoMsg   string
-	infoMsgID int
+	App            *app.App
+	Sidebar        Sidebar
+	Editor         Editor
+	Footer         Footer
+	Focus          FocusArea
+	sidebarWidth   int
+	width          int
+	height         int
+	resizing       bool
+	hoverSeparator bool
+	errMsg         string
+	infoMsg        string
+	infoMsgID      int
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -49,16 +55,19 @@ var _ tea.Model = (*Model)(nil)
 // InitialModel は初期状態の Model を生成する。
 func InitialModel(a *app.App) *Model {
 	m := &Model{
-		App:       a,
-		Sidebar:   NewSidebar(a.Notes, sidebarWidthPx, defaultHeight),
-		Editor:    NewEditor(minWidth-sidebarWidthPx, defaultHeight),
-		Footer:    Footer{hover: HoverNone, buttons: nil},
-		Focus:     FocusSidebar,
-		width:     0,
-		height:    0,
-		errMsg:    "",
-		infoMsg:   "",
-		infoMsgID: 0,
+		App:            a,
+		Sidebar:        NewSidebar(a.Notes, defaultSidebarW, defaultHeight),
+		Editor:         NewEditor(minWidth-defaultSidebarW, defaultHeight),
+		Footer:         Footer{hover: HoverNone, buttons: nil},
+		Focus:          FocusSidebar,
+		sidebarWidth:   defaultSidebarW,
+		width:          0,
+		height:         0,
+		resizing:       false,
+		hoverSeparator: false,
+		errMsg:         "",
+		infoMsg:        "",
+		infoMsgID:      0,
 	}
 
 	return m
@@ -71,6 +80,13 @@ func (m *Model) Init() tea.Cmd {
 	}
 
 	return nil
+}
+
+// SidebarWidth は現在のサイドバー幅を返す。
+func (m *Model) SidebarWidth() int { return m.sidebarWidth }
+
+func (m *Model) maxSidebarWidth() int {
+	return m.width * maxSidebarPct / percentDivisor
 }
 
 func (m *Model) rebuildFooterButtons() {
