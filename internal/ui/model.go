@@ -50,7 +50,7 @@ var _ tea.Model = (*Model)(nil)
 func InitialModel(a *app.App) *Model {
 	m := &Model{
 		App:       a,
-		Sidebar:   NewSidebar(nil, sidebarWidthPx, defaultHeight),
+		Sidebar:   NewSidebar(a.Notes, sidebarWidthPx, defaultHeight),
 		Editor:    NewEditor(minWidth-sidebarWidthPx, defaultHeight),
 		Footer:    Footer{hover: HoverNone, buttons: nil},
 		Focus:     FocusSidebar,
@@ -61,13 +61,17 @@ func InitialModel(a *app.App) *Model {
 		infoMsgID: 0,
 	}
 
-	m.Sidebar.SetNotes(a.Notes, time.Now())
-
 	return m
 }
 
 // Init は初回のコマンドを返す。
-func (m *Model) Init() tea.Cmd { return nil }
+func (m *Model) Init() tea.Cmd {
+	if len(m.App.Notes) > 0 {
+		m.loadSelectedNote()
+	}
+
+	return nil
+}
 
 func (m *Model) rebuildFooterButtons() {
 	m.Footer.RebuildButtons(FooterState{

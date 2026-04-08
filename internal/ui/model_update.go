@@ -89,10 +89,6 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	m.infoMsg = ""
 
 	switch {
-	case msg.Code == 'c' && msg.Mod == tea.ModCtrl:
-		m.syncEditorToNote(now)
-
-		return tea.Quit
 	case msg.Code == 'q' && m.Focus == FocusSidebar:
 		m.syncEditorToNote(now)
 

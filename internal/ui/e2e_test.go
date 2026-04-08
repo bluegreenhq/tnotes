@@ -135,7 +135,7 @@ func TestE2E_MultipleNotesNavigation(t *testing.T) {
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
-func TestE2E_QuitWithCtrlC(t *testing.T) {
+func TestE2E_QuitWithQ(t *testing.T) {
 	t.Parallel()
 
 	m := newTestModel()
@@ -146,7 +146,7 @@ func TestE2E_QuitWithCtrlC(t *testing.T) {
 		return strings.Contains(screen(bts), "Notes (0)")
 	}, teatest.WithDuration(3*time.Second))
 
-	tm.Send(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
+	tm.Send(tea.KeyPressMsg{Code: 'q'})
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }
 

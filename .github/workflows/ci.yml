@@ -16,29 +16,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - uses: actions/cache@v4
-        id: vhs-cache
-        with:
-          path: ~/go/bin/vhs
-          key: vhs-${{ runner.os }}-latest
-      - if: steps.vhs-cache.outputs.cache-hit != 'true'
-        run: go install github.com/charmbracelet/vhs@latest
-      - uses: actions/cache@v4
-        id: apt-cache
-        with:
-          path: |
-            /var/cache/apt/archives/*.deb
-          key: apt-${{ runner.os }}-ffmpeg-ttyd-faketime
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg ttyd faketime
       - run: go mod download
       - uses: golangci/golangci-lint-action@v7
         with:
           version: latest
       - run: make test-unit
       - run: make test-e2e
-      - run: make demo-mp4
-      - uses: actions/upload-artifact@v4
-        with:
-          name: demo
-          path: demo.mp4
-          retention-days: 30
