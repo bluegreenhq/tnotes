@@ -45,7 +45,7 @@ make dev    # ホットリロード開発
 make build  # ビルド
 make test   # lint + 全テスト
 make lint   # lint のみ
-make demo   # デモGIF録画（要 vhs）
+make demo   # デモGIF録画（要 asciinema, agg）
 ```
 
 ### リリース
