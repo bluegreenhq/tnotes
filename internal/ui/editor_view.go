@@ -8,6 +8,12 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
+const (
+	ansiBoldOn  = "\x1b[1m"
+	ansiBoldOff = "\x1b[m"
+	ansiReset   = "\x1b[m"
+)
+
 var (
 	editorStyle       = lipgloss.NewStyle().Padding(0, 1)
 	editorCursorStyle = lipgloss.NewStyle().Reverse(true)
@@ -37,7 +43,30 @@ func (e *Editor) View() string {
 		raw = e.applyCursor(raw)
 	}
 
+	raw = e.applyTitleBold(raw)
+
 	return editorStyle.Width(e.width).Height(e.height).Render(raw)
+}
+
+// applyTitleBold は先頭のタイトル行を太字にする。
+// カーソルや選択のANSIエスケープが含まれていても正しく動作する。
+func (e *Editor) applyTitleBold(raw string) string {
+	scrollOffset := e.textarea.ScrollYOffset()
+	if scrollOffset > 0 {
+		return raw
+	}
+
+	viewLines := strings.Split(raw, "\n")
+	if len(viewLines) == 0 {
+		return raw
+	}
+
+	line := viewLines[0]
+	// 内部のリセットシーケンス後に太字を再適用する
+	line = strings.ReplaceAll(line, ansiReset, ansiReset+ansiBoldOn)
+	viewLines[0] = ansiBoldOn + line + ansiBoldOff
+
+	return strings.Join(viewLines, "\n")
 }
 
 // applyCursor はカーソル位置の文字を反転表示する。
