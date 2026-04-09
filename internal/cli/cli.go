@@ -21,14 +21,16 @@ const minArgsForSubcommand = 2
 // Run はCLIサブコマンドを実行する。
 // サブコマンドが指定されていない場合は false を返し、TUIにフォールバックさせる。
 // サブコマンドが指定されている場合は true を返す。
-func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) {
+func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) { //nolint:cyclop // サブコマンドのディスパッチで増加する
 	if len(args) < minArgsForSubcommand {
 		return false, nil
 	}
 
 	switch args[1] {
 	case "list":
-		return true, runList(a, w)
+		return true, runList(args, a, w)
+	case "purge":
+		return true, runPurge(args, a, r, w)
 	case "get":
 		return true, runGet(args, a, w)
 	case "create":
@@ -55,8 +57,11 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage:")
 	_, _ = fmt.Fprintf(w, "  %s              TUIモードで起動\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s --no-wrap    TUIモードで起動（水平スクロールモード）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s list         ノート一覧を表示\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s get <id>     指定IDのノートを表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list           ノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list --trash   ゴミ箱のノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s purge          ゴミ箱を空にする（確認あり）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s purge --force   ゴミ箱を空にする（確認なし）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s get <id>       指定IDのノートを表示（ゴミ箱含む）\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s create [file] ファイルまたは標準入力からノートを作成\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s export <file> データ一式をzipにエクスポート\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s import <file> zipからデータをインポート\n", cmdName)

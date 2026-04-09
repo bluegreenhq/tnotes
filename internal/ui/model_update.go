@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/atotto/clipboard"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -381,6 +382,8 @@ func (m *Model) handleSidebarMsg(msg SidebarMsg, now time.Time) tea.Cmd { //noli
 		return m.redoNote(now)
 	case SidebarEdit:
 		return m.focusEditor()
+	case SidebarCopy:
+		return m.copyNote()
 	case SidebarQuit:
 		m.syncEditorToNote(now)
 
@@ -634,6 +637,22 @@ func (m *Model) cutSelection() tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) copyNote() tea.Cmd {
+	content := m.Editor.Value()
+	if content == "" {
+		return nil
+	}
+
+	err := clipboard.WriteAll(content)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	return m.setInfoMsg("Copied")
 }
 
 // --- ヘルパー ---

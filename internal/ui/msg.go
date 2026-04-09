@@ -22,6 +22,8 @@ const (
 	SidebarRedo
 	// SidebarEdit はエディタへのフォーカス切り替えを要求する。
 	SidebarEdit
+	// SidebarCopy はノート内容のクリップボードコピーを要求する。
+	SidebarCopy
 	// SidebarQuit は終了を要求する。
 	SidebarQuit
 )

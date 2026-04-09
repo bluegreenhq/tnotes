@@ -20,6 +20,8 @@ type Store interface {
 	ListTrashed() ([]note.Note, error)
 	// Restore はゴミ箱からノートを復元する。
 	Restore(id note.NoteID) error
+	// PurgeTrash はゴミ箱内の全ノートを完全削除する。削除した件数を返す。
+	PurgeTrash() (int, error)
 	// DataDir はデータディレクトリのパスを返す。
 	DataDir() string
 	// IndexModTime はindex.jsonの最終更新日時を返す。
