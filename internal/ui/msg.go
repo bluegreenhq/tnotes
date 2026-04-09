@@ -26,6 +26,16 @@ const (
 	SidebarQuit
 )
 
+// EditorMsg はエディタからモデルへの通知メッセージ。
+type EditorMsg int
+
+const (
+	// EditorBlur はサイドバーへのフォーカス切り替えを要求する。
+	EditorBlur EditorMsg = iota
+	// EditorSave はノート保存を要求する。
+	EditorSave
+)
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 

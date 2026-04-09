@@ -52,7 +52,15 @@ func (e *Editor) View() string {
 // カーソルや選択のANSIエスケープが含まれていても正しく動作する。
 func (e *Editor) applyTitleBold(raw string) string {
 	scrollOffset := e.textarea.ScrollYOffset()
-	if scrollOffset > 0 {
+
+	// タイトル行（論理行0）が表示する視覚行数を取得
+	titleVisualLines := len(e.textarea.layout.visualLinesFor(0))
+	if titleVisualLines == 0 {
+		titleVisualLines = 1
+	}
+
+	// スクロールでタイトル行が完全に画面外なら何もしない
+	if scrollOffset >= titleVisualLines {
 		return raw
 	}
 
@@ -61,10 +69,15 @@ func (e *Editor) applyTitleBold(raw string) string {
 		return raw
 	}
 
-	line := viewLines[0]
-	// 内部のリセットシーケンス後に太字を再適用する
-	line = strings.ReplaceAll(line, ansiReset, ansiReset+ansiBoldOn)
-	viewLines[0] = ansiBoldOn + line + ansiBoldOff
+	// 画面に表示されているタイトルの視覚行数
+	boldCount := min(titleVisualLines-scrollOffset, len(viewLines))
+
+	for i := range boldCount {
+		line := viewLines[i]
+		// 内部のリセットシーケンス後に太字を再適用する
+		line = strings.ReplaceAll(line, ansiReset, ansiReset+ansiBoldOn)
+		viewLines[i] = ansiBoldOn + line + ansiBoldOff
+	}
 
 	return strings.Join(viewLines, "\n")
 }

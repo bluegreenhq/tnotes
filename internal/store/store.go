@@ -1,6 +1,10 @@
 package store
 
-import "github.com/bluegreenhq/tnotes/internal/note"
+import (
+	"time"
+
+	"github.com/bluegreenhq/tnotes/internal/note"
+)
 
 // Store はノートの永続化インターフェースを定義する。
 type Store interface {
@@ -18,4 +22,8 @@ type Store interface {
 	Restore(id note.NoteID) error
 	// DataDir はデータディレクトリのパスを返す。
 	DataDir() string
+	// IndexModTime はindex.jsonの最終更新日時を返す。
+	IndexModTime() (time.Time, error)
+	// Reload はindex.jsonを再読み込みしてインメモリ状態を更新する。
+	Reload() error
 }

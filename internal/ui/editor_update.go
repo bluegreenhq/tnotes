@@ -80,8 +80,8 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 }
 
 func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐
-	if e.handleCtrlKey(msg, now) {
-		return *e, nil
+	if handled, cmd := e.handleCtrlKey(msg, now); handled {
+		return *e, cmd
 	}
 
 	isArrow := msg.Code == tea.KeyLeft || msg.Code == tea.KeyRight ||
@@ -126,8 +126,20 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 	return *e, cmd
 }
 
-func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) bool { //nolint:cyclop // キーバインド分岐
+func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cmd) { //nolint:cyclop // キーバインド分岐
 	switch {
+	case msg.Code == tea.KeyTab:
+		return true, editorCmd(EditorBlur)
+	case msg.Code == tea.KeyEscape:
+		if e.HasSelection() {
+			e.ClearSelection()
+
+			return true, nil
+		}
+
+		return true, editorCmd(EditorBlur)
+	case msg.Code == 's' && msg.Mod == tea.ModCtrl:
+		return true, editorCmd(EditorSave)
 	case msg.Code == 'z' && msg.Mod == tea.ModCtrl:
 		e.Undo()
 	case msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift):
@@ -151,10 +163,14 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) bool { //noli
 		e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
 		_ = e.PasteFromClipboard()
 	default:
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
+}
+
+func editorCmd(msg EditorMsg) tea.Cmd {
+	return func() tea.Msg { return msg }
 }
 
 func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {

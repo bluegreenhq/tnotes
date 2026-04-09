@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -285,6 +286,118 @@ func TestFileStore_RestoreNotFound(t *testing.T) {
 
 	err = s.Restore("nonexistent")
 	assert.Error(t, err)
+}
+
+func TestFileStore_ConcurrentSave(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+
+	const numNotes = 10
+
+	var wg sync.WaitGroup
+	wg.Add(numNotes)
+
+	errs := make([]error, numNotes)
+
+	for i := range numNotes {
+		go func(idx int) {
+			defer wg.Done()
+			// 各ゴルーチンが独立したFileStoreインスタンスを使用（別プロセスを模倣）
+			s, err := store.NewFileStore(dir)
+			if err != nil {
+				errs[idx] = err
+
+				return
+			}
+
+			n := note.Note{
+				Metadata: note.Metadata{
+					ID:        note.NoteID(fmt.Sprintf("concurrent-%d", idx)),
+					CreatedAt: now,
+					UpdatedAt: now,
+				},
+				Body: fmt.Sprintf("Note %d", idx),
+			}
+			errs[idx] = s.Save(n)
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i, err := range errs {
+		require.NoError(t, err, "goroutine %d failed", i)
+	}
+
+	// 新しいFileStoreでindex.jsonを読み直し、全ノートが存在することを確認
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	notes, err := s.List()
+	require.NoError(t, err)
+	assert.Len(t, notes, numNotes)
+}
+
+func TestFileStore_ConcurrentTrash(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	// ノートを作成
+	for i := range 5 {
+		n := note.Note{
+			Metadata: note.Metadata{
+				ID:        note.NoteID(fmt.Sprintf("trash-%d", i)),
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Body: fmt.Sprintf("Note %d", i),
+		}
+		require.NoError(t, s.Save(n))
+	}
+
+	// 別々のFileStoreインスタンスから同時にTrash
+	var wg sync.WaitGroup
+	wg.Add(5)
+
+	trashErrs := make([]error, 5)
+
+	for i := range 5 {
+		go func(idx int) {
+			defer wg.Done()
+
+			si, err := store.NewFileStore(dir)
+			if err != nil {
+				trashErrs[idx] = err
+
+				return
+			}
+
+			trashErrs[idx] = si.Trash(note.NoteID(fmt.Sprintf("trash-%d", idx)))
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i, err := range trashErrs {
+		require.NoError(t, err, "trash goroutine %d failed", i)
+	}
+
+	// 検証
+	s2, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	notes, err := s2.List()
+	require.NoError(t, err)
+	assert.Empty(t, notes)
+
+	trashed, err := s2.ListTrashed()
+	require.NoError(t, err)
+	assert.Len(t, trashed, 5)
 }
 
 func TestFileStore_TrashPersistAcrossInstances(t *testing.T) {

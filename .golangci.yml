@@ -128,6 +128,9 @@ linters:
           - ireturn
         text: "bubbletea"
       - linters:
+          - unparam
+        path: "_update\\.go"
+      - linters:
           - funlen
         path: "model\\.go"
         text: "handleClick"

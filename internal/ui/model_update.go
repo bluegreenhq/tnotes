@@ -31,8 +31,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		return m, m.handleHover(msg)
 	case SidebarMsg:
 		return m, m.handleSidebarMsg(msg, now)
+	case EditorMsg:
+		return m, m.handleEditorMsg(msg, now)
 	case FooterMsg:
 		return m, m.handleFooterMsg(msg, now)
+	case tea.FocusMsg:
+		return m, m.handleFocusRestore()
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
@@ -40,7 +44,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 	}
 }
 
-func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // キーバインド分岐
+func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
 	m.infoMsg = ""
 
@@ -51,16 +55,6 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		return tea.Quit
 	case msg.Code == tea.KeyTab && m.Focus == FocusSidebar:
 		return m.focusEditor()
-	case msg.Code == tea.KeyTab && m.Focus == FocusEditor:
-		return m.blurEditor(now)
-	case msg.Code == tea.KeyEscape && m.Focus == FocusEditor:
-		if m.Editor.HasSelection() {
-			m.Editor.ClearSelection()
-
-			return nil
-		}
-
-		return m.blurEditor(now)
 	}
 
 	switch m.Focus {
@@ -71,13 +65,13 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	case FocusEditor:
 		_, cmd := m.Editor.Update(msg, now)
 
-		return cmd
+		return m.processEditorCmd(cmd, now)
 	}
 
 	return nil
 }
 
-func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 	m.width = msg.Width
 	m.height = msg.Height
 	m.sidebarWidth = max(m.sidebarWidth, minSidebarWidth)
@@ -88,7 +82,31 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd { //n
 	return nil
 }
 
-func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleFocusRestore() tea.Cmd {
+	changed, mt, err := m.App.RefreshNotes(m.indexModTime)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	if !changed {
+		return nil
+	}
+
+	m.indexModTime = mt
+	m.Sidebar.SetNotes(m.App.Notes, time.Now())
+
+	if len(m.App.Notes) > 0 {
+		m.loadSelectedNote()
+	} else {
+		m.Editor.Clear()
+	}
+
+	return nil
+}
+
+func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd {
 	if msg.id == m.infoMsgID {
 		m.infoMsg = ""
 	}
@@ -179,7 +197,7 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	const scrollLines = 1
@@ -205,7 +223,7 @@ func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd { //no
 	return nil
 }
 
-func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	m.hoverSeparator = m.resizing || m.isOnSeparator(mouse.X)
@@ -232,7 +250,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //no
 	return nil
 }
 
-func (m *Model) handleRelease() tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleRelease() tea.Cmd {
 	if m.resizing {
 		m.resizing = false
 
@@ -246,7 +264,7 @@ func (m *Model) handleRelease() tea.Cmd { //nolint:unparam // Update dispatch
 	return nil
 }
 
-func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.updateFooterHover(mouse)
@@ -313,6 +331,34 @@ func (m *Model) handleSidebarMsg(msg SidebarMsg, now time.Time) tea.Cmd { //noli
 		m.syncEditorToNote(now)
 
 		return tea.Quit
+	}
+
+	return nil
+}
+
+func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+
+	msg := cmd()
+
+	eMsg, ok := msg.(EditorMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.handleEditorMsg(eMsg, now)
+}
+
+func (m *Model) handleEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
+	switch msg {
+	case EditorBlur:
+		return m.blurEditor(now)
+	case EditorSave:
+		m.syncEditorToNote(now)
+
+		return m.setInfoMsg("Saved")
 	}
 
 	return nil
