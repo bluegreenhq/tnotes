@@ -24,8 +24,8 @@ func (m *Model) renderView(now time.Time) string {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
-	sidebarView := m.Sidebar.View(m.Focus == FocusSidebar, m.hoverSeparator || m.resizing, now)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, sidebarView, m.Editor.View())
+	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())
 
 	m.rebuildFooterButtons()
 	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.width)
@@ -52,7 +52,7 @@ func (m *Model) renderView(now time.Time) string {
 	return strings.Join(bodyLines, "\n") + "\n" + footer
 }
 
-// overlayMenu はサイドバー領域にメニューをオーバーレイする。
+// overlayMenu はノート一覧領域にメニューをオーバーレイする。
 // bodyLines の下端（フッターの直上）にメニューを重ねる。
 func (m *Model) overlayMenu(bodyLines []string, menuLines []string) {
 	if len(menuLines) == 0 {

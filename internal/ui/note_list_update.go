@@ -8,8 +8,8 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
-// Reset はサイドバーの状態をリセットし、先頭を選択する。
-func (s *Sidebar) Reset(title string, sectioned bool, notes []note.Note, now time.Time) {
+// Reset はノート一覧の状態をリセットし、先頭を選択する。
+func (s *NoteList) Reset(title string, sectioned bool, notes []note.Note, now time.Time) {
 	s.SetTitle(title)
 	s.SetSectioned(sectioned)
 	s.SetNotes(notes, now)
@@ -20,14 +20,14 @@ func (s *Sidebar) Reset(title string, sectioned bool, notes []note.Note, now tim
 }
 
 // SetSize はサイズを更新する。
-func (s *Sidebar) SetSize(width, height int, now time.Time) {
+func (s *NoteList) SetSize(width, height int, now time.Time) {
 	s.width = width
 	s.height = height
 	s.clampOffset(now)
 }
 
 // SelectIndex はインデックスを指定して選択する。
-func (s *Sidebar) SelectIndex(idx int, now time.Time) {
+func (s *NoteList) SelectIndex(idx int, now time.Time) {
 	if idx >= 0 && idx < len(s.notes) {
 		s.selected = idx
 		s.clampOffset(now)
@@ -35,7 +35,7 @@ func (s *Sidebar) SelectIndex(idx int, now time.Time) {
 }
 
 // MoveUp は選択を1つ上に移動する。
-func (s *Sidebar) MoveUp(now time.Time) {
+func (s *NoteList) MoveUp(now time.Time) {
 	if s.selected > 0 {
 		s.selected--
 		s.clampOffset(now)
@@ -43,26 +43,26 @@ func (s *Sidebar) MoveUp(now time.Time) {
 }
 
 // MoveDown は選択を1つ下に移動する。
-func (s *Sidebar) MoveDown(now time.Time) {
+func (s *NoteList) MoveDown(now time.Time) {
 	if s.selected < len(s.notes)-1 {
 		s.selected++
 		s.clampOffset(now)
 	}
 }
 
-// SetTitle はサイドバーのヘッダータイトルを設定する。
-func (s *Sidebar) SetTitle(t string) { s.title = t }
+// SetTitle はノート一覧のヘッダータイトルを設定する。
+func (s *NoteList) SetTitle(t string) { s.title = t }
 
 // SetSectioned はセクション分け表示を切り替える。
-func (s *Sidebar) SetSectioned(v bool) { s.sectioned = v }
+func (s *NoteList) SetSectioned(v bool) { s.sectioned = v }
 
 // HitTest は座標からクリックされたノートのインデックスを返す。該当なしは -1。
-func (s *Sidebar) HitTest(x, y int, now time.Time) int {
+func (s *NoteList) HitTest(x, y int, now time.Time) int {
 	if x < 0 || x >= s.width {
 		return -1
 	}
 
-	contentY := y - sidebarHeaderLines
+	contentY := y - noteListHeaderLines
 	if contentY < 0 {
 		return -1
 	}
@@ -96,18 +96,18 @@ func (s *Sidebar) HitTest(x, y int, now time.Time) int {
 }
 
 // ScrollUp は表示オフセットを n 行上にスクロールする。選択は変更しない。
-func (s *Sidebar) ScrollUp(n int, now time.Time) {
+func (s *NoteList) ScrollUp(n int, now time.Time) {
 	s.offset = max(s.offset-n, 0)
 	s.clampScrollOffset(now)
 }
 
 // ScrollDown は表示オフセットを n 行下にスクロールする。選択は変更しない。
-func (s *Sidebar) ScrollDown(n int, now time.Time) {
+func (s *NoteList) ScrollDown(n int, now time.Time) {
 	s.offset += n
 	s.clampScrollOffset(now)
 }
 
-func (s *Sidebar) clampScrollOffset(now time.Time) {
+func (s *NoteList) clampScrollOffset(now time.Time) {
 	rows := s.buildRows(now)
 	if len(rows) == 0 {
 		s.offset = 0
@@ -132,11 +132,11 @@ func (s *Sidebar) clampScrollOffset(now time.Time) {
 	}
 }
 
-// Update はメッセージに応じてサイドバーの状態を更新する。
+// Update はメッセージに応じてノート一覧の状態を更新する。
 // trashMode はゴミ箱モードかどうかを示す。
 // ナビゲーション（カーソル移動）は自身で処理し、
-// ノート操作（作成、削除等）は tea.Cmd で SidebarMsg を返して Model に委譲する。
-func (s *Sidebar) Update(msg tea.Msg, now time.Time, trashMode bool) (Sidebar, tea.Cmd) {
+// ノート操作（作成、削除等）は tea.Cmd で NoteListMsg を返して Model に委譲する。
+func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return *s, nil
@@ -153,31 +153,31 @@ func (s *Sidebar) Update(msg tea.Msg, now time.Time, trashMode bool) (Sidebar, t
 	return s.handleNormalKey(keyMsg, now)
 }
 
-func (s *Sidebar) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (Sidebar, tea.Cmd) {
+func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'n':
-		return *s, sidebarCmd(SidebarCreate)
+		return *s, noteListCmd(NoteListCreate)
 	case 'd', tea.KeyDelete, tea.KeyBackspace:
-		return *s, sidebarCmd(SidebarTrash)
+		return *s, noteListCmd(NoteListTrash)
 	case 'g':
-		return *s, sidebarCmd(SidebarEnterTrash)
+		return *s, noteListCmd(NoteListEnterTrash)
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
 		return s.moveDownCmd(now)
 	case tea.KeyEnter:
-		return *s, sidebarCmd(SidebarEdit)
+		return *s, noteListCmd(NoteListEdit)
 	}
 
 	return *s, nil
 }
 
-func (s *Sidebar) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (Sidebar, tea.Cmd) {
+func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'g':
-		return *s, sidebarCmd(SidebarExitTrash)
+		return *s, noteListCmd(NoteListExitTrash)
 	case 'r':
-		return *s, sidebarCmd(SidebarRestore)
+		return *s, noteListCmd(NoteListRestore)
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
@@ -187,16 +187,16 @@ func (s *Sidebar) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (Sideba
 	return *s, nil
 }
 
-func (s *Sidebar) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (Sidebar, tea.Cmd) {
+func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'z':
 		if msg.Mod&tea.ModShift != 0 {
-			return *s, sidebarCmd(SidebarRedo)
+			return *s, noteListCmd(NoteListRedo)
 		}
 
-		return *s, sidebarCmd(SidebarUndo)
+		return *s, noteListCmd(NoteListUndo)
 	case 'c':
-		return *s, sidebarCmd(SidebarCopy)
+		return *s, noteListCmd(NoteListCopy)
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':
@@ -206,28 +206,28 @@ func (s *Sidebar) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (Sidebar, te
 	return *s, nil
 }
 
-func (s *Sidebar) moveUpCmd(now time.Time) (Sidebar, tea.Cmd) {
+func (s *NoteList) moveUpCmd(now time.Time) (NoteList, tea.Cmd) {
 	prev := s.selected
 	s.MoveUp(now)
 
 	if s.selected != prev {
-		return *s, sidebarCmd(SidebarSelect)
+		return *s, noteListCmd(NoteListSelect)
 	}
 
 	return *s, nil
 }
 
-func (s *Sidebar) moveDownCmd(now time.Time) (Sidebar, tea.Cmd) {
+func (s *NoteList) moveDownCmd(now time.Time) (NoteList, tea.Cmd) {
 	prev := s.selected
 	s.MoveDown(now)
 
 	if s.selected != prev {
-		return *s, sidebarCmd(SidebarSelect)
+		return *s, noteListCmd(NoteListSelect)
 	}
 
 	return *s, nil
 }
 
-func sidebarCmd(msg SidebarMsg) tea.Cmd {
+func noteListCmd(msg NoteListMsg) tea.Cmd {
 	return func() tea.Msg { return msg }
 }

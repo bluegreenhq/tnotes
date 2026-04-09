@@ -166,7 +166,7 @@ func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
 		return strings.Contains(screen(bts), "New Note")
 	}, teatest.WithDuration(3*time.Second))
 
-	// エディタ幅を超える長いテキストを入力（エディタ幅 = termW - sidebarW - padding ≈ 66）
+	// エディタ幅を超える長いテキストを入力（エディタ幅 = termW - noteListW - padding ≈ 66）
 	longText := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678"
 	for _, ch := range longText {
 		tm.Send(tea.KeyPressMsg{Text: string(ch)})

@@ -8,14 +8,14 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-var sidebarStyle = lipgloss.NewStyle().
+var noteListStyle = lipgloss.NewStyle().
 	BorderRight(true).
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("8"))
 
-// View はサイドバーの描画内容を返す。
-func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string {
-	contentWidth := s.width - sidebarBorderWidth
+// View はノート一覧の描画内容を返す。
+func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time) string {
+	contentWidth := s.width - noteListBorderWidth
 
 	var b strings.Builder
 
@@ -54,7 +54,7 @@ func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string 
 		b.WriteString("\n")
 	}
 
-	style := sidebarStyle
+	style := noteListStyle
 
 	if focused {
 		style = style.BorderForeground(lipgloss.Color("4"))

@@ -39,7 +39,7 @@ func TestModelEmpty(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	assert.Empty(t, m.App.Notes)
-	assert.Equal(t, ui.FocusSidebar, m.Focus)
+	assert.Equal(t, ui.FocusNoteList, m.Focus)
 }
 
 func TestCreateNote(t *testing.T) {
@@ -62,7 +62,7 @@ func TestToggleFocus(t *testing.T) {
 	// Esc でサイドバーへ（EditorEscape msg が cmd 経由で返る）
 	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	model = mustModel(t, ret)
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
 
 	// Tab でエディタへ
 	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
@@ -70,7 +70,7 @@ func TestToggleFocus(t *testing.T) {
 	assert.Equal(t, ui.FocusEditor, model.Focus)
 }
 
-func TestSidebarNavigation(t *testing.T) {
+func TestNoteListNavigation(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	// 2つノートを作成
@@ -84,7 +84,7 @@ func TestSidebarNavigation(t *testing.T) {
 	// j で下に移動
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'j'})
 	model = mustModel(t, ret)
-	assert.Equal(t, 1, model.Sidebar.SelectedIndex())
+	assert.Equal(t, 1, model.NoteList.SelectedIndex())
 }
 
 func TestRenderView(t *testing.T) {
@@ -110,8 +110,8 @@ func TestDeleteNote(t *testing.T) {
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 1)
-	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, 0, model.NoteList.SelectedIndex())
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
 }
 
 func TestDeleteLastNote(t *testing.T) {
@@ -139,13 +139,13 @@ func TestDeleteNoteFromEnd(t *testing.T) {
 	// 末尾に移動
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
 	model := mustModel(t, ret)
-	assert.Equal(t, 1, model.Sidebar.SelectedIndex())
+	assert.Equal(t, 1, model.NoteList.SelectedIndex())
 
 	// 末尾のノートを削除 → 選択は1つ上に
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 1)
-	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
+	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 }
 
 func TestTrashMode(t *testing.T) {
@@ -180,17 +180,17 @@ func TestTrashModeNoFocusToEditor(t *testing.T) {
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'g'})
 	model := mustModel(t, ret)
 	assert.True(t, model.App.TrashMode)
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
 
 	// Tab でエディタに移動できない
 	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 	model = mustModel(t, ret)
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
 
 	// Enter でもエディタに移動できない
 	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	model = mustModel(t, ret)
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
 }
 
 func TestRestoreNote(t *testing.T) {
@@ -243,7 +243,7 @@ func TestMouseDragSelection(t *testing.T) {
 
 	model := mustModel(t, ret)
 
-	// エディタ領域でマウスダウン（sidebarWidthPx=32 なので x=33 がエディタ先頭付近）
+	// エディタ領域でマウスダウン（noteListWidth=32 なので x=33 がエディタ先頭付近）
 	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 0, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 
@@ -433,7 +433,7 @@ func TestInfoMsgClearedOnArrowKey(t *testing.T) {
 	assert.NotContains(t, view.Content, "Undo: Ctrl+Z")
 }
 
-func TestSidebarResizeDrag(t *testing.T) {
+func TestNoteListResizeDrag(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 
@@ -455,10 +455,10 @@ func TestSidebarResizeDrag(t *testing.T) {
 	model = mustModel(t, ret)
 
 	// サイドバー幅が変わっている
-	assert.Equal(t, 40, model.SidebarWidth())
+	assert.Equal(t, 40, model.NoteListWidth())
 }
 
-func TestSidebarResizeMinMax(t *testing.T) {
+func TestNoteListResizeMinMax(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel()) // width=100
 
@@ -471,27 +471,27 @@ func TestSidebarResizeMinMax(t *testing.T) {
 	ret, _ = ret.Update(tea.MouseMotionMsg{X: 5, Y: 5, Button: tea.MouseLeft})
 	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 5, Y: 5, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
-	assert.Equal(t, 20, model.SidebarWidth()) // minSidebarWidth
+	assert.Equal(t, 20, model.NoteListWidth()) // minNoteListWidth
 
 	// 最大幅以上にドラッグ
 	ret, _ = model.Update(tea.MouseClickMsg{X: 20, Y: 5, Button: tea.MouseLeft})
 	ret, _ = ret.Update(tea.MouseMotionMsg{X: 80, Y: 5, Button: tea.MouseLeft})
 	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 80, Y: 5, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
-	assert.Equal(t, 80, model.SidebarWidth()) // width*80%
+	assert.Equal(t, 80, model.NoteListWidth()) // width*80%
 }
 
-func TestSidebarWidthClampedOnWindowResize(t *testing.T) {
+func TestNoteListWidthClampedOnWindowResize(t *testing.T) {
 	t.Parallel()
-	m := sized(t, newTestModel()) // width=100, sidebarWidth=32
+	m := sized(t, newTestModel()) // width=100, noteListWidth=32
 
-	// ウィンドウを30に縮小 → maxSidebarWidth=24, sidebarWidthは24にクランプ
+	// ウィンドウを30に縮小 → maxNoteListWidth=24, noteListWidthは24にクランプ
 	ret, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 30})
 	model := mustModel(t, ret)
-	assert.Equal(t, 24, model.SidebarWidth())
+	assert.Equal(t, 24, model.NoteListWidth())
 }
 
-func TestWheelOnSidebarDoesNotChangeSelection(t *testing.T) {
+func TestWheelOnNoteListDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 
 	m := sized(t, newTestModel())
@@ -504,14 +504,14 @@ func TestWheelOnSidebarDoesNotChangeSelection(t *testing.T) {
 	}
 
 	model := mustModel(t, ret)
-	assert.Equal(t, ui.FocusSidebar, model.Focus)
-	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
+	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 
 	// ホイールダウンでサイドバーの選択は変わらない
 	ret, _ = model.Update(tea.MouseWheelMsg(tea.Mouse{X: 5, Y: 5, Button: tea.MouseWheelDown}))
 	model = mustModel(t, ret)
 
-	assert.Equal(t, 0, model.Sidebar.SelectedIndex())
+	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 }
 
 func TestWheelOnEditor(t *testing.T) {

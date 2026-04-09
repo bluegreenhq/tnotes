@@ -31,20 +31,20 @@ var (
 				Bold(true)
 )
 
-// sidebarRow はサイドバーの1行分のデータ（セクションヘッダーまたはノートアイテム）。
-type sidebarRow struct {
+// noteListRow はノート一覧の1行分のデータ（セクションヘッダーまたはノートアイテム）。
+type noteListRow struct {
 	isHeader  bool
 	label     string
 	note      note.Note
 	noteIndex int
 }
 
-func newHeaderRow(label string) sidebarRow {
-	return sidebarRow{isHeader: true, label: label, note: note.ZeroNote(), noteIndex: -1}
+func newHeaderRow(label string) noteListRow {
+	return noteListRow{isHeader: true, label: label, note: note.ZeroNote(), noteIndex: -1}
 }
 
-func newNoteRow(n note.Note, idx int) sidebarRow {
-	return sidebarRow{isHeader: false, label: "", note: n, noteIndex: idx}
+func newNoteRow(n note.Note, idx int) noteListRow {
+	return noteListRow{isHeader: false, label: "", note: n, noteIndex: idx}
 }
 
 // renderItem はノートアイテム1件の描画文字列を返す。
