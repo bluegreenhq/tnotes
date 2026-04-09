@@ -12,7 +12,7 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
-func TestSidebarSelect(t *testing.T) {
+func TestNoteListSelect(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -20,35 +20,35 @@ func TestSidebarSelect(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "First"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "Second"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	assert.Equal(t, 0, sb.SelectedIndex())
+	nl := ui.NewNoteList(notes, 30, 20)
+	assert.Equal(t, 0, nl.SelectedIndex())
 
-	sb.SelectIndex(1, now)
-	assert.Equal(t, 1, sb.SelectedIndex())
+	nl.SelectIndex(1, now)
+	assert.Equal(t, 1, nl.SelectedIndex())
 }
 
-func TestSidebarSelectedNote(t *testing.T) {
+func TestNoteListSelectedNote(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "First"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	n, ok := sb.SelectedNote()
+	nl := ui.NewNoteList(notes, 30, 20)
+	n, ok := nl.SelectedNote()
 	assert.True(t, ok)
 	assert.Equal(t, note.NoteID("1"), n.ID)
 }
 
-func TestSidebarEmpty(t *testing.T) {
+func TestNoteListEmpty(t *testing.T) {
 	t.Parallel()
 
-	sb := ui.NewSidebar(nil, 30, 20)
-	_, ok := sb.SelectedNote()
+	nl := ui.NewNoteList(nil, 30, 20)
+	_, ok := nl.SelectedNote()
 	assert.False(t, ok)
 }
 
-func TestSidebarMoveDown(t *testing.T) {
+func TestNoteListMoveDown(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -56,14 +56,14 @@ func TestSidebarMoveDown(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	sb.MoveDown(now)
-	assert.Equal(t, 1, sb.SelectedIndex())
-	sb.MoveDown(now)
-	assert.Equal(t, 1, sb.SelectedIndex())
+	nl := ui.NewNoteList(notes, 30, 20)
+	nl.MoveDown(now)
+	assert.Equal(t, 1, nl.SelectedIndex())
+	nl.MoveDown(now)
+	assert.Equal(t, 1, nl.SelectedIndex())
 }
 
-func TestSidebarHitTest(t *testing.T) {
+func TestNoteListHitTest(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -71,15 +71,16 @@ func TestSidebarHitTest(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	assert.Equal(t, -1, sb.HitTest(5, 2, now))
-	assert.Equal(t, 0, sb.HitTest(5, 3, now))
-	assert.Equal(t, 1, sb.HitTest(5, 7, now))
-	assert.Equal(t, -1, sb.HitTest(5, 0, now))
-	assert.Equal(t, -1, sb.HitTest(-1, 3, now))
+	nl := ui.NewNoteList(notes, 30, 20)
+	assert.Equal(t, -1, nl.HitTest(5, 2, now)) // section header
+	assert.Equal(t, -1, nl.HitTest(5, 3, now)) // section header line
+	assert.Equal(t, 0, nl.HitTest(5, 4, now))  // note 0
+	assert.Equal(t, 1, nl.HitTest(5, 7, now))  // note 1
+	assert.Equal(t, -1, nl.HitTest(5, 0, now))
+	assert.Equal(t, -1, nl.HitTest(-1, 4, now))
 }
 
-func TestSidebarHitTestWithSections(t *testing.T) {
+func TestNoteListHitTestWithSections(t *testing.T) {
 	t.Parallel()
 
 	fixedNow := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
@@ -87,18 +88,20 @@ func TestSidebarHitTestWithSections(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", UpdatedAt: time.Date(2026, 4, 3, 12, 0, 0, 0, time.Local)}, Body: "B"},
 	}
-	sb := ui.NewSidebar(notes, 30, 40)
+	nl := ui.NewNoteList(notes, 30, 40)
 
-	assert.Equal(t, -1, sb.HitTest(5, 0, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 1, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 2, fixedNow))
-	assert.Equal(t, 0, sb.HitTest(5, 3, fixedNow))
-	assert.Equal(t, 0, sb.HitTest(5, 6, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 7, fixedNow))
-	assert.Equal(t, 1, sb.HitTest(5, 8, fixedNow))
+	assert.Equal(t, -1, nl.HitTest(5, 0, fixedNow)) // header
+	assert.Equal(t, -1, nl.HitTest(5, 1, fixedNow)) // separator
+	assert.Equal(t, -1, nl.HitTest(5, 2, fixedNow)) // Today label
+	assert.Equal(t, -1, nl.HitTest(5, 3, fixedNow)) // Today line
+	assert.Equal(t, 0, nl.HitTest(5, 4, fixedNow))  // note 0
+	assert.Equal(t, 0, nl.HitTest(5, 6, fixedNow))  // note 0 (last line)
+	assert.Equal(t, -1, nl.HitTest(5, 7, fixedNow)) // Yesterday label
+	assert.Equal(t, -1, nl.HitTest(5, 8, fixedNow)) // Yesterday line
+	assert.Equal(t, 1, nl.HitTest(5, 9, fixedNow))  // note 1
 }
 
-func TestSidebarViewWithSections(t *testing.T) {
+func TestNoteListViewWithSections(t *testing.T) {
 	t.Parallel()
 
 	fixedNow := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
@@ -106,9 +109,9 @@ func TestSidebarViewWithSections(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Today note\npreview"},
 		{Metadata: note.Metadata{ID: "2", UpdatedAt: time.Date(2026, 4, 3, 12, 0, 0, 0, time.Local)}, Body: "Yesterday note\npreview"},
 	}
-	sb := ui.NewSidebar(notes, 30, 40)
+	nl := ui.NewNoteList(notes, 30, 40)
 
-	view := sb.View(true, false, fixedNow)
+	view := nl.View(true, false, fixedNow, false)
 	assert.Contains(t, view, "Today")
 	assert.Contains(t, view, "Yesterday")
 	assert.Contains(t, view, "Today note")
@@ -117,7 +120,7 @@ func TestSidebarViewWithSections(t *testing.T) {
 	assert.NotContains(t, view, "Previous 30 Days")
 }
 
-func TestSidebarUpdateMoveDown(t *testing.T) {
+func TestNoteListUpdateMoveDown(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -125,62 +128,62 @@ func TestSidebarUpdateMoveDown(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	sb, cmd := sb.Update(tea.KeyPressMsg{Code: 'j'}, now, false)
-	assert.Equal(t, 1, sb.SelectedIndex())
+	nl := ui.NewNoteList(notes, 30, 20)
+	nl, cmd := nl.Update(tea.KeyPressMsg{Code: 'j'}, now, false)
+	assert.Equal(t, 1, nl.SelectedIndex())
 	assert.NotNil(t, cmd)
 }
 
-func TestSidebarUpdateMoveUpAtTop(t *testing.T) {
+func TestNoteListUpdateMoveUpAtTop(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	sb, cmd := sb.Update(tea.KeyPressMsg{Code: 'k'}, now, false)
-	assert.Equal(t, 0, sb.SelectedIndex())
+	nl := ui.NewNoteList(notes, 30, 20)
+	nl, cmd := nl.Update(tea.KeyPressMsg{Code: 'k'}, now, false)
+	assert.Equal(t, 0, nl.SelectedIndex())
 	assert.Nil(t, cmd)
 }
 
-func TestSidebarUpdateCreateMsg(t *testing.T) {
+func TestNoteListUpdateCreateMsg(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	sb := ui.NewSidebar(nil, 30, 20)
-	_, cmd := sb.Update(tea.KeyPressMsg{Code: 'n'}, now, false)
+	nl := ui.NewNoteList(nil, 30, 20)
+	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'n'}, now, false)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.SidebarCreate, msg)
+	assert.Equal(t, ui.NoteListCreate, msg)
 }
 
-func TestSidebarUpdateTrashMode(t *testing.T) {
+func TestNoteListUpdateTrashMode(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 	}
-	sb := ui.NewSidebar(notes, 30, 20)
-	_, cmd := sb.Update(tea.KeyPressMsg{Code: 'r'}, now, true)
+	nl := ui.NewNoteList(notes, 30, 20)
+	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'r'}, now, true)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.SidebarRestore, msg)
+	assert.Equal(t, ui.NoteListRestore, msg)
 }
 
-func TestSidebarTrashModeNoSections(t *testing.T) {
+func TestNoteListTrashModeNoSections(t *testing.T) {
 	t.Parallel()
 
 	fixedNow := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Trashed"},
 	}
-	sb := ui.NewSidebar(notes, 30, 40)
-	sb.SetTitle("Trash")
-	sb.SetSectioned(false)
+	nl := ui.NewNoteList(notes, 30, 40)
+	nl.SetTitle("Trash")
+	nl.SetSectioned(false)
 
-	view := sb.View(true, false, fixedNow)
+	view := nl.View(true, false, fixedNow, false)
 	assert.Contains(t, view, "Trash")
 	assert.NotContains(t, view, "Today")
 }
@@ -198,24 +201,24 @@ func makeNotes(n int, now time.Time) []note.Note {
 	return notes
 }
 
-func TestSidebarScrollDownDoesNotChangeSelection(t *testing.T) {
+func TestNoteListScrollDownDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	sb := ui.NewSidebar(makeNotes(5, now), 30, 20)
-	assert.Equal(t, 0, sb.SelectedIndex())
+	nl := ui.NewNoteList(makeNotes(5, now), 30, 20)
+	assert.Equal(t, 0, nl.SelectedIndex())
 
-	sb.ScrollDown(3, now)
-	assert.Equal(t, 0, sb.SelectedIndex())
+	nl.ScrollDown(3, now)
+	assert.Equal(t, 0, nl.SelectedIndex())
 }
 
-func TestSidebarScrollUpDoesNotChangeSelection(t *testing.T) {
+func TestNoteListScrollUpDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	sb := ui.NewSidebar(makeNotes(5, now), 30, 20)
-	sb.SelectIndex(4, now)
+	nl := ui.NewNoteList(makeNotes(5, now), 30, 20)
+	nl.SelectIndex(4, now)
 
-	sb.ScrollUp(3, now)
-	assert.Equal(t, 4, sb.SelectedIndex())
+	nl.ScrollUp(3, now)
+	assert.Equal(t, 4, nl.SelectedIndex())
 }

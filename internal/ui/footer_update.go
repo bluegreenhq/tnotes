@@ -75,8 +75,6 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 		return footerCmd(FooterNew)
 	case HoverRestore:
 		return footerCmd(FooterRestore)
-	case HoverTrashToggle:
-		return footerCmd(FooterTrashToggle)
 	case HoverQuit:
 		return footerCmd(FooterQuit)
 	case HoverCopy:

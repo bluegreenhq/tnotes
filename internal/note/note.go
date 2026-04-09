@@ -91,7 +91,7 @@ func (n Note) Title() string {
 	return line
 }
 
-// Preview はBodyの2行目以降をプレビューとして返す。
+// Preview はBodyの2行目のみをプレビューとして返す。
 func (n Note) Preview() string {
 	body := strings.TrimSpace(n.Body)
 
@@ -100,9 +100,9 @@ func (n Note) Preview() string {
 		return ""
 	}
 
-	preview := strings.TrimSpace(after)
-
-	preview = strings.ReplaceAll(preview, "\n", " ")
+	// 2行目のみ取得
+	preview, _, _ := strings.Cut(strings.TrimSpace(after), "\n")
+	preview = strings.TrimSpace(preview)
 
 	if len([]rune(preview)) > maxPreviewLen {
 		return string([]rune(preview)[:maxPreviewLen]) + "…"

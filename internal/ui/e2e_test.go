@@ -166,7 +166,7 @@ func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
 		return strings.Contains(screen(bts), "New Note")
 	}, teatest.WithDuration(3*time.Second))
 
-	// エディタ幅を超える長いテキストを入力（エディタ幅 = termW - sidebarW - padding ≈ 66）
+	// エディタ幅を超える長いテキストを入力（エディタ幅 = termW - noteListW - padding ≈ 66）
 	longText := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678"
 	for _, ch := range longText {
 		tm.Send(tea.KeyPressMsg{Text: string(ch)})
@@ -185,7 +185,7 @@ func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
-func TestE2E_TrashAndRestore(t *testing.T) {
+func TestE2E_TrashAndRestoreViaFolder(t *testing.T) {
 	t.Parallel()
 
 	m := newTestModel()
@@ -211,7 +211,7 @@ func TestE2E_TrashAndRestore(t *testing.T) {
 		return strings.Contains(screen(bts), "Test")
 	}, teatest.WithDuration(3*time.Second))
 
-	// Esc でサイドバーに戻る → タイトルが "Test" に更新される
+	// Esc でNoteListに戻る
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		s := screen(bts)
@@ -219,19 +219,25 @@ func TestE2E_TrashAndRestore(t *testing.T) {
 		return strings.Contains(s, "Test") && !strings.Contains(s, "New Note")
 	}, teatest.WithDuration(3*time.Second))
 
-	// d で削除 → エディタが空になり "Press 'n'" が表示される
+	// d で削除
 	tm.Send(tea.KeyPressMsg{Code: 'd'})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return strings.Contains(screen(bts), "Press 'n'")
 	}, teatest.WithDuration(3*time.Second))
 
-	// g でゴミ箱モードに入る → "Trash" ヘッダーが表示される
-	tm.Send(tea.KeyPressMsg{Code: 'g'})
+	// Ctrl+B でフォルダ表示 → j で Trash 選択
+	tm.Send(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Folders")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return strings.Contains(screen(bts), "Trash")
 	}, teatest.WithDuration(3*time.Second))
 
-	// r で復元 → "Notes" ヘッダーに戻る
+	// Tab → NoteList → r で復元
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
 	tm.Send(tea.KeyPressMsg{Code: 'r'})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return strings.Contains(screen(bts), "Notes")

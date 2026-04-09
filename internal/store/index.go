@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	indexFile  = "index.json"
+	// IndexFile はインデックスファイル名。
+	IndexFile  = "index.json"
 	timeFormat = "2006-01-02T15:04:05Z07:00"
 )
 
@@ -21,12 +22,7 @@ type indexEntry struct {
 	Path      string `json:"path"`
 }
 
-// indexData はindex.jsonの全体構造を表す。
-type indexData struct {
-	Notes map[string]indexEntry `json:"notes"`
-}
-
-// trashIndexEntry はゴミ箱index.jsonの各エントリを表す。
+// trashIndexEntry はゴミ箱ノートの各エントリを表す。
 type trashIndexEntry struct {
 	Title        string `json:"title"`
 	CreatedAt    string `json:"created_at"`
@@ -35,9 +31,10 @@ type trashIndexEntry struct {
 	OriginalPath string `json:"original_path"`
 }
 
-// trashIndexData はゴミ箱index.jsonの全体構造を表す。
-type trashIndexData struct {
-	Notes map[string]trashIndexEntry `json:"notes"`
+// indexData はindex.jsonの全体構造を表す。
+type indexData struct {
+	Notes map[string]indexEntry      `json:"notes"`
+	Trash map[string]trashIndexEntry `json:"trash"`
 }
 
 // trashMetadata はゴミ箱ノートのメタデータ。

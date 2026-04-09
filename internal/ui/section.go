@@ -6,7 +6,7 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
-const sectionHeaderHeight = 1 // セクションヘッダーは1行
+const sectionHeaderHeight = 2 // セクションヘッダーはラベル行 + 罫線行
 
 // Section はセクションのラベルとノートリストを表す。
 type Section struct {

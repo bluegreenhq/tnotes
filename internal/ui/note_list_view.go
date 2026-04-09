@@ -8,18 +8,24 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-var sidebarStyle = lipgloss.NewStyle().
+var noteListStyle = lipgloss.NewStyle().
 	BorderRight(true).
 	BorderStyle(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("8"))
 
-// View はサイドバーの描画内容を返す。
-func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string {
-	contentWidth := s.width - sidebarBorderWidth
+// View はノート一覧の描画内容を返す。
+func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folderVisible bool) string {
+	contentWidth := s.width - noteListBorderWidth
 
 	var b strings.Builder
 
-	titleStr := fmt.Sprintf(" %s (%d)", s.title, len(s.notes))
+	var titleStr string
+	if folderVisible {
+		titleStr = fmt.Sprintf(" %s (%d)", s.title, len(s.notes))
+	} else {
+		titleStr = fmt.Sprintf(" ≡ %s (%d)", s.title, len(s.notes))
+	}
+
 	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(titleStr))
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", contentWidth))
@@ -36,6 +42,10 @@ func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string 
 			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(" " + row.label))
 			b.WriteString("\n")
 
+			line := " " + strings.Repeat("─", contentWidth-sectionLinePadding)
+			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(line))
+			b.WriteString("\n")
+
 			usedLines += sectionHeaderHeight
 
 			continue
@@ -50,7 +60,7 @@ func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string 
 		b.WriteString("\n")
 	}
 
-	style := sidebarStyle
+	style := noteListStyle
 
 	if focused {
 		style = style.BorderForeground(lipgloss.Color("4"))

@@ -7,12 +7,13 @@ import (
 )
 
 const (
-	sidebarHeaderLines = 2 // タイトル + 区切り線
-	sidebarBorderWidth = 2 // 左右ボーダー分
+	noteListHeaderLines = 2 // タイトル + 区切り線
+	noteListBorderWidth = 2 // 左右ボーダー分
+	sectionLinePadding  = 2 // セクション罫線の左右余白
 )
 
-// Sidebar はノートリストの状態を表す。
-type Sidebar struct {
+// NoteList はノートリストの状態を表す。
+type NoteList struct {
 	notes     []note.Note
 	selected  int
 	width     int
@@ -22,9 +23,9 @@ type Sidebar struct {
 	sectioned bool
 }
 
-// NewSidebar は新しい Sidebar を生成する。
-func NewSidebar(notes []note.Note, width, height int) Sidebar {
-	return Sidebar{
+// NewNoteList は新しい NoteList を生成する。
+func NewNoteList(notes []note.Note, width, height int) NoteList {
+	return NoteList{
 		notes:     notes,
 		selected:  0,
 		width:     width,
@@ -36,7 +37,7 @@ func NewSidebar(notes []note.Note, width, height int) Sidebar {
 }
 
 // SetNotes はノート一覧を更新する。
-func (s *Sidebar) SetNotes(notes []note.Note, now time.Time) {
+func (s *NoteList) SetNotes(notes []note.Note, now time.Time) {
 	s.notes = notes
 	if s.selected >= len(notes) {
 		s.selected = max(len(notes)-1, 0)
@@ -46,10 +47,10 @@ func (s *Sidebar) SetNotes(notes []note.Note, now time.Time) {
 }
 
 // SelectedIndex は選択中のインデックスを返す。
-func (s *Sidebar) SelectedIndex() int { return s.selected }
+func (s *NoteList) SelectedIndex() int { return s.selected }
 
 // SelectedNote は選択中のノートを返す。
-func (s *Sidebar) SelectedNote() (note.Note, bool) {
+func (s *NoteList) SelectedNote() (note.Note, bool) {
 	if len(s.notes) == 0 || s.selected >= len(s.notes) {
 		return note.ZeroNote(), false
 	}
@@ -57,12 +58,12 @@ func (s *Sidebar) SelectedNote() (note.Note, bool) {
 	return s.notes[s.selected], true
 }
 
-func (s *Sidebar) visibleLines() int {
-	return s.height - sidebarHeaderLines
+func (s *NoteList) visibleLines() int {
+	return s.height - noteListHeaderLines
 }
 
-// rowHeight は sidebarRow 1件の表示行数を返す。
-func rowHeight(r sidebarRow) int {
+// rowHeight は noteListRow 1件の表示行数を返す。
+func rowHeight(r noteListRow) int {
 	if r.isHeader {
 		return sectionHeaderHeight
 	}
@@ -71,7 +72,7 @@ func rowHeight(r sidebarRow) int {
 }
 
 // rowsHeightSum は rows[from:to] の合計行数を返す。
-func rowsHeightSum(rows []sidebarRow, from, to int) int {
+func rowsHeightSum(rows []noteListRow, from, to int) int {
 	total := 0
 	for i := from; i < to; i++ {
 		total += rowHeight(rows[i])
@@ -81,7 +82,7 @@ func rowsHeightSum(rows []sidebarRow, from, to int) int {
 }
 
 // visibleEndRow は offset から visLines 行に収まる最後のrowインデックス（排他）を返す。
-func visibleEndRow(rows []sidebarRow, offset, visLines int) int {
+func visibleEndRow(rows []noteListRow, offset, visLines int) int {
 	used := 0
 
 	for i := offset; i < len(rows); i++ {
@@ -96,7 +97,7 @@ func visibleEndRow(rows []sidebarRow, offset, visLines int) int {
 	return len(rows)
 }
 
-func (s *Sidebar) buildRows(now time.Time) []sidebarRow {
+func (s *NoteList) buildRows(now time.Time) []noteListRow {
 	if !s.sectioned {
 		return s.buildFlatRows()
 	}
@@ -111,7 +112,7 @@ func (s *Sidebar) buildRows(now time.Time) []sidebarRow {
 		noteIndexMap[n.ID] = i
 	}
 
-	var rows []sidebarRow
+	var rows []noteListRow
 	for _, sec := range sections {
 		rows = append(rows, newHeaderRow(sec.Label))
 		for _, n := range sec.Notes {
@@ -122,8 +123,8 @@ func (s *Sidebar) buildRows(now time.Time) []sidebarRow {
 	return rows
 }
 
-func (s *Sidebar) buildFlatRows() []sidebarRow {
-	rows := make([]sidebarRow, len(s.notes))
+func (s *NoteList) buildFlatRows() []noteListRow {
+	rows := make([]noteListRow, len(s.notes))
 	for i, n := range s.notes {
 		rows[i] = newNoteRow(n, i)
 	}
@@ -131,7 +132,7 @@ func (s *Sidebar) buildFlatRows() []sidebarRow {
 	return rows
 }
 
-func (s *Sidebar) clampOffset(now time.Time) {
+func (s *NoteList) clampOffset(now time.Time) {
 	rows := s.buildRows(now)
 	if len(rows) == 0 {
 		s.offset = 0
@@ -159,7 +160,7 @@ func (s *Sidebar) clampOffset(now time.Time) {
 	s.offset = min(s.offset, len(rows)-1)
 }
 
-func findSelectedRow(rows []sidebarRow, selected int) int {
+func findSelectedRow(rows []noteListRow, selected int) int {
 	for i, row := range rows {
 		if !row.isHeader && row.noteIndex == selected {
 			return i

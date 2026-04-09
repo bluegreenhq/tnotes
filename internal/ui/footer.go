@@ -8,7 +8,6 @@ const (
 	HoverNew
 	HoverQuit
 	HoverRestore
-	HoverTrashToggle
 	HoverCopy
 	HoverCut
 	HoverMore
@@ -88,17 +87,15 @@ func (f *Footer) RebuildButtons(s FooterState) {
 	if s.TrashMode {
 		menuItems = []MenuItem{
 			{Label: "Restore", Disabled: s.TrashCount == 0},
-			{Label: "Notes", Disabled: false},
 			{Label: "Quit", Disabled: false},
 		}
-		f.menuMsgs = []FooterMsg{FooterRestore, FooterTrashToggle, FooterQuit}
+		f.menuMsgs = []FooterMsg{FooterRestore, FooterQuit}
 	} else {
 		menuItems = []MenuItem{
 			{Label: "New", Disabled: false},
-			{Label: "Trash", Disabled: false},
 			{Label: "Quit", Disabled: false},
 		}
-		f.menuMsgs = []FooterMsg{FooterNew, FooterTrashToggle, FooterQuit}
+		f.menuMsgs = []FooterMsg{FooterNew, FooterQuit}
 	}
 
 	prevHover := f.popupMenu.hover

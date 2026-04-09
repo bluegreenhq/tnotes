@@ -1,31 +1,27 @@
 package ui
 
-// SidebarMsg はサイドバーからモデルへの通知メッセージ。
-type SidebarMsg int
+// NoteListMsg はノート一覧からモデルへの通知メッセージ。
+type NoteListMsg int
 
 const (
-	// SidebarSelect はカーソル移動によりノート選択が変わったことを通知する。
-	SidebarSelect SidebarMsg = iota
-	// SidebarCreate は新規ノート作成を要求する。
-	SidebarCreate
-	// SidebarTrash はノートのゴミ箱移動を要求する。
-	SidebarTrash
-	// SidebarEnterTrash はゴミ箱モードへの切り替えを要求する。
-	SidebarEnterTrash
-	// SidebarExitTrash はゴミ箱モードからの復帰を要求する。
-	SidebarExitTrash
-	// SidebarRestore はゴミ箱からのノート復元を要求する。
-	SidebarRestore
-	// SidebarUndo はundo操作を要求する。
-	SidebarUndo
-	// SidebarRedo はredo操作を要求する。
-	SidebarRedo
-	// SidebarEdit はエディタへのフォーカス切り替えを要求する。
-	SidebarEdit
-	// SidebarCopy はノート内容のクリップボードコピーを要求する。
-	SidebarCopy
-	// SidebarQuit は終了を要求する。
-	SidebarQuit
+	// NoteListSelect はカーソル移動によりノート選択が変わったことを通知する。
+	NoteListSelect NoteListMsg = iota
+	// NoteListCreate は新規ノート作成を要求する。
+	NoteListCreate
+	// NoteListTrash はノートのゴミ箱移動を要求する。
+	NoteListTrash
+	// NoteListRestore はゴミ箱からのノート復元を要求する。
+	NoteListRestore
+	// NoteListUndo はundo操作を要求する。
+	NoteListUndo
+	// NoteListRedo はredo操作を要求する。
+	NoteListRedo
+	// NoteListEdit はエディタへのフォーカス切り替えを要求する。
+	NoteListEdit
+	// NoteListCopy はノート内容のクリップボードコピーを要求する。
+	NoteListCopy
+	// NoteListQuit は終了を要求する。
+	NoteListQuit
 )
 
 // cursorBlinkMsg はカーソルの点滅状態を切り替えるメッセージ。
@@ -37,10 +33,20 @@ type cursorBlinkMsg struct {
 type EditorMsg int
 
 const (
-	// EditorBlur はサイドバーへのフォーカス切り替えを要求する。
+	// EditorBlur はノート一覧へのフォーカス切り替えを要求する。
 	EditorBlur EditorMsg = iota
 	// EditorSave はノート保存を要求する。
 	EditorSave
+)
+
+// FolderListMsg はフォルダ一覧からモデルへの通知メッセージ。
+type FolderListMsg int
+
+const (
+	// FolderListSelect はフォルダ選択変更を通知する。
+	FolderListSelect FolderListMsg = iota
+	// FolderListFocusNext はノート一覧へのフォーカス移動を要求する。
+	FolderListFocusNext
 )
 
 // FooterMsg はフッターからモデルへの通知メッセージ。
@@ -49,8 +55,6 @@ type FooterMsg int
 const (
 	// FooterNew は新規ノート生成ボタンがクリックされたことを通知する。
 	FooterNew FooterMsg = iota
-	// FooterTrashToggle はゴミ箱モード切り替えボタンがクリックされたことを通知する。
-	FooterTrashToggle
 	// FooterRestore は復元ボタンがクリックされたことを通知する。
 	FooterRestore
 	// FooterQuit は終了ボタンがクリックされたことを通知する。

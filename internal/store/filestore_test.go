@@ -32,7 +32,7 @@ func TestFileStore_SaveAndLoad(t *testing.T) {
 	err = s.Save(n)
 	require.NoError(t, err)
 
-	noteDir := filepath.Join(dir, "20260404")
+	noteDir := filepath.Join(dir, "Notes", "20260404")
 	_, err = os.Stat(filepath.Join(noteDir, "test1.md"))
 	require.NoError(t, err)
 
@@ -226,7 +226,7 @@ func TestFileStore_Trash(t *testing.T) {
 	_, err = os.Stat(filepath.Join(dir, ".trash", "20260404", "trash1.md"))
 	require.NoError(t, err)
 
-	_, err = os.Stat(filepath.Join(dir, "20260404", "trash1.md"))
+	_, err = os.Stat(filepath.Join(dir, "Notes", "20260404", "trash1.md"))
 	assert.True(t, os.IsNotExist(err))
 }
 
@@ -260,7 +260,7 @@ func TestFileStore_Restore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, trashed)
 
-	_, err = os.Stat(filepath.Join(dir, "20260404", "restore1.md"))
+	_, err = os.Stat(filepath.Join(dir, "Notes", "20260404", "restore1.md"))
 	require.NoError(t, err)
 
 	loaded, err := s.Load("restore1")

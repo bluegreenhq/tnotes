@@ -55,18 +55,18 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) { //
 
 func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage:")
-	_, _ = fmt.Fprintf(w, "  %s              TUIモードで起動\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s --no-wrap    TUIモードで起動（水平スクロールモード）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s list           ノート一覧を表示\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s list --trash   ゴミ箱のノート一覧を表示\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s purge          ゴミ箱を空にする（確認あり）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s purge --force   ゴミ箱を空にする（確認なし）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s get <id>       指定IDのノートを表示（ゴミ箱含む）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s create [file] ファイルまたは標準入力からノートを作成\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s export <file> データ一式をzipにエクスポート\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s import <file> zipからデータをインポート\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s version       バージョンを表示\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s help         このヘルプを表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s                  TUIモードで起動\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s --no-wrap        TUIモードで起動（水平スクロールモード）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list             ノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list --trash     ゴミ箱のノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s purge            ゴミ箱を空にする（確認あり）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s purge --force    ゴミ箱を空にする（確認なし）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s get <id>         指定IDのノートを表示（ゴミ箱含む）\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s create [file]    ファイルまたは標準入力からノートを作成\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s export <file>    データ一式をzipにエクスポート\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s import <file>    zipからデータをインポート\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s version          バージョンを表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s help             このヘルプを表示\n", cmdName)
 }
 
 func runVersion(w io.Writer) error {
