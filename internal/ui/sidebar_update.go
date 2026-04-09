@@ -195,6 +195,8 @@ func (s *Sidebar) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (Sidebar, te
 		}
 
 		return *s, sidebarCmd(SidebarUndo)
+	case 'c':
+		return *s, sidebarCmd(SidebarCopy)
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':
