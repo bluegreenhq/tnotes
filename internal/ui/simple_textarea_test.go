@@ -1,6 +1,7 @@
 package ui //nolint:testpackage // 内部フィールドへの直接アクセスが必要
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -10,7 +11,7 @@ import (
 func TestSimpleTextArea_SetValueAndValue(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetValue("Hello\nWorld")
 	assert.Equal(t, "Hello\nWorld", ta.Value())
 	assert.Equal(t, 1, ta.Line())
@@ -20,7 +21,7 @@ func TestSimpleTextArea_SetValueAndValue(t *testing.T) {
 func TestSimpleTextArea_InsertText(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -38,7 +39,7 @@ func TestSimpleTextArea_InsertText(t *testing.T) {
 func TestSimpleTextArea_Backspace(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -52,7 +53,7 @@ func TestSimpleTextArea_Backspace(t *testing.T) {
 func TestSimpleTextArea_BackspaceAtLineStart(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -69,7 +70,7 @@ func TestSimpleTextArea_BackspaceAtLineStart(t *testing.T) {
 func TestSimpleTextArea_Delete(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -84,7 +85,7 @@ func TestSimpleTextArea_Delete(t *testing.T) {
 func TestSimpleTextArea_DeleteAtLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -99,7 +100,7 @@ func TestSimpleTextArea_DeleteAtLineEnd(t *testing.T) {
 func TestSimpleTextArea_Enter(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -116,7 +117,7 @@ func TestSimpleTextArea_Enter(t *testing.T) {
 func TestSimpleTextArea_CursorMovement(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -157,7 +158,7 @@ func TestSimpleTextArea_CursorMovement(t *testing.T) {
 func TestSimpleTextArea_HomeEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -176,7 +177,7 @@ func TestSimpleTextArea_HomeEnd(t *testing.T) {
 func TestSimpleTextArea_ScrollIndependent(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(3)
 
@@ -197,7 +198,7 @@ func TestSimpleTextArea_ScrollIndependent(t *testing.T) {
 func TestSimpleTextArea_EnsureVisible(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -225,7 +226,7 @@ func TestSimpleTextArea_EnsureVisible(t *testing.T) {
 func TestSimpleTextArea_UnfocusedIgnoresInput(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -237,7 +238,7 @@ func TestSimpleTextArea_UnfocusedIgnoresInput(t *testing.T) {
 func TestSimpleTextArea_LineCount(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	assert.Equal(t, 1, ta.LineCount())
 
 	ta.SetValue("a\nb\nc")
@@ -247,7 +248,7 @@ func TestSimpleTextArea_LineCount(t *testing.T) {
 func TestSimpleTextArea_MoveToBegin(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetValue("Hello\nWorld")
 	assert.Equal(t, 1, ta.Line())
 
@@ -259,7 +260,7 @@ func TestSimpleTextArea_MoveToBegin(t *testing.T) {
 func TestSimpleTextArea_SetCursorColumn(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetValue("Hello")
 	ta.row = 0
 
@@ -276,7 +277,7 @@ func TestSimpleTextArea_SetCursorColumn(t *testing.T) {
 func TestSimpleTextArea_CtrlA_MoveToLineStart(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -292,7 +293,7 @@ func TestSimpleTextArea_CtrlA_MoveToLineStart(t *testing.T) {
 func TestSimpleTextArea_CtrlE_MoveToLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -308,7 +309,7 @@ func TestSimpleTextArea_CtrlE_MoveToLineEnd(t *testing.T) {
 func TestSimpleTextArea_CtrlFB_CursorLeftRight(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -339,7 +340,7 @@ func TestSimpleTextArea_CtrlFB_CursorLeftRight(t *testing.T) {
 func TestSimpleTextArea_CtrlNP_CursorUpDown(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -362,7 +363,7 @@ func TestSimpleTextArea_CtrlNP_CursorUpDown(t *testing.T) {
 func TestSimpleTextArea_CtrlD_Delete(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -379,7 +380,7 @@ func TestSimpleTextArea_CtrlD_Delete(t *testing.T) {
 func TestSimpleTextArea_CtrlD_DeleteAtLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -395,7 +396,7 @@ func TestSimpleTextArea_CtrlD_DeleteAtLineEnd(t *testing.T) {
 func TestSimpleTextArea_CtrlK_KillLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -412,7 +413,7 @@ func TestSimpleTextArea_CtrlK_KillLine(t *testing.T) {
 func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -430,7 +431,7 @@ func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
 func TestSimpleTextArea_InsertText_SingleLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -446,7 +447,7 @@ func TestSimpleTextArea_InsertText_SingleLine(t *testing.T) {
 func TestSimpleTextArea_InsertText_MultiLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -463,7 +464,7 @@ func TestSimpleTextArea_InsertText_MultiLine(t *testing.T) {
 func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -479,7 +480,7 @@ func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 func TestSimpleTextArea_HorizontalScroll(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -511,7 +512,7 @@ func TestSimpleTextArea_HorizontalScroll(t *testing.T) {
 func TestSimpleTextArea_HorizontalScrollLeftMovement(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -533,7 +534,7 @@ func TestSimpleTextArea_HorizontalScrollLeftMovement(t *testing.T) {
 func TestSimpleTextArea_HorizontalScrollWithInsert(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -554,7 +555,7 @@ func TestSimpleTextArea_HorizontalScrollWithInsert(t *testing.T) {
 func TestSimpleTextArea_SetCursorColumnUpdatesScrollX(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea()
+	ta := newSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 
@@ -565,4 +566,95 @@ func TestSimpleTextArea_SetCursorColumnUpdatesScrollX(t *testing.T) {
 
 	ta.SetCursorColumn(8)
 	assert.Positive(t, ta.ScrollXOffset(), "scrollX should adjust when SetCursorColumn moves past visible area")
+}
+
+func TestSimpleTextArea_SoftWrap_ViewWrapsText(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea(false) // soft wrap
+	ta.SetWidth(5)
+	ta.SetHeight(10)
+
+	ta.SetValue("abcdefgh")
+	ta.row = 0
+	ta.col = 0
+
+	view := ta.View()
+	lines := strings.Split(view, "\n")
+	assert.Equal(t, "abcde", lines[0])
+	assert.Equal(t, "fgh", lines[1])
+}
+
+func TestSimpleTextArea_SoftWrap_CursorUpDown(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea(false)
+	ta.SetWidth(5)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	ta.SetValue("abcdefgh")
+	// SetValue puts cursor at end: row=0, col=8
+	// Visual: "abcde" (visual row 0) + "fgh" (visual row 1)
+	// col=8 → visual row 1
+	assert.Equal(t, 0, ta.Line())
+	assert.Equal(t, 8, ta.Column())
+
+	// CursorUp → should move to visual row 0 within same logical line
+	ta.CursorUp()
+	assert.Equal(t, 0, ta.Line())
+	assert.Less(t, ta.Column(), 5, "cursor should be in first visual line")
+
+	// CursorDown → should move back to visual row 1
+	ta.CursorDown()
+	assert.Equal(t, 0, ta.Line())
+	assert.GreaterOrEqual(t, ta.Column(), 5, "cursor should be in second visual line")
+}
+
+func TestSimpleTextArea_SoftWrap_FullWidth(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea(false)
+	ta.SetWidth(5)
+	ta.SetHeight(10)
+
+	// 全角文字: 各2セル幅。width=5 → "あい"(4cells) + "うえ"(4cells) + "お"(2cells)
+	ta.SetValue("あいうえお")
+	ta.row = 0
+	ta.col = 0
+
+	view := ta.View()
+	lines := strings.Split(view, "\n")
+	assert.Equal(t, "あい", lines[0])
+	assert.Equal(t, "うえ", lines[1])
+	assert.Equal(t, "お", lines[2])
+}
+
+func TestSimpleTextArea_SoftWrap_ScrollYVisualBased(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea(false)
+	ta.SetWidth(5)
+	ta.SetHeight(2)
+
+	// "abcdefgh" → 2 visual lines, "xyz" → 1 visual line, total = 3
+	ta.SetValue("abcdefgh\nxyz")
+	ta.row = 0
+	ta.col = 0
+	// maxScroll = totalVisualLines(3) - height(2) = 1
+	ta.ScrollDown(1)
+	assert.Equal(t, 1, ta.ScrollYOffset())
+}
+
+func TestSimpleTextArea_SoftWrap_ScrollXAlwaysZero(t *testing.T) {
+	t.Parallel()
+
+	ta := newSimpleTextArea(false) // soft wrap
+	ta.SetWidth(5)
+	ta.SetHeight(3)
+	ta.Focus()
+
+	ta.SetValue("abcdefghij")
+	// soft wrap: scrollX should always be 0
+	assert.Equal(t, 0, ta.ScrollXOffset())
 }

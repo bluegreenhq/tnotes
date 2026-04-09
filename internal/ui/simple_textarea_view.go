@@ -11,38 +11,39 @@ import (
 func (t *simpleTextArea) View() string {
 	var b strings.Builder
 
-	endLine := min(t.scrollY+t.height, len(t.lines))
+	totalVisual := t.layout.totalVisualLines()
+	endVisual := min(t.scrollY+t.height, totalVisual)
 
-	for i := t.scrollY; i < endLine; i++ {
-		if i > t.scrollY {
+	for vi := t.scrollY; vi < endVisual; vi++ {
+		if vi > t.scrollY {
 			b.WriteString("\n")
 		}
 
-		line := t.lines[i]
-		b.WriteString(t.truncateLine(line))
+		b.WriteString(t.layout.renderViewLine(vi, t.scrollX, t.width))
 	}
 
 	// 行数が height に満たない場合は空行で埋める
-	for i := endLine - t.scrollY; i < t.height; i++ {
+	for i := endVisual - t.scrollY; i < t.height; i++ {
 		b.WriteString("\n")
 	}
 
 	return b.String()
 }
 
-func (t *simpleTextArea) truncateLine(line []rune) string {
-	if t.width <= 0 {
+// truncateLineWithScroll は水平スクロール位置から幅分のテキストを返す。
+func truncateLineWithScroll(line []rune, scrollX, width int) string {
+	if width <= 0 {
 		return string(line)
 	}
 
-	startRune := cellToRuneIndex(line, t.scrollX)
+	startRune := cellToRuneIndex(line, scrollX)
 	remaining := line[startRune:]
 
 	cellWidth := 0
 
 	for i, r := range remaining {
 		rw := runewidth.RuneWidth(r)
-		if cellWidth+rw > t.width {
+		if cellWidth+rw > width {
 			return string(remaining[:i])
 		}
 

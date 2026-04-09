@@ -32,7 +32,7 @@ func sized(t *testing.T, m *ui.Model) *ui.Model {
 func newTestModel() *ui.Model {
 	a, _ := app.New(nil)
 
-	return ui.InitialModel(a)
+	return ui.InitialModel(a, false)
 }
 
 func TestModelEmpty(t *testing.T) {

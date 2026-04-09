@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -14,6 +15,10 @@ import (
 
 // version はGoReleaserによりビルド時に -ldflags で注入される。
 var version string
+
+func hasFlag(args []string, flag string) bool {
+	return slices.Contains(args[1:], flag)
+}
 
 func main() {
 	cli.Version = version
@@ -45,7 +50,8 @@ func main() {
 		return
 	}
 
-	m := ui.InitialModel(a)
+	noWrap := hasFlag(os.Args, "--no-wrap")
+	m := ui.InitialModel(a, noWrap)
 	p := tea.NewProgram(m, tea.WithoutSignalHandler())
 
 	_, err = p.Run()

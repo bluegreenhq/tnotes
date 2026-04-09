@@ -107,7 +107,7 @@ func TestEditorUndoManagerPopEmpty(t *testing.T) {
 func TestEditorUndoRestore(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
 	ed.LoadNote(n)
@@ -128,7 +128,7 @@ func TestEditorUndoRestore(t *testing.T) {
 func TestEditorAutoSnapshotOnTextChange(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: ""}
 	ed.LoadNote(n)
@@ -141,7 +141,7 @@ func TestEditorAutoSnapshotOnTextChange(t *testing.T) {
 func TestEditorAutoSnapshotOnNewline(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
 	ed.LoadNote(n)
@@ -154,7 +154,7 @@ func TestEditorAutoSnapshotOnNewline(t *testing.T) {
 func TestEditorUndoClearedOnNoteSwitch(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n1 := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Note 1"}
 	n2 := note.Note{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "Note 2"}

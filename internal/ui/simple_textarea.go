@@ -4,10 +4,9 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/mattn/go-runewidth"
 )
 
-// simpleTextArea は折り返しなしの独自テキストエリア。
+// simpleTextArea は独自テキストエリア。
 // カーソルとスクロールオフセットを完全独立管理する。
 type simpleTextArea struct {
 	lines   [][]rune
@@ -18,9 +17,17 @@ type simpleTextArea struct {
 	width   int
 	height  int
 	focused bool
+	layout  lineLayout
 }
 
-func newSimpleTextArea() simpleTextArea {
+func newSimpleTextArea(noWrap bool) simpleTextArea {
+	var lo lineLayout
+	if noWrap {
+		lo = newNoWrapLayout()
+	} else {
+		lo = newSoftWrapLayout()
+	}
+
 	return simpleTextArea{
 		lines:   [][]rune{{}},
 		row:     0,
@@ -30,6 +37,7 @@ func newSimpleTextArea() simpleTextArea {
 		width:   0,
 		height:  0,
 		focused: false,
+		layout:  lo,
 	}
 }
 
@@ -59,7 +67,10 @@ func (t *simpleTextArea) ScrollYOffset() int { return t.scrollY }
 func (t *simpleTextArea) ScrollXOffset() int { return t.scrollX }
 
 // SetWidth は表示幅を設定する。
-func (t *simpleTextArea) SetWidth(w int) { t.width = w }
+func (t *simpleTextArea) SetWidth(w int) {
+	t.width = w
+	t.layout.rebuild(t.lines, t.width)
+}
 
 // SetHeight は表示高さを設定する。
 func (t *simpleTextArea) SetHeight(h int) { t.height = h }
@@ -78,42 +89,5 @@ func (t *simpleTextArea) Blur() { t.focused = false }
 func (t *simpleTextArea) Focused() bool { return t.focused }
 
 func (t *simpleTextArea) ensureVisible() {
-	// 縦方向
-	if t.row < t.scrollY {
-		t.scrollY = t.row
-	}
-
-	if t.height > 0 && t.row >= t.scrollY+t.height {
-		t.scrollY = t.row - t.height + 1
-	}
-
-	// 横方向
-	if t.width <= 0 {
-		return
-	}
-
-	cellPos := t.cursorCellPos()
-	if cellPos < t.scrollX {
-		t.scrollX = cellPos
-	}
-
-	if cellPos >= t.scrollX+t.width {
-		t.scrollX = cellPos - t.width + 1
-	}
-}
-
-// cursorCellPos はカーソル位置のセル幅を返す。
-func (t *simpleTextArea) cursorCellPos() int {
-	if t.row < 0 || t.row >= len(t.lines) {
-		return 0
-	}
-
-	line := t.lines[t.row]
-	pos := 0
-
-	for i := 0; i < t.col && i < len(line); i++ {
-		pos += runewidth.RuneWidth(line[i])
-	}
-
-	return pos
+	t.scrollY, t.scrollX = t.layout.adjustScroll(t.row, t.col, t.scrollY, t.scrollX, t.width, t.height)
 }

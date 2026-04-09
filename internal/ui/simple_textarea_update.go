@@ -19,6 +19,7 @@ func (t *simpleTextArea) SetValue(s string) {
 		t.lines = [][]rune{{}}
 	}
 
+	t.layout.rebuild(t.lines, t.width)
 	t.row = len(t.lines) - 1
 	t.col = len(t.lines[t.row])
 	t.ensureVisible()
@@ -83,37 +84,32 @@ func (t *simpleTextArea) ScrollUp(n int) {
 
 // ScrollDown はカーソルを動かさずに表示を n 行下にスクロールする。
 func (t *simpleTextArea) ScrollDown(n int) {
-	maxScroll := max(len(t.lines)-t.height, 0)
+	maxScroll := max(t.layout.totalVisualLines()-t.height, 0)
 	t.scrollY = min(t.scrollY+n, maxScroll)
 }
 
-// CursorUp はカーソルを1行上に移動する。
+// CursorUp はカーソルを1つ上の視覚行に移動する。
 func (t *simpleTextArea) CursorUp() {
-	if t.row <= 0 {
+	newRow, newCol, moved := t.layout.moveCursorUp(t.row, t.col)
+	if !moved {
 		return
 	}
 
-	t.row--
-	t.clampCol()
+	t.row = newRow
+	t.col = newCol
 	t.ensureVisible()
 }
 
-// CursorDown はカーソルを1行下に移動する。
+// CursorDown はカーソルを1つ下の視覚行に移動する。
 func (t *simpleTextArea) CursorDown() {
-	if t.row >= len(t.lines)-1 {
+	newRow, newCol, moved := t.layout.moveCursorDown(t.row, t.col)
+	if !moved {
 		return
 	}
 
-	t.row++
-	t.clampCol()
+	t.row = newRow
+	t.col = newCol
 	t.ensureVisible()
-}
-
-func (t *simpleTextArea) clampCol() {
-	maxCol := len(t.lines[t.row])
-	if t.col > maxCol {
-		t.col = maxCol
-	}
 }
 
 func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop // キーバインド分岐
@@ -170,6 +166,7 @@ func (t *simpleTextArea) insertText(s string) {
 	newLine = append(newLine, line[t.col:]...)
 	t.lines[t.row] = newLine
 	t.col += len(runes)
+	t.layout.rebuild(t.lines, t.width)
 }
 
 func (t *simpleTextArea) insertNewline() {
@@ -187,6 +184,7 @@ func (t *simpleTextArea) insertNewline() {
 	t.lines = newLines
 	t.row++
 	t.col = 0
+	t.layout.rebuild(t.lines, t.width)
 	t.ensureVisible()
 }
 
@@ -195,12 +193,14 @@ func (t *simpleTextArea) backspace() {
 		line := t.lines[t.row]
 		t.lines[t.row] = append(line[:t.col-1], line[t.col:]...)
 		t.col--
+		t.layout.rebuild(t.lines, t.width)
 	} else if t.row > 0 {
 		prevLen := len(t.lines[t.row-1])
 		t.lines[t.row-1] = append(t.lines[t.row-1], t.lines[t.row]...)
 		t.lines = append(t.lines[:t.row], t.lines[t.row+1:]...)
 		t.row--
 		t.col = prevLen
+		t.layout.rebuild(t.lines, t.width)
 		t.ensureVisible()
 	}
 }
@@ -209,9 +209,11 @@ func (t *simpleTextArea) delete() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
 		t.lines[t.row] = append(line[:t.col], line[t.col+1:]...)
+		t.layout.rebuild(t.lines, t.width)
 	} else if t.row < len(t.lines)-1 {
 		t.lines[t.row] = append(t.lines[t.row], t.lines[t.row+1]...)
 		t.lines = append(t.lines[:t.row+1], t.lines[t.row+2:]...)
+		t.layout.rebuild(t.lines, t.width)
 	}
 }
 
@@ -219,9 +221,11 @@ func (t *simpleTextArea) killLine() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
 		t.lines[t.row] = line[:t.col]
+		t.layout.rebuild(t.lines, t.width)
 	} else if t.row < len(t.lines)-1 {
 		t.lines[t.row] = append(t.lines[t.row], t.lines[t.row+1]...)
 		t.lines = append(t.lines[:t.row+1], t.lines[t.row+2:]...)
+		t.layout.rebuild(t.lines, t.width)
 	}
 }
 
