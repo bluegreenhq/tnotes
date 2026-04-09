@@ -207,12 +207,12 @@ func TestEditorShiftArrowSelection(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift}, now)
+	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
 	assert.True(t, ed2.HasSelection())
-	assert.Equal(t, "d", ed2.SelectedText())
+	assert.Equal(t, "H", ed2.SelectedText())
 
-	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift}, now)
-	assert.Equal(t, "ld", ed3.SelectedText())
+	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
+	assert.Equal(t, "He", ed3.SelectedText())
 }
 
 func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
@@ -224,10 +224,10 @@ func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModShift}, now)
+	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
 	assert.True(t, ed2.HasSelection())
 
-	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyLeft, Mod: 0}, now)
+	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: 0}, now)
 	assert.False(t, ed3.HasSelection())
 }
 
@@ -246,4 +246,42 @@ func TestEditorViewHasHighlight(t *testing.T) {
 	viewWithSel := ed.View()
 
 	assert.NotEqual(t, viewNoSel, viewWithSel)
+}
+
+func TestEditorBlinkReset(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	assert.True(t, ed.BlinkVisible())
+}
+
+func TestEditorBlinkStopsOnBlur(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	ed.Blur()
+	assert.True(t, ed.BlinkVisible())
+}
+
+func TestEditorBlinkResetsOnKeyPress(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	ed, _ = ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
+	assert.True(t, ed.BlinkVisible())
 }

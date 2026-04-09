@@ -38,6 +38,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		return m, m.handleFooterMsg(msg, now)
 	case tea.FocusMsg:
 		return m, m.handleFocusRestore()
+	case cursorBlinkMsg:
+		cmd := m.Editor.HandleBlinkMsg(msg)
+
+		return m, cmd
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
@@ -66,8 +70,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 		return m.processSidebarCmd(cmd, now)
 	case FocusEditor:
 		_, cmd := m.Editor.Update(msg, now)
+		editorCmd := m.processEditorCmd(cmd, now)
+		blinkCmd := m.Editor.resetBlink()
 
-		return m.processEditorCmd(cmd, now)
+		return tea.Batch(editorCmd, blinkCmd)
 	}
 
 	return nil

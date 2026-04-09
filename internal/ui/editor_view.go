@@ -39,7 +39,7 @@ func (e *Editor) View() string {
 
 	if e.HasSelection() {
 		raw = e.applySelectionHighlight(raw)
-	} else if e.textarea.Focused() {
+	} else if e.textarea.Focused() && e.blinkVisible {
 		raw = e.applyCursor(raw)
 	}
 

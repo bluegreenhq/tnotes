@@ -13,11 +13,40 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
+const blinkInterval = 500 * time.Millisecond
+
+// resetBlink はカーソルを表示状態にリセットし、新しい blink タイマーを開始する。
+func (e *Editor) resetBlink() tea.Cmd {
+	e.blinkVisible = true
+	e.blinkTag++
+	tag := e.blinkTag
+
+	return tea.Tick(blinkInterval, func(_ time.Time) tea.Msg {
+		return cursorBlinkMsg{tag: tag}
+	})
+}
+
+// HandleBlinkMsg は cursorBlinkMsg を処理して blink 状態を切り替える。
+// tag が一致しない場合は無視して nil を返す。
+func (e *Editor) HandleBlinkMsg(msg cursorBlinkMsg) tea.Cmd {
+	if msg.tag != e.blinkTag {
+		return nil
+	}
+
+	e.blinkVisible = !e.blinkVisible
+	tag := e.blinkTag
+
+	return tea.Tick(blinkInterval, func(_ time.Time) tea.Msg {
+		return cursorBlinkMsg{tag: tag}
+	})
+}
+
 // LoadNote はノートをエディタに読み込む。
 func (e *Editor) LoadNote(n note.Note) {
 	e.noteID = n.ID
 	e.original = n.Body
 	e.textarea.SetValue(n.Body)
+	e.textarea.MoveToBegin()
 	e.ClearSelection()
 	e.UndoMgr.Clear()
 }
@@ -28,11 +57,20 @@ func (e *Editor) SetValue(s string) { e.textarea.SetValue(s) }
 // MarkClean は現在の値を基準値として記録する。
 func (e *Editor) MarkClean() { e.original = e.textarea.Value() }
 
-// Focus はエディタにフォーカスを当てる。
-func (e *Editor) Focus() tea.Cmd { return e.textarea.Focus() }
+// Focus はエディタにフォーカスを当て、blink タイマーを開始する。
+func (e *Editor) Focus() tea.Cmd {
+	focusCmd := e.textarea.Focus()
+	blinkCmd := e.resetBlink()
 
-// Blur はエディタのフォーカスを外す。
-func (e *Editor) Blur() { e.textarea.Blur() }
+	return tea.Batch(focusCmd, blinkCmd)
+}
+
+// Blur はエディタのフォーカスを外し、blink を停止する。
+func (e *Editor) Blur() {
+	e.textarea.Blur()
+	e.blinkVisible = true
+	e.blinkTag++
+}
 
 // SetSize はサイズを更新する。
 func (e *Editor) SetSize(width, height int) {
