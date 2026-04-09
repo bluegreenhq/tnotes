@@ -21,16 +21,18 @@ func selBefore(a, b SelectionAnchor) bool {
 
 // Editor はテキスト編集ペインの状態を表す。
 type Editor struct {
-	textarea  simpleTextArea
-	noteID    note.NoteID
-	original  string
-	width     int
-	height    int
-	readOnly  bool
-	selecting bool // ドラッグ中か
-	selStart  *SelectionAnchor
-	selEnd    *SelectionAnchor
-	UndoMgr   *EditorUndoManager
+	textarea     simpleTextArea
+	noteID       note.NoteID
+	original     string
+	width        int
+	height       int
+	readOnly     bool
+	selecting    bool // ドラッグ中か
+	selStart     *SelectionAnchor
+	selEnd       *SelectionAnchor
+	UndoMgr      *EditorUndoManager
+	blinkVisible bool // カーソルが表示状態か
+	blinkTag     int  // blink メッセージの世代タグ
 }
 
 // NewEditor は新しい Editor を生成する。
@@ -40,16 +42,18 @@ func NewEditor(width, height int, noWrap bool) Editor {
 	ta.SetHeight(height)
 
 	return Editor{
-		textarea:  ta,
-		noteID:    "",
-		original:  "",
-		width:     width,
-		height:    height,
-		readOnly:  false,
-		selecting: false,
-		selStart:  nil,
-		selEnd:    nil,
-		UndoMgr:   NewEditorUndoManager(),
+		textarea:     ta,
+		noteID:       "",
+		original:     "",
+		width:        width,
+		height:       height,
+		readOnly:     false,
+		selecting:    false,
+		selStart:     nil,
+		selEnd:       nil,
+		UndoMgr:      NewEditorUndoManager(),
+		blinkVisible: true,
+		blinkTag:     0,
 	}
 }
 
@@ -75,3 +79,6 @@ func (e *Editor) HasSelection() bool {
 
 // Selecting はドラッグ中かを返す。
 func (e *Editor) Selecting() bool { return e.selecting }
+
+// BlinkVisible はカーソルの表示状態を返す。
+func (e *Editor) BlinkVisible() bool { return e.blinkVisible }

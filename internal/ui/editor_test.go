@@ -247,3 +247,41 @@ func TestEditorViewHasHighlight(t *testing.T) {
 
 	assert.NotEqual(t, viewNoSel, viewWithSel)
 }
+
+func TestEditorBlinkReset(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	assert.True(t, ed.BlinkVisible())
+}
+
+func TestEditorBlinkStopsOnBlur(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	ed.Blur()
+	assert.True(t, ed.BlinkVisible())
+}
+
+func TestEditorBlinkResetsOnKeyPress(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	ed := ui.NewEditor(60, 20, false)
+	ed.LoadNote(n)
+	ed.Focus()
+
+	ed, _ = ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
+	assert.True(t, ed.BlinkVisible())
+}
