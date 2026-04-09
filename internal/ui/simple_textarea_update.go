@@ -130,7 +130,7 @@ func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclo
 		t.delete()
 	case msg.Code == 'k' && msg.Mod == tea.ModCtrl:
 		t.killLine()
-	case msg.Text != "" && msg.Mod == 0:
+	case msg.Text != "" && (msg.Mod == 0 || msg.Mod == tea.ModShift):
 		t.insertText(msg.Text)
 	case msg.Code == tea.KeyEnter:
 		t.insertNewline()
