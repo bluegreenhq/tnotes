@@ -10,6 +10,7 @@ import (
 	"github.com/mattn/go-runewidth"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 const (
@@ -25,18 +26,17 @@ const (
 func runList(args []string, a *app.App, w io.Writer) error {
 	trash := len(args) >= minArgsForListFlag && args[2] == "--trash"
 
+	var notes []note.Note
+
 	if trash {
-		err := a.EnterTrashMode()
+		var err error
+
+		notes, err = a.ListTrash()
 		if err != nil {
 			return err
 		}
-
-		defer a.ExitTrashMode()
-	}
-
-	notes := a.Notes
-	if trash {
-		notes = a.TrashNotes
+	} else {
+		notes = a.List()
 	}
 
 	if len(notes) == 0 {

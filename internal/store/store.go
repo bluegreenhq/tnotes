@@ -1,13 +1,14 @@
 package store
 
 import (
+	"io"
 	"time"
 
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 // Store はノートの永続化インターフェースを定義する。
-type Store interface {
+type Store interface { //nolint:interfacebloat // import/exportの責務もStoreに含める
 	// List はインデックスからノート一覧を返す（Bodyは空）。
 	List() ([]note.Note, error)
 	// Load はノートのBodyを含む完全なNoteを返す。
@@ -28,4 +29,11 @@ type Store interface {
 	IndexModTime() (time.Time, error)
 	// Reload はindex.jsonを再読み込みしてインメモリ状態を更新する。
 	Reload() error
+	// Export はデータディレクトリの内容を指定された io.Writer に zip 形式で書き出す。
+	Export(w io.Writer) error
+	// Import は zip 形式のデータを io.Reader から読み込み、データディレクトリに展開する。
+	// データディレクトリが空でない場合はエラーを返す。
+	Import(r io.Reader) error
+	// HasData はデータが存在するかを返す（index.json の存在チェック）。
+	HasData() bool
 }

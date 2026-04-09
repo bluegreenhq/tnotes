@@ -15,14 +15,12 @@ func runPurge(args []string, a *app.App, r io.Reader, w io.Writer) error {
 	force := len(args) >= minArgsForPurgeFlag && args[2] == "--force"
 
 	// ゴミ箱の件数を確認
-	err := a.EnterTrashMode()
+	trashNotes, err := a.ListTrash()
 	if err != nil {
 		return err
 	}
 
-	trashCount := len(a.TrashNotes)
-
-	a.ExitTrashMode()
+	trashCount := len(trashNotes)
 
 	if trashCount == 0 {
 		_, _ = fmt.Fprintln(w, "Trash is empty")

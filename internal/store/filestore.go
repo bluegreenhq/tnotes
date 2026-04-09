@@ -1,7 +1,11 @@
 package store
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"io"
+	iofs "io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +19,8 @@ import (
 var (
 	ErrNoteNotFound        = errors.New("note not found")
 	ErrTrashedNoteNotFound = errors.New("trashed note not found")
+	ErrDataDirNotEmpty     = errors.New("data directory is not empty")
+	ErrInvalidZipPath      = errors.New("invalid path in zip")
 )
 
 const (
@@ -320,6 +326,81 @@ func (fs *FileStore) Reload() error {
 	return fs.loadIndex()
 }
 
+// Export はデータディレクトリの内容を指定された io.Writer に zip 形式で書き出す。
+func (fs *FileStore) Export(w io.Writer) error {
+	zw := zip.NewWriter(w)
+
+	err := filepath.WalkDir(fs.dir, func(path string, d iofs.DirEntry, err error) error {
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		if d.IsDir() {
+			return nil
+		}
+
+		if strings.HasPrefix(d.Name(), ".tmp-") {
+			return nil
+		}
+
+		return fs.addFileToZip(zw, path)
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	err = zw.Close()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+// Import は zip 形式のデータを io.Reader から読み込み、データディレクトリに展開する。
+// データディレクトリが空でない場合はエラーを返す。
+func (fs *FileStore) Import(r io.Reader) error {
+	if fs.HasData() {
+		return ErrDataDirNotEmpty
+	}
+
+	zr, err := readZipFromReader(r)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		if strings.Contains(f.Name, "..") {
+			return errors.WithDetail(ErrInvalidZipPath, f.Name)
+		}
+
+		destPath := filepath.Join(fs.dir, filepath.Clean(f.Name))
+
+		mkErr := os.MkdirAll(filepath.Dir(destPath), dirPerm)
+		if mkErr != nil {
+			return errors.WithStack(mkErr)
+		}
+
+		writeErr := extractZipFile(f, destPath)
+		if writeErr != nil {
+			return errors.WithStack(writeErr)
+		}
+	}
+
+	return fs.loadIndex()
+}
+
+// HasData はデータが存在するかを返す（index.json の存在チェック）。
+func (fs *FileStore) HasData() bool {
+	_, err := os.Stat(filepath.Join(fs.dir, IndexFile))
+
+	return err == nil
+}
+
 // lockAndReload はロックを取得し、indexを再読み込みする。
 // 戻り値の関数を呼ぶとロックを解放する。
 func (fs *FileStore) lockAndReload() (func(), error) {
@@ -431,4 +512,63 @@ func (fs *FileStore) saveIndex() error {
 	}
 
 	return atomicWrite(filepath.Join(fs.dir, IndexFile), data)
+}
+
+func (fs *FileStore) addFileToZip(zw *zip.Writer, path string) error {
+	relPath, err := filepath.Rel(fs.dir, path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	zf, err := zw.Create(relPath)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	_, err = zf.Write(data)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func readZipFromReader(r io.Reader) (*zip.Reader, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return zr, nil
+}
+
+func extractZipFile(f *zip.File, destPath string) error {
+	rc, err := f.Open()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer rc.Close()
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, io.LimitReader(rc, int64(f.UncompressedSize64))) //nolint:gosec // zip内ファイルサイズはユーザー管理のバックアップデータ
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
