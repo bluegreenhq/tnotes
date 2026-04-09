@@ -31,6 +31,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		return m, m.handleHover(msg)
 	case SidebarMsg:
 		return m, m.handleSidebarMsg(msg, now)
+	case EditorMsg:
+		return m, m.handleEditorMsg(msg, now)
 	case FooterMsg:
 		return m, m.handleFooterMsg(msg, now)
 	case clearInfoMsg:
@@ -40,7 +42,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 	}
 }
 
-func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // キーバインド分岐
+func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
 	m.infoMsg = ""
 
@@ -51,16 +53,6 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		return tea.Quit
 	case msg.Code == tea.KeyTab && m.Focus == FocusSidebar:
 		return m.focusEditor()
-	case msg.Code == tea.KeyTab && m.Focus == FocusEditor:
-		return m.blurEditor(now)
-	case msg.Code == tea.KeyEscape && m.Focus == FocusEditor:
-		if m.Editor.HasSelection() {
-			m.Editor.ClearSelection()
-
-			return nil
-		}
-
-		return m.blurEditor(now)
 	}
 
 	switch m.Focus {
@@ -71,7 +63,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	case FocusEditor:
 		_, cmd := m.Editor.Update(msg, now)
 
-		return cmd
+		return m.processEditorCmd(cmd, now)
 	}
 
 	return nil
@@ -313,6 +305,34 @@ func (m *Model) handleSidebarMsg(msg SidebarMsg, now time.Time) tea.Cmd { //noli
 		m.syncEditorToNote(now)
 
 		return tea.Quit
+	}
+
+	return nil
+}
+
+func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+
+	msg := cmd()
+
+	eMsg, ok := msg.(EditorMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.handleEditorMsg(eMsg, now)
+}
+
+func (m *Model) handleEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
+	switch msg {
+	case EditorBlur:
+		return m.blurEditor(now)
+	case EditorSave:
+		m.syncEditorToNote(now)
+
+		return m.setInfoMsg("Saved")
 	}
 
 	return nil
