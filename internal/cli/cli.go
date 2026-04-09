@@ -28,7 +28,7 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) {
 
 	switch args[1] {
 	case "list":
-		return true, runList(a, w)
+		return true, runList(args, a, w)
 	case "get":
 		return true, runGet(args, a, w)
 	case "create":
@@ -55,8 +55,9 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintln(w, "Usage:")
 	_, _ = fmt.Fprintf(w, "  %s              TUIモードで起動\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s --no-wrap    TUIモードで起動（水平スクロールモード）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s list         ノート一覧を表示\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s get <id>     指定IDのノートを表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list           ノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list --trash   ゴミ箱のノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s get <id>       指定IDのノートを表示（ゴミ箱含む）\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s create [file] ファイルまたは標準入力からノートを作成\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s export <file> データ一式をzipにエクスポート\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s import <file> zipからデータをインポート\n", cmdName)

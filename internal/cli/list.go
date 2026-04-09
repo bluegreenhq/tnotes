@@ -10,10 +10,28 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
 
-const tabPadding = 2
+const (
+	tabPadding       = 2
+	minArgsForListFlag = 3
+)
 
-func runList(a *app.App, w io.Writer) error {
+func runList(args []string, a *app.App, w io.Writer) error {
+	trash := len(args) >= minArgsForListFlag && args[2] == "--trash"
+
+	if trash {
+		err := a.EnterTrashMode()
+		if err != nil {
+			return err
+		}
+
+		defer a.ExitTrashMode()
+	}
+
 	notes := a.Notes
+	if trash {
+		notes = a.TrashNotes
+	}
+
 	if len(notes) == 0 {
 		_, _ = fmt.Fprintln(w, "No notes")
 
