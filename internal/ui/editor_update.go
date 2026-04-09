@@ -46,6 +46,7 @@ func (e *Editor) LoadNote(n note.Note) {
 	e.noteID = n.ID
 	e.original = n.Body
 	e.textarea.SetValue(n.Body)
+	e.textarea.MoveToBegin()
 	e.ClearSelection()
 	e.UndoMgr.Clear()
 }
