@@ -279,6 +279,40 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 	return nil
 }
 
+// PurgeTrash はゴミ箱内の全ノートを完全削除する。削除した件数を返す。
+func (fs *FileStore) PurgeTrash() (int, error) {
+	unlock, err := fs.lockAndReloadAll()
+	if err != nil {
+		return 0, err
+	}
+	defer unlock()
+
+	count := len(fs.trashIndex)
+	if count == 0 {
+		return 0, nil
+	}
+
+	// ゴミ箱内の各ノートファイルを削除
+	for _, meta := range fs.trashIndex {
+		path := filepath.Join(fs.dir, meta.Path)
+
+		err := os.Remove(path)
+		if err != nil && !os.IsNotExist(err) {
+			return 0, errors.WithStack(err)
+		}
+	}
+
+	// trashIndex をクリアして保存
+	clear(fs.trashIndex)
+
+	err = fs.saveTrashIndex()
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 // DataDir はデータディレクトリのパスを返す。
 func (fs *FileStore) DataDir() string {
 	return fs.dir

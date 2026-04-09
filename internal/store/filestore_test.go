@@ -400,6 +400,107 @@ func TestFileStore_ConcurrentTrash(t *testing.T) {
 	assert.Len(t, trashed, 5)
 }
 
+func TestFileStore_PurgeTrash(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	for i := range 3 {
+		n := note.Note{
+			Metadata: note.Metadata{
+				ID:        note.NoteID(fmt.Sprintf("purge-%d", i)),
+				CreatedAt: now,
+				UpdatedAt: now,
+			},
+			Body: fmt.Sprintf("Note %d", i),
+		}
+		require.NoError(t, s.Save(n))
+		require.NoError(t, s.Trash(note.NoteID(fmt.Sprintf("purge-%d", i))))
+	}
+
+	count, err := s.PurgeTrash()
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	trashed, err := s.ListTrashed()
+	require.NoError(t, err)
+	assert.Empty(t, trashed)
+
+	// .trash ディレクトリ内のノートファイルが削除されていること
+	for i := range 3 {
+		_, err := os.Stat(filepath.Join(dir, ".trash", "20260404", fmt.Sprintf("purge-%d.md", i)))
+		assert.True(t, os.IsNotExist(err))
+	}
+
+	// 通常ノートに影響がないこと
+	metas, err := s.List()
+	require.NoError(t, err)
+	assert.Empty(t, metas)
+}
+
+func TestFileStore_PurgeTrash_Empty(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	count, err := s.PurgeTrash()
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+}
+
+func TestFileStore_PurgeTrash_PreservesNormalNotes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+
+	// 通常ノートを作成
+	normal := note.Note{
+		Metadata: note.Metadata{
+			ID:        "normal1",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Body: "Keep this",
+	}
+	require.NoError(t, s.Save(normal))
+
+	// ゴミ箱ノートを作成
+	trash := note.Note{
+		Metadata: note.Metadata{
+			ID:        "trash1",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Body: "Delete this",
+	}
+	require.NoError(t, s.Save(trash))
+	require.NoError(t, s.Trash("trash1"))
+
+	count, err := s.PurgeTrash()
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	// 通常ノートは残っている
+	metas, err := s.List()
+	require.NoError(t, err)
+	assert.Len(t, metas, 1)
+	assert.Equal(t, note.NoteID("normal1"), metas[0].ID)
+
+	// ゴミ箱は空
+	trashed, err := s.ListTrashed()
+	require.NoError(t, err)
+	assert.Empty(t, trashed)
+}
+
 func TestFileStore_TrashPersistAcrossInstances(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

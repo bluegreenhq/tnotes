@@ -396,6 +396,91 @@ func createEmptyZip(t *testing.T, path string) {
 	require.NoError(t, zw.Close())
 }
 
+func TestRun_Purge_Force(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now)
+	_, _ = a.SaveNote(result.Note.ID, "Purge test\nBody", now)
+	_, _ = a.TrashNote(0)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "purge", "--force"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "1")
+}
+
+func TestRun_Purge_Empty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "purge", "--force"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Trash is empty")
+}
+
+func TestRun_Purge_ConfirmYes(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now)
+	_, _ = a.SaveNote(result.Note.ID, "Confirm test\nBody", now)
+	_, _ = a.TrashNote(0)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("y\n"), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "1")
+}
+
+func TestRun_Purge_ConfirmNo(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now)
+	_, _ = a.SaveNote(result.Note.ID, "Cancel test\nBody", now)
+	_, _ = a.TrashNote(0)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("n\n"), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Cancelled")
+
+	// ゴミ箱にはまだノートが残っている
+	require.NoError(t, a.EnterTrashMode())
+	assert.Len(t, a.TrashNotes, 1)
+}
+
+func TestRun_Purge_ConfirmEmpty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now)
+	_, _ = a.SaveNote(result.Note.ID, "Default no\nBody", now)
+	_, _ = a.TrashNote(0)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("\n"), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Cancelled")
+}
+
 func TestRun_Version_PrintsVersion(t *testing.T) {
 	t.Parallel()
 

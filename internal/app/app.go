@@ -125,6 +125,25 @@ func (a *App) ExitTrashMode() {
 	a.TrashMode = false
 }
 
+// PurgeTrash はゴミ箱内の全ノートを完全削除する。削除した件数を返す。
+func (a *App) PurgeTrash() (int, error) {
+	if a.store == nil {
+		count := len(a.TrashNotes)
+		a.TrashNotes = nil
+
+		return count, nil
+	}
+
+	count, err := a.store.PurgeTrash()
+	if err != nil {
+		return 0, err
+	}
+
+	a.TrashNotes = nil
+
+	return count, nil
+}
+
 // DataDir はデータディレクトリのパスを返す。
 func (a *App) DataDir() string {
 	return a.store.DataDir()
