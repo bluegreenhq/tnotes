@@ -150,6 +150,42 @@ func TestE2E_QuitWithQ(t *testing.T) {
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
+func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
+	t.Parallel()
+
+	m := newTestModel()
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Notes (0)")
+	}, teatest.WithDuration(3*time.Second))
+
+	// ノート作成
+	tm.Send(tea.KeyPressMsg{Code: 'n'})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "New Note")
+	}, teatest.WithDuration(3*time.Second))
+
+	// エディタ幅を超える長いテキストを入力（エディタ幅 = termW - sidebarW - padding ≈ 66）
+	longText := "abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ12345678"
+	for _, ch := range longText {
+		tm.Send(tea.KeyPressMsg{Text: string(ch)})
+	}
+
+	// ソフトラップにより全テキストが表示されていることを確認
+	// （水平スクロールモードでは末尾が見えないが、ソフトラップでは折り返される）
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		s := screen(bts)
+
+		return strings.Contains(s, "abcdef") && strings.Contains(s, "12345678")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	tm.Send(tea.KeyPressMsg{Code: 'q'})
+	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
 func TestE2E_TrashAndRestore(t *testing.T) {
 	t.Parallel()
 

@@ -71,10 +71,11 @@ func (e *Editor) applyTitleBold(raw string) string {
 
 // applyCursor はカーソル位置の文字を反転表示する。
 func (e *Editor) applyCursor(raw string) string {
-	cursorViewRow := e.textarea.Line() - e.textarea.ScrollYOffset()
-	logicalLine := e.textarea.Line()
-	scrollXRuneOff := cellToRuneIndex(e.textarea.lines[logicalLine], e.textarea.scrollX)
-	cursorCol := e.textarea.Column() - scrollXRuneOff
+	visualRow := e.textarea.layout.logicalToVisual(e.textarea.Line(), e.textarea.Column())
+	cursorViewRow := visualRow - e.textarea.ScrollYOffset()
+
+	_, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+	cursorCol := e.textarea.Column() - startRuneOff
 
 	viewLines := strings.Split(raw, "\n")
 	if cursorViewRow < 0 || cursorViewRow >= len(viewLines) {
@@ -115,26 +116,22 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 	viewLines := strings.Split(raw, "\n")
 
 	for i, line := range viewLines {
-		logicalLine := i + scrollOffset
+		visualRow := i + scrollOffset
+		logLine, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
 
-		if logicalLine < start.Line || logicalLine > end.Line {
+		if logLine < start.Line || logLine > end.Line {
 			continue
 		}
 
 		runes := []rune(line)
 
-		scrollXRuneOff := 0
-		if logicalLine >= 0 && logicalLine < len(e.textarea.lines) {
-			scrollXRuneOff = cellToRuneIndex(e.textarea.lines[logicalLine], e.textarea.scrollX)
-		}
-
 		var colStart, colEnd int
-		if logicalLine == start.Line {
-			colStart = start.Column - scrollXRuneOff
+		if logLine == start.Line {
+			colStart = start.Column - startRuneOff
 		}
 
-		if logicalLine == end.Line {
-			colEnd = end.Column - scrollXRuneOff
+		if logLine == end.Line {
+			colEnd = end.Column - startRuneOff
 		} else {
 			colEnd = len(runes)
 		}

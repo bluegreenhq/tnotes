@@ -34,8 +34,8 @@ type Editor struct {
 }
 
 // NewEditor は新しい Editor を生成する。
-func NewEditor(width, height int) Editor {
-	ta := newSimpleTextArea()
+func NewEditor(width, height int, noWrap bool) Editor {
+	ta := newSimpleTextArea(noWrap)
 	ta.SetWidth(width - editorPadding)
 	ta.SetHeight(height)
 

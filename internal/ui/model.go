@@ -53,11 +53,11 @@ type Model struct {
 var _ tea.Model = (*Model)(nil)
 
 // InitialModel は初期状態の Model を生成する。
-func InitialModel(a *app.App) *Model {
+func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
 		App:            a,
 		Sidebar:        NewSidebar(a.Notes, defaultSidebarW, defaultHeight),
-		Editor:         NewEditor(minWidth-defaultSidebarW, defaultHeight),
+		Editor:         NewEditor(minWidth-defaultSidebarW, defaultHeight, noWrap),
 		Footer:         Footer{hover: HoverNone, buttons: nil},
 		Focus:          FocusSidebar,
 		sidebarWidth:   defaultSidebarW,

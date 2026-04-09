@@ -17,7 +17,7 @@ func TestEditorLoadNote(t *testing.T) {
 
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	assert.Equal(t, note.NoteID("1"), ed.NoteID())
 	assert.Equal(t, "Hello\nWorld", ed.Value())
@@ -26,7 +26,7 @@ func TestEditorLoadNote(t *testing.T) {
 func TestEditorEmpty(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	assert.Empty(t, ed.NoteID())
 }
 
@@ -35,7 +35,7 @@ func TestEditorDirty(t *testing.T) {
 
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "original"}
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	assert.False(t, ed.Dirty())
 
@@ -51,7 +51,7 @@ func TestEditorReadOnly(t *testing.T) {
 
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "read only content"}
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
 	ed.SetReadOnly(true)
@@ -67,7 +67,7 @@ func TestEditorReadOnly(t *testing.T) {
 func TestEditorSelectionBasic(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
 	ed.LoadNote(n)
@@ -85,7 +85,7 @@ func TestEditorSelectionBasic(t *testing.T) {
 func TestEditorSelectionNormalize(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
 	ed.LoadNote(n)
@@ -99,7 +99,7 @@ func TestEditorSelectionNormalize(t *testing.T) {
 func TestEditorClearSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
 	ed.LoadNote(n)
@@ -114,7 +114,7 @@ func TestEditorClearSelection(t *testing.T) {
 func TestEditorSelectedText(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
 	ed.LoadNote(n)
@@ -132,7 +132,7 @@ func TestEditorSelectedText(t *testing.T) {
 func TestEditorSelectedTextNoSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
 	ed.LoadNote(n)
@@ -143,7 +143,7 @@ func TestEditorSelectedTextNoSelection(t *testing.T) {
 func TestEditorDeleteSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
 	ed.LoadNote(n)
@@ -157,7 +157,7 @@ func TestEditorDeleteSelection(t *testing.T) {
 func TestEditorDeleteSelectionMultiLine(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
 	ed.LoadNote(n)
@@ -171,7 +171,7 @@ func TestEditorDeleteSelectionMultiLine(t *testing.T) {
 func TestEditorCopySelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
 	ed.LoadNote(n)
@@ -186,7 +186,7 @@ func TestEditorCopySelection(t *testing.T) {
 func TestEditorCutSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
 	ed.LoadNote(n)
@@ -201,7 +201,7 @@ func TestEditorCutSelection(t *testing.T) {
 func TestEditorShiftArrowSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
 	ed.LoadNote(n)
@@ -218,7 +218,7 @@ func TestEditorShiftArrowSelection(t *testing.T) {
 func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
 	ed.LoadNote(n)
@@ -234,7 +234,7 @@ func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
 func TestEditorViewHasHighlight(t *testing.T) {
 	t.Parallel()
 
-	ed := ui.NewEditor(60, 20)
+	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
 	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
 	ed.LoadNote(n)

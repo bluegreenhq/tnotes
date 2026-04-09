@@ -365,25 +365,21 @@ func (e *Editor) UpdateDragSelection(x, y int) {
 }
 
 func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
-	col := max(x-1, 0) // padding分を差し引き
+	cellCol := max(x-1, 0) // padding分を差し引き
+	visualRow := y + e.textarea.ScrollYOffset()
 
-	line := y + e.textarea.ScrollYOffset()
-
-	lineCount := e.textarea.LineCount()
-	if lineCount == 0 {
+	totalVisual := e.textarea.layout.totalVisualLines()
+	if totalVisual == 0 {
 		return SelectionAnchor{Line: 0, Column: 0}
 	}
 
-	if line >= lineCount {
-		line = lineCount - 1
+	if visualRow >= totalVisual {
+		visualRow = totalVisual - 1
 	}
 
-	lines := strings.Split(e.textarea.Value(), "\n")
-	if line < len(lines) {
-		col = cellToRuneIndex([]rune(lines[line]), col)
-	}
+	logLine, runeCol := e.textarea.layout.viewCellToLogical(visualRow, cellCol)
 
-	return SelectionAnchor{Line: line, Column: col}
+	return SelectionAnchor{Line: logLine, Column: runeCol}
 }
 
 func (e *Editor) moveCursorTo(pos SelectionAnchor) {
