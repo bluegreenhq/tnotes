@@ -41,6 +41,13 @@ func New(s store.Store) (*App, error) {
 
 	note.SortByUpdatedDesc(a.Notes)
 
+	a.TrashNotes, err = s.ListTrashed()
+	if err != nil {
+		return a, err
+	}
+
+	note.SortByUpdatedDesc(a.TrashNotes)
+
 	return a, nil
 }
 
