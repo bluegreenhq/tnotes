@@ -59,7 +59,7 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		App:            a,
 		Sidebar:        NewSidebar(a.Notes, defaultSidebarW, defaultHeight),
 		Editor:         NewEditor(minWidth-defaultSidebarW, defaultHeight, noWrap),
-		Footer:         Footer{hover: HoverNone, buttons: nil},
+		Footer:         NewFooter(),
 		Focus:          FocusSidebar,
 		sidebarWidth:   defaultSidebarW,
 		width:          0,

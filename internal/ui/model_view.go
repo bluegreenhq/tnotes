@@ -43,5 +43,32 @@ func (m *Model) renderView(now time.Time) string {
 		bodyLines = append(bodyLines, "")
 	}
 
+	// メニューオーバーレイ
+	if m.Footer.MenuOpen() {
+		menuLines := m.Footer.PopupMenuRef().View()
+		m.overlayMenu(bodyLines, menuLines)
+	}
+
 	return strings.Join(bodyLines, "\n") + "\n" + footer
+}
+
+// overlayMenu はサイドバー領域にメニューをオーバーレイする。
+// bodyLines の下端（フッターの直上）にメニューを重ねる。
+func (m *Model) overlayMenu(bodyLines []string, menuLines []string) {
+	if len(menuLines) == 0 {
+		return
+	}
+
+	// メニューをbodyの下端に配置
+	startY := max(len(bodyLines)-len(menuLines), 0)
+
+	for i, menuLine := range menuLines {
+		y := startY + i
+		if y >= len(bodyLines) {
+			break
+		}
+
+		// メニュー行の前にスペース1つを付加
+		bodyLines[y] = " " + menuLine
+	}
 }

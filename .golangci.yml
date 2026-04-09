@@ -123,7 +123,7 @@ linters:
         source: "nolint:"
       - linters:
           - gochecknoglobals
-        path: "(footer|sidebar_item|sidebar|editor)(_view)?\\.go"
+        path: "internal/ui/"
       - linters:
           - ireturn
         text: "bubbletea"
