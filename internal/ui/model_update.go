@@ -47,6 +47,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
 	m.infoMsg = ""
+	m.Footer.CloseMenu()
 
 	switch {
 	case msg.Code == 'q' && m.Focus == FocusSidebar:
@@ -76,8 +77,9 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 	m.height = msg.Height
 	m.sidebarWidth = max(m.sidebarWidth, minSidebarWidth)
 	m.sidebarWidth = min(m.sidebarWidth, m.maxSidebarWidth())
-	m.Sidebar.SetSize(m.sidebarWidth, msg.Height-1, now)
-	m.Editor.SetSize(msg.Width-m.sidebarWidth, msg.Height-1)
+	m.Sidebar.SetSize(m.sidebarWidth, msg.Height-footerLineCount, now)
+	m.Editor.SetSize(msg.Width-m.sidebarWidth, msg.Height-footerLineCount)
+	m.Footer.CloseMenu()
 
 	return nil
 }
@@ -131,11 +133,18 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	footerY := m.height - 1
+	footerLabelY := m.height - footerLineCount + 1 // フッター3行の中央（ラベル行）
+
+	// メニューが開いている場合
+	if m.Footer.MenuOpen() {
+		return m.handleClickWithMenu(msg, now)
+	}
 
 	switch {
-	case msg.Y == footerY:
+	case msg.Y == footerLabelY:
 		return m.handleFooterClick(msg.X, now)
+	case msg.Y >= m.height-footerLineCount:
+		return nil // フッターの罫線行
 	case m.isOnSeparator(msg.X):
 		m.resizing = true
 
@@ -145,6 +154,35 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	default:
 		return m.handleEditorClick(msg)
 	}
+}
+
+func (m *Model) handleClickWithMenu(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	menuHeight := m.Footer.MenuHeight()
+	bodyLines := m.height - footerLineCount
+	menuTopY := bodyLines - menuHeight
+
+	// メニュー領域内のクリック
+	if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight {
+		relX := msg.X - 1        // 先頭スペース分を引く
+		relY := msg.Y - menuTopY // PopupMenu 座標 (0=上枠, 1=項目1, ...)
+
+		cmd := m.Footer.HandleMenuClick(relX, relY)
+		if cmd == nil {
+			return nil
+		}
+
+		fMsg, ok := cmd().(FooterMsg)
+		if !ok {
+			return cmd
+		}
+
+		return m.handleFooterMsg(fMsg, now)
+	}
+
+	// メニュー外クリック → メニューを閉じるだけ
+	m.Footer.CloseMenu()
+
+	return nil
 }
 
 func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
@@ -277,8 +315,24 @@ func (m *Model) isOnSeparator(x int) bool {
 }
 
 func (m *Model) updateFooterHover(mouse tea.Mouse) {
-	footerY := m.height - 1
-	if mouse.Y == footerY {
+	footerLabelY := m.height - footerLineCount + 1
+
+	if m.Footer.MenuOpen() {
+		menuHeight := m.Footer.MenuHeight()
+		bodyLines := m.height - footerLineCount
+		menuTopY := bodyLines - menuHeight
+
+		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight {
+			relX := mouse.X - 1
+			relY := mouse.Y - menuTopY
+			m.Footer.SetMenuHover(relX, relY)
+			m.Footer.SetHover(HoverNone)
+
+			return
+		}
+	}
+
+	if mouse.Y == footerLabelY {
 		m.rebuildFooterButtons()
 		m.Footer.SetHover(m.Footer.HitTest(mouse.X))
 	} else {
@@ -380,6 +434,8 @@ func (m *Model) handleFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 		return m.copySelection()
 	case FooterCut:
 		return m.cutSelection()
+	case FooterMore:
+		return nil
 	}
 
 	return nil

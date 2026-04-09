@@ -7,38 +7,83 @@ import (
 )
 
 var (
-	buttonStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
-	buttonHoverStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("12")).Underline(true)
-	buttonDisabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-	dirtyMarkStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	errorStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	infoStyle           = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	dirtyMarkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	infoStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 )
+
+const footerLineCount = 3
 
 // View はフッター行を描画する。infoMsgがあればボタンの右にシアン色で表示する。
 // errMsgがある場合はエラーが優先される。
 // 戻り値は描画文字列と行数。
 func (f *Footer) View(errMsg, infoMsg string, width int) (string, int) {
 	if errMsg != "" {
+		f.menuOpen = false
+
 		return renderErrorLines(errMsg, width), errorLineCount(errMsg, width)
 	}
 
+	btns, dirtyMark := f.collectBoxButtons()
+	topLine := renderFooterTopLine(btns)
+	midLine := renderFooterMidLine(btns, dirtyMark, infoMsg)
+	botLine := renderFooterBotLine(btns)
+
+	return topLine + "\n" + midLine + "\n" + botLine, footerLineCount
+}
+
+func (f *Footer) collectBoxButtons() ([]BoxButton, string) {
+	var btns []BoxButton
+
+	var dirtyMark string
+
+	for _, btn := range f.buttons {
+		if btn.Target == HoverNone && btn.Disabled {
+			dirtyMark = btn.Label
+
+			continue
+		}
+
+		bb := NewBoxButton(btn.Label)
+		bb.SetHovered(f.hover == btn.Target)
+		btns = append(btns, bb)
+	}
+
+	return btns, dirtyMark
+}
+
+func renderFooterTopLine(btns []BoxButton) string {
 	var buf strings.Builder
+
 	buf.WriteString(" ")
 
-	for i, btn := range f.buttons {
+	for i := range btns {
 		if i > 0 {
 			buf.WriteString("  ")
 		}
 
-		switch {
-		case btn.Target == HoverNone && btn.Disabled:
-			buf.WriteString(dirtyMarkStyle.Render(btn.Label))
-		case btn.Disabled:
-			buf.WriteString(renderDisabledButton(btn.Label))
-		default:
-			buf.WriteString(renderButton(btn.Label, f.hover == btn.Target))
+		buf.WriteString(btns[i].ViewTop())
+	}
+
+	return buf.String()
+}
+
+func renderFooterMidLine(btns []BoxButton, dirtyMark, infoMsg string) string {
+	var buf strings.Builder
+
+	buf.WriteString(" ")
+
+	for i := range btns {
+		if i > 0 {
+			buf.WriteString("  ")
 		}
+
+		buf.WriteString(btns[i].ViewMiddle())
+	}
+
+	if dirtyMark != "" {
+		buf.WriteString("  ")
+		buf.WriteString(dirtyMarkStyle.Render(dirtyMark))
 	}
 
 	if infoMsg != "" {
@@ -46,7 +91,23 @@ func (f *Footer) View(errMsg, infoMsg string, width int) (string, int) {
 		buf.WriteString(infoStyle.Render(infoMsg))
 	}
 
-	return buf.String(), 1
+	return buf.String()
+}
+
+func renderFooterBotLine(btns []BoxButton) string {
+	var buf strings.Builder
+
+	buf.WriteString(" ")
+
+	for i := range btns {
+		if i > 0 {
+			buf.WriteString("  ")
+		}
+
+		buf.WriteString(btns[i].ViewBottom())
+	}
+
+	return buf.String()
 }
 
 func errorLineCount(msg string, width int) int {
@@ -84,16 +145,4 @@ func renderErrorLines(msg string, width int) string {
 	}
 
 	return buf.String()
-}
-
-func renderButton(label string, hovered bool) string {
-	if hovered {
-		return buttonHoverStyle.Render(label)
-	}
-
-	return buttonStyle.Render(label)
-}
-
-func renderDisabledButton(label string) string {
-	return buttonDisabledStyle.Render(label)
 }

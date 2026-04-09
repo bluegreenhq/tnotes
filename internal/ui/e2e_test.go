@@ -29,8 +29,7 @@ func TestE2E_InitialRender(t *testing.T) {
 		s := screen(bts)
 
 		return strings.Contains(s, "Notes (0)") &&
-			strings.Contains(s, "[New]") &&
-			strings.Contains(s, "[Quit]")
+			strings.Contains(s, "Menu")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q'})

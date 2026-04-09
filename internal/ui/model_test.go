@@ -271,8 +271,8 @@ func TestFooterShowsCopyCutWhenSelected(t *testing.T) {
 
 	// 選択なし: Copy/Cut ボタンなし
 	view := model.View()
-	assert.NotContains(t, view.Content, "[Copy]")
-	assert.NotContains(t, view.Content, "[Cut]")
+	assert.NotContains(t, view.Content, " Copy ")
+	assert.NotContains(t, view.Content, " Cut ")
 
 	// エディタで選択をシミュレート（マウスドラッグ）
 	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 0, Button: tea.MouseLeft})
@@ -282,8 +282,8 @@ func TestFooterShowsCopyCutWhenSelected(t *testing.T) {
 
 	// 選択あり: Copy/Cut ボタンが表示される
 	view = model.View()
-	assert.Contains(t, view.Content, "[Copy]")
-	assert.Contains(t, view.Content, "[Cut]")
+	assert.Contains(t, view.Content, " Copy ")
+	assert.Contains(t, view.Content, " Cut ")
 }
 
 func TestSelectionClearedOnNoteSwitch(t *testing.T) {
