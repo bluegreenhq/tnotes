@@ -10,10 +10,6 @@ const (
 	NoteListCreate
 	// NoteListTrash はノートのゴミ箱移動を要求する。
 	NoteListTrash
-	// NoteListEnterTrash はゴミ箱モードへの切り替えを要求する。
-	NoteListEnterTrash
-	// NoteListExitTrash はゴミ箱モードからの復帰を要求する。
-	NoteListExitTrash
 	// NoteListRestore はゴミ箱からのノート復元を要求する。
 	NoteListRestore
 	// NoteListUndo はundo操作を要求する。
@@ -43,14 +39,22 @@ const (
 	EditorSave
 )
 
+// FolderListMsg はフォルダ一覧からモデルへの通知メッセージ。
+type FolderListMsg int
+
+const (
+	// FolderListSelect はフォルダ選択変更を通知する。
+	FolderListSelect FolderListMsg = iota
+	// FolderListFocusNext はノート一覧へのフォーカス移動を要求する。
+	FolderListFocusNext
+)
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 
 const (
 	// FooterNew は新規ノート生成ボタンがクリックされたことを通知する。
 	FooterNew FooterMsg = iota
-	// FooterTrashToggle はゴミ箱モード切り替えボタンがクリックされたことを通知する。
-	FooterTrashToggle
 	// FooterRestore は復元ボタンがクリックされたことを通知する。
 	FooterRestore
 	// FooterQuit は終了ボタンがクリックされたことを通知する。

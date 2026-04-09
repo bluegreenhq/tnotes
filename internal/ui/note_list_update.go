@@ -159,8 +159,6 @@ func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList
 		return *s, noteListCmd(NoteListCreate)
 	case 'd', tea.KeyDelete, tea.KeyBackspace:
 		return *s, noteListCmd(NoteListTrash)
-	case 'g':
-		return *s, noteListCmd(NoteListEnterTrash)
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
@@ -174,8 +172,6 @@ func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList
 
 func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
-	case 'g':
-		return *s, noteListCmd(NoteListExitTrash)
 	case 'r':
 		return *s, noteListCmd(NoteListRestore)
 	case tea.KeyUp, 'k':

@@ -11,6 +11,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/store"
 )
 
 var (
@@ -31,7 +32,7 @@ func runImport(args []string, a *app.App, w io.Writer) error {
 	zipPath := args[2]
 	dataDir := a.DataDir()
 
-	_, statErr := os.Stat(filepath.Join(dataDir, "index.json"))
+	_, statErr := os.Stat(filepath.Join(dataDir, store.IndexFile))
 	if statErr == nil {
 		return errors.WithDetail(ErrDataDirNotEmpty, dataDir)
 	}

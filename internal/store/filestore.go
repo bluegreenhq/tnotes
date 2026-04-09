@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -16,7 +17,11 @@ var (
 	ErrTrashedNoteNotFound = errors.New("trashed note not found")
 )
 
-const dirPerm = 0o750
+const (
+	dirPerm  = 0o750
+	notesDir = "Notes"
+	trashDir = ".trash"
+)
 
 // FileStore はファイルシステムベースのStore実装。
 type FileStore struct {
@@ -39,12 +44,12 @@ func NewFileStore(dir string) (*FileStore, error) {
 		trashIndex: make(map[note.NoteID]trashMetadata),
 	}
 
-	err = fs.loadIndex()
+	err = os.MkdirAll(fs.notesDirPath(), dirPerm)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
-	err = fs.loadTrashIndex()
+	err = fs.loadIndex()
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +93,7 @@ func (fs *FileStore) Load(id note.NoteID) (note.Note, error) {
 // Save はノートをファイルに書き出し、インデックスを更新する。
 func (fs *FileStore) Save(n note.Note) error {
 	dateDir := n.CreatedAt.Format("20060102")
-	relPath := filepath.Join(dateDir, string(n.ID)+".md")
+	relPath := filepath.Join(notesDir, dateDir, string(n.ID)+".md")
 	absPath := filepath.Join(fs.dir, relPath)
 
 	// 既存ノートの場合、元のパスを維持
@@ -141,7 +146,7 @@ func (fs *FileStore) Save(n note.Note) error {
 
 // Trash はノートをゴミ箱に移動する。
 func (fs *FileStore) Trash(id note.NoteID) error {
-	unlock, err := fs.lockAndReloadAll()
+	unlock, err := fs.lockAndReload()
 	if err != nil {
 		return err
 	}
@@ -153,7 +158,8 @@ func (fs *FileStore) Trash(id note.NoteID) error {
 	}
 
 	srcPath := filepath.Join(fs.dir, meta.Path)
-	dstRelPath := filepath.Join(".trash", meta.Path)
+	pathWithoutNotes := strings.TrimPrefix(meta.Path, notesDir+string(filepath.Separator))
+	dstRelPath := filepath.Join(trashDir, pathWithoutNotes)
 	dstPath := filepath.Join(fs.dir, dstRelPath)
 
 	err = os.MkdirAll(filepath.Dir(dstPath), dirPerm)
@@ -180,26 +186,13 @@ func (fs *FileStore) Trash(id note.NoteID) error {
 	fs.trashIndex[id] = trashMeta
 	delete(fs.index, id)
 
-	// Save both indexes; roll back on failure
-	err = fs.saveTrashIndex()
-	if err != nil {
-		// Roll back: restore in-memory state and move file back
-		fs.index[id] = meta
-		delete(fs.trashIndex, id)
-
-		_ = os.Rename(dstPath, srcPath)
-
-		return err
-	}
-
+	// Save unified index; roll back on failure
 	err = fs.saveIndex()
 	if err != nil {
-		// Roll back: restore in-memory state and move file back
 		fs.index[id] = meta
 		delete(fs.trashIndex, id)
 
 		_ = os.Rename(dstPath, srcPath)
-		_ = fs.saveTrashIndex() // best-effort rollback of trash index file
 
 		return err
 	}
@@ -219,7 +212,7 @@ func (fs *FileStore) ListTrashed() ([]note.Note, error) {
 
 // Restore はゴミ箱からノートを復元する。
 func (fs *FileStore) Restore(id note.NoteID) error {
-	unlock, err := fs.lockAndReloadAll()
+	unlock, err := fs.lockAndReload()
 	if err != nil {
 		return err
 	}
@@ -254,24 +247,12 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 	fs.index[id] = restoredMeta
 	delete(fs.trashIndex, id)
 
-	// Save both indexes; roll back on failure
+	// Save unified index; roll back on failure
 	err = fs.saveIndex()
 	if err != nil {
-		// Roll back
 		delete(fs.index, id)
 		fs.trashIndex[id] = meta
 		_ = os.Rename(dstPath, srcPath)
-
-		return err
-	}
-
-	err = fs.saveTrashIndex()
-	if err != nil {
-		// Roll back
-		delete(fs.index, id)
-		fs.trashIndex[id] = meta
-		_ = os.Rename(dstPath, srcPath)
-		_ = fs.saveIndex()
 
 		return err
 	}
@@ -281,7 +262,7 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 
 // PurgeTrash はゴミ箱内の全ノートを完全削除する。削除した件数を返す。
 func (fs *FileStore) PurgeTrash() (int, error) {
-	unlock, err := fs.lockAndReloadAll()
+	unlock, err := fs.lockAndReload()
 	if err != nil {
 		return 0, err
 	}
@@ -305,7 +286,7 @@ func (fs *FileStore) PurgeTrash() (int, error) {
 	// trashIndex をクリアして保存
 	clear(fs.trashIndex)
 
-	err = fs.saveTrashIndex()
+	err = fs.saveIndex()
 	if err != nil {
 		return 0, err
 	}
@@ -320,7 +301,7 @@ func (fs *FileStore) DataDir() string {
 
 // IndexModTime はindex.jsonの最終更新日時を返す。
 func (fs *FileStore) IndexModTime() (time.Time, error) {
-	path := filepath.Join(fs.dir, indexFile)
+	path := filepath.Join(fs.dir, IndexFile)
 
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -336,17 +317,12 @@ func (fs *FileStore) IndexModTime() (time.Time, error) {
 
 // Reload はindex.jsonを再読み込みしてインメモリ状態を更新する。
 func (fs *FileStore) Reload() error {
-	err := fs.loadIndex()
-	if err != nil {
-		return err
-	}
-
-	return fs.loadTrashIndex()
+	return fs.loadIndex()
 }
 
-// lockAndReloadAll はロックを取得し、index と trashIndex を再読み込みする。
+// lockAndReload はロックを取得し、indexを再読み込みする。
 // 戻り値の関数を呼ぶとロックを解放する。
-func (fs *FileStore) lockAndReloadAll() (func(), error) {
+func (fs *FileStore) lockAndReload() (func(), error) {
 	unlock, err := lockFile(fs.dir)
 	if err != nil {
 		return nil, err
@@ -359,26 +335,20 @@ func (fs *FileStore) lockAndReloadAll() (func(), error) {
 		return nil, err
 	}
 
-	err = fs.loadTrashIndex()
-	if err != nil {
-		unlock()
-
-		return nil, err
-	}
-
 	return unlock, nil
 }
 
-func (fs *FileStore) trashDir() string {
-	return filepath.Join(fs.dir, ".trash")
+func (fs *FileStore) notesDirPath() string {
+	return filepath.Join(fs.dir, notesDir)
 }
 
 func (fs *FileStore) loadIndex() error {
-	path := filepath.Join(fs.dir, indexFile)
+	path := filepath.Join(fs.dir, IndexFile)
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		clear(fs.index)
+		clear(fs.trashIndex)
 
 		return nil
 	}
@@ -409,52 +379,9 @@ func (fs *FileStore) loadIndex() error {
 		}
 	}
 
-	return nil
-}
-
-func (fs *FileStore) saveIndex() error {
-	idx := indexData{Notes: make(map[string]indexEntry, len(fs.index))}
-	for id, meta := range fs.index {
-		idx.Notes[string(id)] = indexEntry{
-			Title:     meta.Title,
-			CreatedAt: meta.CreatedAt.Format(timeFormat),
-			UpdatedAt: meta.UpdatedAt.Format(timeFormat),
-			Path:      meta.Path,
-		}
-	}
-
-	data, err := json.MarshalIndent(idx, "", "  ")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	return atomicWrite(filepath.Join(fs.dir, indexFile), data)
-}
-
-func (fs *FileStore) loadTrashIndex() error {
-	path := filepath.Join(fs.trashDir(), indexFile)
-
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		clear(fs.trashIndex)
-
-		return nil
-	}
-
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	var idx trashIndexData
-
-	err = json.Unmarshal(data, &idx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
 	clear(fs.trashIndex)
 
-	for id, entry := range idx.Notes {
+	for id, entry := range idx.Trash {
 		nid := note.NoteID(id)
 		createdAt, _ := parseTime(entry.CreatedAt)
 		updatedAt, _ := parseTime(entry.UpdatedAt)
@@ -473,17 +400,23 @@ func (fs *FileStore) loadTrashIndex() error {
 	return nil
 }
 
-func (fs *FileStore) saveTrashIndex() error {
-	trashDir := fs.trashDir()
-
-	err := os.MkdirAll(trashDir, dirPerm)
-	if err != nil {
-		return errors.WithStack(err)
+func (fs *FileStore) saveIndex() error {
+	idx := indexData{
+		Notes: make(map[string]indexEntry, len(fs.index)),
+		Trash: make(map[string]trashIndexEntry, len(fs.trashIndex)),
 	}
 
-	idx := trashIndexData{Notes: make(map[string]trashIndexEntry, len(fs.trashIndex))}
+	for id, meta := range fs.index {
+		idx.Notes[string(id)] = indexEntry{
+			Title:     meta.Title,
+			CreatedAt: meta.CreatedAt.Format(timeFormat),
+			UpdatedAt: meta.UpdatedAt.Format(timeFormat),
+			Path:      meta.Path,
+		}
+	}
+
 	for id, meta := range fs.trashIndex {
-		idx.Notes[string(id)] = trashIndexEntry{
+		idx.Trash[string(id)] = trashIndexEntry{
 			Title:        meta.Title,
 			CreatedAt:    meta.CreatedAt.Format(timeFormat),
 			UpdatedAt:    meta.UpdatedAt.Format(timeFormat),
@@ -497,5 +430,5 @@ func (fs *FileStore) saveTrashIndex() error {
 		return errors.WithStack(err)
 	}
 
-	return atomicWrite(filepath.Join(trashDir, indexFile), data)
+	return atomicWrite(filepath.Join(fs.dir, IndexFile), data)
 }

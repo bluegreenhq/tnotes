@@ -12,8 +12,10 @@ import (
 type FocusArea int
 
 const (
+	// FocusFolderList はフォルダ一覧にフォーカスしている状態。
+	FocusFolderList FocusArea = iota
 	// FocusNoteList はノート一覧にフォーカスしている状態。
-	FocusNoteList FocusArea = iota
+	FocusNoteList
 	// FocusEditor はエディタにフォーカスしている状態。
 	FocusEditor
 )
@@ -35,20 +37,24 @@ type clearInfoMsg struct {
 
 // Model はUIの状態を表す。
 type Model struct {
-	App            *app.App
-	NoteList       NoteList
-	Editor         Editor
-	Footer         Footer
-	Focus          FocusArea
-	noteListWidth  int
-	width          int
-	height         int
-	resizing       bool
-	hoverSeparator bool
-	errMsg         string
-	infoMsg        string
-	infoMsgID      int
-	indexModTime   time.Time
+	App             *app.App
+	NoteList        NoteList
+	Editor          Editor
+	Footer          Footer
+	Focus           FocusArea
+	FolderList      FolderList
+	folderListWidth int
+	resizingFolder  bool
+	hoverFolderSep  bool
+	noteListWidth   int
+	width           int
+	height          int
+	resizing        bool
+	hoverSeparator  bool
+	errMsg          string
+	infoMsg         string
+	infoMsgID       int
+	indexModTime    time.Time
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -56,20 +62,24 @@ var _ tea.Model = (*Model)(nil)
 // InitialModel は初期状態の Model を生成する。
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
-		App:            a,
-		NoteList:       NewNoteList(a.Notes, defaultNoteListW, defaultHeight),
-		Editor:         NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
-		Footer:         NewFooter(),
-		Focus:          FocusNoteList,
-		noteListWidth:  defaultNoteListW,
-		width:          0,
-		height:         0,
-		resizing:       false,
-		hoverSeparator: false,
-		errMsg:         "",
-		infoMsg:        "",
-		infoMsgID:      0,
-		indexModTime:   time.Time{},
+		App:             a,
+		NoteList:        NewNoteList(a.Notes, defaultNoteListW, defaultHeight),
+		Editor:          NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
+		Footer:          NewFooter(),
+		Focus:           FocusNoteList,
+		FolderList:      NewFolderList(defaultFolderListW, defaultHeight),
+		folderListWidth: defaultFolderListW,
+		resizingFolder:  false,
+		hoverFolderSep:  false,
+		noteListWidth:   defaultNoteListW,
+		width:           0,
+		height:          0,
+		resizing:        false,
+		hoverSeparator:  false,
+		errMsg:          "",
+		infoMsg:         "",
+		infoMsgID:       0,
+		indexModTime:    time.Time{},
 	}
 
 	return m

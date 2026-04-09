@@ -148,90 +148,6 @@ func TestDeleteNoteFromEnd(t *testing.T) {
 	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 }
 
-func TestTrashMode(t *testing.T) {
-	t.Parallel()
-	m := sized(t, newTestModel())
-	// ノート作成して削除
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
-	model := mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
-	assert.False(t, model.App.TrashMode)
-
-	// g でゴミ箱モードに入る
-	ret, _ = model.Update(tea.KeyPressMsg{Code: 'g'})
-	model = mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
-
-	// g で戻る
-	ret, _ = model.Update(tea.KeyPressMsg{Code: 'g'})
-	model = mustModel(t, ret)
-	assert.False(t, model.App.TrashMode)
-}
-
-func TestTrashModeNoFocusToEditor(t *testing.T) {
-	t.Parallel()
-	m := sized(t, newTestModel())
-	// ノート作成→削除→ゴミ箱モード
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'g'})
-	model := mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
-	assert.Equal(t, ui.FocusNoteList, model.Focus)
-
-	// Tab でエディタに移動できない
-	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-	model = mustModel(t, ret)
-	assert.Equal(t, ui.FocusNoteList, model.Focus)
-
-	// Enter でもエディタに移動できない
-	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	model = mustModel(t, ret)
-	assert.Equal(t, ui.FocusNoteList, model.Focus)
-}
-
-func TestRestoreNote(t *testing.T) {
-	t.Parallel()
-	m := sized(t, newTestModel())
-	// ノート2つ作成
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	// 1つ削除
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
-	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
-
-	// ゴミ箱モードに入る
-	ret, _ = model.Update(tea.KeyPressMsg{Code: 'g'})
-	model = mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
-
-	// r で復元 → 通常モードに戻り、ノート数が2に
-	ret, _ = model.Update(tea.KeyPressMsg{Code: 'r'})
-	model = mustModel(t, ret)
-	assert.False(t, model.App.TrashMode)
-	assert.Len(t, model.App.Notes, 2)
-}
-
-func TestTrashModeView(t *testing.T) {
-	t.Parallel()
-	m := sized(t, newTestModel())
-	// ノート作成→削除→ゴミ箱モード
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'g'})
-	model := mustModel(t, ret)
-
-	view := model.View()
-	assert.Contains(t, view.Content, "Trash (1)")
-}
-
 func TestMouseDragSelection(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
@@ -528,4 +444,150 @@ func TestWheelOnEditor(t *testing.T) {
 	ret, _ = model.Update(tea.MouseWheelMsg(tea.Mouse{X: 50, Y: 5, Button: tea.MouseWheelDown}))
 	model = mustModel(t, ret)
 	assert.NotNil(t, model)
+}
+
+func TestToggleFolderList(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// 初期状態: フォルダ非表示
+	assert.False(t, m.FolderList.Visible())
+
+	// Ctrl+B でフォルダ表示
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	model := mustModel(t, ret)
+	assert.True(t, model.FolderList.Visible())
+	assert.Equal(t, ui.FocusFolderList, model.Focus)
+
+	// もう一度 Ctrl+B で非表示
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	model = mustModel(t, ret)
+	assert.False(t, model.FolderList.Visible())
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
+}
+
+func TestFolderListSelectTrash(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model := mustModel(t, ret)
+
+	// フォルダ表示
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusFolderList, model.Focus)
+
+	// j で Trash を選択
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'j'})
+	model = mustModel(t, ret)
+	assert.True(t, model.App.TrashMode)
+
+	// k で Notes に戻る
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'k'})
+	model = mustModel(t, ret)
+	assert.False(t, model.App.TrashMode)
+}
+
+func TestFolderListFocusTransition(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model := mustModel(t, ret)
+
+	// フォルダ表示
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusFolderList, model.Focus)
+
+	// Tab → NoteList
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
+
+	// Tab → Editor
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusEditor, model.Focus)
+
+	// Esc → NoteList
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
+
+	// Esc → FolderList
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model = mustModel(t, ret)
+	assert.Equal(t, ui.FocusFolderList, model.Focus)
+}
+
+func TestCtrlBInEditorDoesNotToggleFolder(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成（エディタにフォーカス）
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	model := mustModel(t, ret)
+	assert.Equal(t, ui.FocusEditor, model.Focus)
+
+	// Ctrl+B → フォルダトグルではなくエディタの操作
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	model = mustModel(t, ret)
+	assert.False(t, model.FolderList.Visible())
+}
+
+func TestTrashModeViaFolder(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成して削除
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
+	model := mustModel(t, ret)
+	assert.Empty(t, model.App.Notes)
+
+	// フォルダ表示 → Trash 選択
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
+	model = mustModel(t, ret)
+	assert.True(t, model.App.TrashMode)
+
+	// Trash のビュー確認
+	view := model.View()
+	assert.Contains(t, view.Content, "Trash")
+
+	// Notes に戻る
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'k'})
+	model = mustModel(t, ret)
+	assert.False(t, model.App.TrashMode)
+}
+
+func TestRestoreNoteViaFolder(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成して削除
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
+	model := mustModel(t, ret)
+
+	// フォルダ表示 → Trash 選択
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
+	model = mustModel(t, ret)
+	assert.True(t, model.App.TrashMode)
+
+	// Tab → NoteList → r で復元
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'r'})
+	model = mustModel(t, ret)
+	assert.False(t, model.App.TrashMode)
+	assert.Len(t, model.App.Notes, 1)
 }

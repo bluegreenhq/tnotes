@@ -111,7 +111,7 @@ func TestNoteListViewWithSections(t *testing.T) {
 	}
 	nl := ui.NewNoteList(notes, 30, 40)
 
-	view := nl.View(true, false, fixedNow)
+	view := nl.View(true, false, fixedNow, false)
 	assert.Contains(t, view, "Today")
 	assert.Contains(t, view, "Yesterday")
 	assert.Contains(t, view, "Today note")
@@ -183,7 +183,7 @@ func TestNoteListTrashModeNoSections(t *testing.T) {
 	nl.SetTitle("Trash")
 	nl.SetSectioned(false)
 
-	view := nl.View(true, false, fixedNow)
+	view := nl.View(true, false, fixedNow, false)
 	assert.Contains(t, view, "Trash")
 	assert.NotContains(t, view, "Today")
 }

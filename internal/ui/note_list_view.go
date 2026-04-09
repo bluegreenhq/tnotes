@@ -14,12 +14,18 @@ var noteListStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("8"))
 
 // View はノート一覧の描画内容を返す。
-func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time) string {
+func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folderVisible bool) string {
 	contentWidth := s.width - noteListBorderWidth
 
 	var b strings.Builder
 
-	titleStr := fmt.Sprintf(" %s (%d)", s.title, len(s.notes))
+	var titleStr string
+	if folderVisible {
+		titleStr = fmt.Sprintf(" %s (%d)", s.title, len(s.notes))
+	} else {
+		titleStr = fmt.Sprintf(" ≡ %s (%d)", s.title, len(s.notes))
+	}
+
 	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(titleStr))
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", contentWidth))

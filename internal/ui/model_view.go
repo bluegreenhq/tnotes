@@ -24,8 +24,19 @@ func (m *Model) renderView(now time.Time) string {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
-	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now)
-	body := lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())
+	// フォルダの件数を更新
+	m.FolderList.UpdateCounts(len(m.App.Notes), len(m.App.TrashNotes))
+
+	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now, m.FolderList.Visible())
+
+	var body string
+
+	if m.FolderList.Visible() {
+		folderView := m.FolderList.View(m.Focus == FocusFolderList)
+		body = lipgloss.JoinHorizontal(lipgloss.Top, folderView, noteListView, m.Editor.View())
+	} else {
+		body = lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())
+	}
 
 	m.rebuildFooterButtons()
 	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.width)
