@@ -35,6 +35,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		return m, m.handleEditorMsg(msg, now)
 	case FooterMsg:
 		return m, m.handleFooterMsg(msg, now)
+	case tea.FocusMsg:
+		return m, m.handleFocusRestore()
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
@@ -69,7 +71,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 	m.width = msg.Width
 	m.height = msg.Height
 	m.sidebarWidth = max(m.sidebarWidth, minSidebarWidth)
@@ -80,7 +82,31 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd { //n
 	return nil
 }
 
-func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleFocusRestore() tea.Cmd {
+	changed, mt, err := m.App.RefreshNotes(m.indexModTime)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	if !changed {
+		return nil
+	}
+
+	m.indexModTime = mt
+	m.Sidebar.SetNotes(m.App.Notes, time.Now())
+
+	if len(m.App.Notes) > 0 {
+		m.loadSelectedNote()
+	} else {
+		m.Editor.Clear()
+	}
+
+	return nil
+}
+
+func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd {
 	if msg.id == m.infoMsgID {
 		m.infoMsg = ""
 	}
@@ -171,7 +197,7 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	const scrollLines = 1
@@ -197,7 +223,7 @@ func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd { //no
 	return nil
 }
 
-func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	m.hoverSeparator = m.resizing || m.isOnSeparator(mouse.X)
@@ -224,7 +250,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //no
 	return nil
 }
 
-func (m *Model) handleRelease() tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleRelease() tea.Cmd {
 	if m.resizing {
 		m.resizing = false
 
@@ -238,7 +264,7 @@ func (m *Model) handleRelease() tea.Cmd { //nolint:unparam // Update dispatch
 	return nil
 }
 
-func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd { //nolint:unparam // Update dispatch
+func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.updateFooterHover(mouse)

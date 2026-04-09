@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/cockroachdb/errors"
 
@@ -110,7 +111,18 @@ func (fs *FileStore) Save(n note.Note) error {
 		return errors.WithStack(err)
 	}
 
-	// インデックス更新
+	// ロック取得 → index再読み込み → マージ → 書き込み → ロック解放
+	unlock, err := lockFile(fs.dir)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	err = fs.loadIndex()
+	if err != nil {
+		return err
+	}
+
 	fs.index[n.ID] = note.Metadata{
 		ID:        n.ID,
 		Title:     n.Title(),
@@ -121,7 +133,7 @@ func (fs *FileStore) Save(n note.Note) error {
 
 	err = fs.saveIndex()
 	if err != nil {
-		return errors.WithStack(err)
+		return err
 	}
 
 	return nil
@@ -129,6 +141,12 @@ func (fs *FileStore) Save(n note.Note) error {
 
 // Trash はノートをゴミ箱に移動する。
 func (fs *FileStore) Trash(id note.NoteID) error {
+	unlock, err := fs.lockAndReloadAll()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	meta, ok := fs.index[id]
 	if !ok {
 		return errors.WithDetail(ErrNoteNotFound, string(id))
@@ -138,7 +156,7 @@ func (fs *FileStore) Trash(id note.NoteID) error {
 	dstRelPath := filepath.Join(".trash", meta.Path)
 	dstPath := filepath.Join(fs.dir, dstRelPath)
 
-	err := os.MkdirAll(filepath.Dir(dstPath), dirPerm)
+	err = os.MkdirAll(filepath.Dir(dstPath), dirPerm)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -201,6 +219,12 @@ func (fs *FileStore) ListTrashed() ([]note.Note, error) {
 
 // Restore はゴミ箱からノートを復元する。
 func (fs *FileStore) Restore(id note.NoteID) error {
+	unlock, err := fs.lockAndReloadAll()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	meta, ok := fs.trashIndex[id]
 	if !ok {
 		return errors.WithDetail(ErrTrashedNoteNotFound, string(id))
@@ -209,7 +233,7 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 	srcPath := filepath.Join(fs.dir, meta.Path)
 	dstPath := filepath.Join(fs.dir, meta.OriginalPath)
 
-	err := os.MkdirAll(filepath.Dir(dstPath), dirPerm)
+	err = os.MkdirAll(filepath.Dir(dstPath), dirPerm)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -260,6 +284,57 @@ func (fs *FileStore) DataDir() string {
 	return fs.dir
 }
 
+// IndexModTime はindex.jsonの最終更新日時を返す。
+func (fs *FileStore) IndexModTime() (time.Time, error) {
+	path := filepath.Join(fs.dir, indexFile)
+
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return time.Time{}, nil
+	}
+
+	if err != nil {
+		return time.Time{}, errors.WithStack(err)
+	}
+
+	return info.ModTime(), nil
+}
+
+// Reload はindex.jsonを再読み込みしてインメモリ状態を更新する。
+func (fs *FileStore) Reload() error {
+	err := fs.loadIndex()
+	if err != nil {
+		return err
+	}
+
+	return fs.loadTrashIndex()
+}
+
+// lockAndReloadAll はロックを取得し、index と trashIndex を再読み込みする。
+// 戻り値の関数を呼ぶとロックを解放する。
+func (fs *FileStore) lockAndReloadAll() (func(), error) {
+	unlock, err := lockFile(fs.dir)
+	if err != nil {
+		return nil, err
+	}
+
+	err = fs.loadIndex()
+	if err != nil {
+		unlock()
+
+		return nil, err
+	}
+
+	err = fs.loadTrashIndex()
+	if err != nil {
+		unlock()
+
+		return nil, err
+	}
+
+	return unlock, nil
+}
+
 func (fs *FileStore) trashDir() string {
 	return filepath.Join(fs.dir, ".trash")
 }
@@ -269,6 +344,8 @@ func (fs *FileStore) loadIndex() error {
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
+		clear(fs.index)
+
 		return nil
 	}
 
@@ -282,6 +359,8 @@ func (fs *FileStore) loadIndex() error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	clear(fs.index)
 
 	for id, entry := range idx.Notes {
 		nid := note.NoteID(id)
@@ -323,6 +402,8 @@ func (fs *FileStore) loadTrashIndex() error {
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
+		clear(fs.trashIndex)
+
 		return nil
 	}
 
@@ -336,6 +417,8 @@ func (fs *FileStore) loadTrashIndex() error {
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	clear(fs.trashIndex)
 
 	for id, entry := range idx.Notes {
 		nid := note.NoteID(id)

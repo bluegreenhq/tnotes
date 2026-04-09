@@ -48,6 +48,7 @@ type Model struct {
 	errMsg         string
 	infoMsg        string
 	infoMsgID      int
+	indexModTime   time.Time
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -68,6 +69,7 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		errMsg:         "",
 		infoMsg:        "",
 		infoMsgID:      0,
+		indexModTime:   time.Time{},
 	}
 
 	return m
@@ -75,6 +77,13 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 
 // Init は初回のコマンドを返す。
 func (m *Model) Init() tea.Cmd {
+	mt, err := m.App.IndexModTime()
+	if err != nil {
+		m.errMsg = err.Error()
+	} else {
+		m.indexModTime = mt
+	}
+
 	if len(m.App.Notes) > 0 {
 		m.loadSelectedNote()
 	}

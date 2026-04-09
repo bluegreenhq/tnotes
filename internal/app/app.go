@@ -130,6 +130,46 @@ func (a *App) DataDir() string {
 	return a.store.DataDir()
 }
 
+// RefreshNotes はindex.jsonが更新されていればノート一覧を再読み込みする。
+// 更新があった場合は true を返す。
+func (a *App) RefreshNotes(lastModTime time.Time) (bool, time.Time, error) {
+	if a.store == nil {
+		return false, lastModTime, nil
+	}
+
+	mt, err := a.store.IndexModTime()
+	if err != nil {
+		return false, lastModTime, err
+	}
+
+	if !mt.After(lastModTime) {
+		return false, lastModTime, nil
+	}
+
+	err = a.store.Reload()
+	if err != nil {
+		return false, lastModTime, err
+	}
+
+	a.Notes, err = a.store.List()
+	if err != nil {
+		return false, mt, err
+	}
+
+	note.SortByUpdatedDesc(a.Notes)
+
+	return true, mt, nil
+}
+
+// IndexModTime はindex.jsonの最終更新日時を返す。
+func (a *App) IndexModTime() (time.Time, error) {
+	if a.store == nil {
+		return time.Time{}, nil
+	}
+
+	return a.store.IndexModTime()
+}
+
 // LoadNote はノートの本文をストアから読み込む。
 // 既にBodyがある場合やストアがnilの場合はそのまま返す。
 func (a *App) LoadNote(n note.Note) (note.Note, error) {
