@@ -9,6 +9,7 @@ import (
 const (
 	sidebarHeaderLines = 2 // タイトル + 区切り線
 	sidebarBorderWidth = 2 // 左右ボーダー分
+	sectionLinePadding = 2 // セクション罫線の左右余白
 )
 
 // Sidebar はノートリストの状態を表す。

@@ -72,11 +72,12 @@ func TestSidebarHitTest(t *testing.T) {
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
 	sb := ui.NewSidebar(notes, 30, 20)
-	assert.Equal(t, -1, sb.HitTest(5, 2, now))
-	assert.Equal(t, 0, sb.HitTest(5, 3, now))
-	assert.Equal(t, 1, sb.HitTest(5, 7, now))
+	assert.Equal(t, -1, sb.HitTest(5, 2, now)) // section header
+	assert.Equal(t, -1, sb.HitTest(5, 3, now)) // section header line
+	assert.Equal(t, 0, sb.HitTest(5, 4, now))  // note 0
+	assert.Equal(t, 1, sb.HitTest(5, 7, now))  // note 1
 	assert.Equal(t, -1, sb.HitTest(5, 0, now))
-	assert.Equal(t, -1, sb.HitTest(-1, 3, now))
+	assert.Equal(t, -1, sb.HitTest(-1, 4, now))
 }
 
 func TestSidebarHitTestWithSections(t *testing.T) {
@@ -89,13 +90,15 @@ func TestSidebarHitTestWithSections(t *testing.T) {
 	}
 	sb := ui.NewSidebar(notes, 30, 40)
 
-	assert.Equal(t, -1, sb.HitTest(5, 0, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 1, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 2, fixedNow))
-	assert.Equal(t, 0, sb.HitTest(5, 3, fixedNow))
-	assert.Equal(t, 0, sb.HitTest(5, 6, fixedNow))
-	assert.Equal(t, -1, sb.HitTest(5, 7, fixedNow))
-	assert.Equal(t, 1, sb.HitTest(5, 8, fixedNow))
+	assert.Equal(t, -1, sb.HitTest(5, 0, fixedNow)) // sidebar header
+	assert.Equal(t, -1, sb.HitTest(5, 1, fixedNow)) // sidebar separator
+	assert.Equal(t, -1, sb.HitTest(5, 2, fixedNow)) // Today label
+	assert.Equal(t, -1, sb.HitTest(5, 3, fixedNow)) // Today line
+	assert.Equal(t, 0, sb.HitTest(5, 4, fixedNow))  // note 0
+	assert.Equal(t, 0, sb.HitTest(5, 6, fixedNow))  // note 0 (last line)
+	assert.Equal(t, -1, sb.HitTest(5, 7, fixedNow)) // Yesterday label
+	assert.Equal(t, -1, sb.HitTest(5, 8, fixedNow)) // Yesterday line
+	assert.Equal(t, 1, sb.HitTest(5, 9, fixedNow))  // note 1
 }
 
 func TestSidebarViewWithSections(t *testing.T) {

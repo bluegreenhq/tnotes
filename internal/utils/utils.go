@@ -44,11 +44,21 @@ func ClampInt(v, lo, hi int) int {
 	return v
 }
 
-// FormatDate は日付を今日なら時刻、それ以外なら日付で返す。
+// FormatDate は日付を相対的な表現で返す。
+// 今日→時刻、昨日→Yesterday、過去7日以内→曜日名、それ以前→YYYY/MM/DD。
 func FormatDate(t time.Time, now time.Time) string {
-	if t.Year() == now.Year() && t.YearDay() == now.YearDay() {
-		return t.Format("15:04")
-	}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	yesterday := today.AddDate(0, 0, -1)
+	sevenDaysAgo := today.AddDate(0, 0, -7)
 
-	return t.Format("2006/01/02")
+	switch {
+	case !t.Before(today):
+		return t.Format("15:04")
+	case !t.Before(yesterday):
+		return "Yesterday"
+	case !t.Before(sevenDaysAgo):
+		return t.Format("Monday")
+	default:
+		return t.Format("2006/01/02")
+	}
 }

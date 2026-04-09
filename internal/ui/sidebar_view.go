@@ -36,6 +36,10 @@ func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string 
 			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(" " + row.label))
 			b.WriteString("\n")
 
+			line := " " + strings.Repeat("─", contentWidth-sectionLinePadding)
+			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(line))
+			b.WriteString("\n")
+
 			usedLines += sectionHeaderHeight
 
 			continue
