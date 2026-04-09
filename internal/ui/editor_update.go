@@ -53,7 +53,7 @@ func (e *Editor) Clear() {
 	e.ClearSelection()
 }
 
-// --- Update ---
+// --- イベントハンドラ ---
 
 // Update はメッセージに応じて状態を更新する。
 func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
@@ -98,11 +98,13 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 	prevLine := e.textarea.Line()
 	prevCol := e.textarea.Column()
 
+	isBackspace := msg.Code == tea.KeyBackspace || (msg.Code == 'h' && msg.Mod == tea.ModCtrl)
+
 	if e.HasSelection() {
 		switch {
 		case isArrow:
 			e.ClearSelection()
-		case msg.Code == tea.KeyBackspace || msg.Code == tea.KeyDelete:
+		case isBackspace || msg.Code == tea.KeyDelete:
 			e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
 			e.DeleteSelection()
 
@@ -112,7 +114,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 		}
 	}
 
-	forceSnapshot := msg.Code == tea.KeyEnter || msg.Code == tea.KeyBackspace || msg.Code == tea.KeyDelete
+	forceSnapshot := msg.Code == tea.KeyEnter || isBackspace || msg.Code == tea.KeyDelete
 
 	cmd := e.textarea.Update(msg)
 

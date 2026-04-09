@@ -433,6 +433,64 @@ func TestInfoMsgClearedOnArrowKey(t *testing.T) {
 	assert.NotContains(t, view.Content, "Undo: Ctrl+Z")
 }
 
+func TestSidebarResizeDrag(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成（サイドバーに内容がある状態）
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model := mustModel(t, ret)
+
+	// 境界付近（X=32付近）でマウスクリック
+	ret, _ = model.Update(tea.MouseClickMsg{X: 32, Y: 5, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+
+	// ドラッグでX=40に移動
+	ret, _ = model.Update(tea.MouseMotionMsg{X: 40, Y: 5, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+
+	// リリース
+	ret, _ = model.Update(tea.MouseReleaseMsg{X: 40, Y: 5, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+
+	// サイドバー幅が変わっている
+	assert.Equal(t, 40, model.SidebarWidth())
+}
+
+func TestSidebarResizeMinMax(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel()) // width=100
+
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model := mustModel(t, ret)
+
+	// 最小幅以下にドラッグ
+	ret, _ = model.Update(tea.MouseClickMsg{X: 32, Y: 5, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseMotionMsg{X: 5, Y: 5, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 5, Y: 5, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+	assert.Equal(t, 20, model.SidebarWidth()) // minSidebarWidth
+
+	// 最大幅以上にドラッグ
+	ret, _ = model.Update(tea.MouseClickMsg{X: 20, Y: 5, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseMotionMsg{X: 80, Y: 5, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 80, Y: 5, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+	assert.Equal(t, 80, model.SidebarWidth()) // width*80%
+}
+
+func TestSidebarWidthClampedOnWindowResize(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel()) // width=100, sidebarWidth=32
+
+	// ウィンドウを30に縮小 → maxSidebarWidth=24, sidebarWidthは24にクランプ
+	ret, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 30})
+	model := mustModel(t, ret)
+	assert.Equal(t, 24, model.SidebarWidth())
+}
+
 func TestWheelOnSidebarDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 

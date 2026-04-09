@@ -14,7 +14,7 @@ var sidebarStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("8"))
 
 // View はサイドバーの描画内容を返す。
-func (s *Sidebar) View(focused bool, now time.Time) string {
+func (s *Sidebar) View(focused bool, hoverSeparator bool, now time.Time) string {
 	contentWidth := s.width - sidebarBorderWidth
 
 	var b strings.Builder
@@ -51,8 +51,13 @@ func (s *Sidebar) View(focused bool, now time.Time) string {
 	}
 
 	style := sidebarStyle
+
 	if focused {
 		style = style.BorderForeground(lipgloss.Color("4"))
+	}
+
+	if hoverSeparator {
+		style = style.BorderStyle(lipgloss.ThickBorder())
 	}
 
 	return style.Width(s.width).Height(s.height).Render(b.String())
