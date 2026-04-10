@@ -290,6 +290,79 @@ func TestDeleteFolder_WithNotes(t *testing.T) {
 	assert.Empty(t, folders)
 }
 
+func TestMoveNoteToFolder(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	require.NoError(t, a.CreateFolder("Work"))
+
+	now := time.Now()
+	result, err := a.CreateNote(now, "")
+	require.NoError(t, err)
+
+	_, err = a.SaveNote(result.Note.ID, "test\nbody", now)
+	require.NoError(t, err)
+
+	err = a.MoveNoteToFolder(result.Note.ID, "Work")
+	require.NoError(t, err)
+
+	notesNotes := a.ListByFolder("Notes")
+	assert.Empty(t, notesNotes)
+
+	workNotes := a.ListByFolder("Work")
+	assert.Len(t, workNotes, 1)
+	assert.Equal(t, result.Note.ID, workNotes[0].ID)
+}
+
+func TestMoveNoteToFolder_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	err = a.MoveNoteToFolder("nonexistent", "Work")
+	assert.Error(t, err)
+}
+
+func TestMoveNoteToFolder_BackToNotes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	require.NoError(t, a.CreateFolder("Work"))
+
+	now := time.Now()
+	result, err := a.CreateNote(now, "Work")
+	require.NoError(t, err)
+
+	_, err = a.SaveNote(result.Note.ID, "test\nbody", now)
+	require.NoError(t, err)
+
+	err = a.MoveNoteToFolder(result.Note.ID, "Notes")
+	require.NoError(t, err)
+
+	notesNotes := a.ListByFolder("Notes")
+	assert.Len(t, notesNotes, 1)
+
+	workNotes := a.ListByFolder("Work")
+	assert.Empty(t, workNotes)
+}
+
 func TestPurgeTrash_Empty(t *testing.T) {
 	t.Parallel()
 

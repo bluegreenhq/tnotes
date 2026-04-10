@@ -59,6 +59,12 @@ type folderDeleteMsg struct {
 	Name string
 }
 
+// folderRenameMsg はフォルダリネームを運ぶメッセージ。
+type folderRenameMsg struct {
+	OldName string
+	NewName string
+}
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 
@@ -89,4 +95,11 @@ const (
 	EditorHeaderPin
 	// EditorHeaderUnpin はノートのピン留め解除を要求する。
 	EditorHeaderUnpin
+	// EditorHeaderMove はノートのフォルダ移動を要求する。
+	EditorHeaderMove
 )
+
+// noteMoveMsg はノートを別フォルダに移動するメッセージ。
+type noteMoveMsg struct {
+	DestFolder string
+}

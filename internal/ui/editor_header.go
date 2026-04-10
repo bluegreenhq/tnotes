@@ -9,31 +9,37 @@ const (
 
 // EditorHeader はエディタ上部のヘッダーコンポーネント。
 type EditorHeader struct {
-	width      int
-	menuOpen   bool
-	PopupMenu  *PopupMenu
-	menuMsgs   []EditorHeaderMsg
-	hoverNew   bool
-	hoverMore  bool
-	hasNote    bool
-	hasContent bool
-	trashMode  bool
-	pinned     bool
+	width        int
+	menuOpen     bool
+	PopupMenu    *PopupMenu
+	menuMsgs     []EditorHeaderMsg
+	hoverNew     bool
+	hoverMore    bool
+	hasNote      bool
+	hasContent   bool
+	trashMode    bool
+	pinned       bool
+	moveMenuOpen bool       // 移動先フォルダメニュー表示中
+	MoveMenu     *PopupMenu // 移動先フォルダ一覧
+	moveFolders  []string   // 移動先フォルダ名リスト
 }
 
 // NewEditorHeader は新しい EditorHeader を生成する。
 func NewEditorHeader(width int) *EditorHeader {
 	return &EditorHeader{
-		width:      width,
-		menuOpen:   false,
-		PopupMenu:  NewPopupMenu(nil),
-		menuMsgs:   nil,
-		hoverNew:   false,
-		hoverMore:  false,
-		hasNote:    false,
-		hasContent: false,
-		trashMode:  false,
-		pinned:     false,
+		width:        width,
+		menuOpen:     false,
+		PopupMenu:    NewPopupMenu(nil),
+		menuMsgs:     nil,
+		hoverNew:     false,
+		hoverMore:    false,
+		hasNote:      false,
+		hasContent:   false,
+		trashMode:    false,
+		pinned:       false,
+		moveMenuOpen: false,
+		MoveMenu:     NewPopupMenu(nil),
+		moveFolders:  nil,
 	}
 }
 
@@ -63,3 +69,6 @@ func (h *EditorHeader) SetTrashMode(v bool) { h.trashMode = v }
 
 // SetPinned はピン留め状態を設定する。
 func (h *EditorHeader) SetPinned(v bool) { h.pinned = v }
+
+// MoveMenuOpen は移動先メニューが開いているかを返す。
+func (h *EditorHeader) MoveMenuOpen() bool { return h.moveMenuOpen }

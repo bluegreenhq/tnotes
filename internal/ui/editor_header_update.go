@@ -28,6 +28,9 @@ func (h *EditorHeader) RebuildMenu() {
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderPin)
 		}
 
+		menuItems = append(menuItems, MenuItem{Label: "Move to…", Disabled: false})
+		h.menuMsgs = append(h.menuMsgs, EditorHeaderMove)
+
 		if h.hasContent {
 			menuItems = append(menuItems, MenuItem{Label: "Copy Note", Disabled: false})
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderCopy)
@@ -49,6 +52,7 @@ func (h *EditorHeader) OpenMenu() {
 func (h *EditorHeader) CloseMenu() {
 	h.menuOpen = false
 	h.PopupMenu.hover = -1
+	h.moveMenuOpen = false
 }
 
 // MenuHeight はメニューの高さを返す。
@@ -125,6 +129,56 @@ func (h *EditorHeader) isMoreButtonX(x int) bool {
 	moreX := h.width - moreButtonOffset
 
 	return x == moreX
+}
+
+// OpenMoveMenu は移動先フォルダ選択メニューを開く。
+func (h *EditorHeader) OpenMoveMenu(folders []string) {
+	h.moveFolders = folders
+	items := make([]MenuItem, len(folders))
+
+	for i, name := range folders {
+		items[i] = MenuItem{Label: name, Disabled: false}
+	}
+
+	h.MoveMenu = NewPopupMenu(items)
+	h.moveMenuOpen = true
+	h.menuOpen = false
+}
+
+// CloseMoveMenu は移動先メニューを閉じる。
+func (h *EditorHeader) CloseMoveMenu() {
+	h.moveMenuOpen = false
+	h.MoveMenu.hover = -1
+}
+
+// HandleMoveMenuClick は移動先メニューのクリックを処理する。
+func (h *EditorHeader) HandleMoveMenuClick(x, y int) tea.Cmd {
+	idx, hit := h.MoveMenu.HandleClick(x, y)
+	h.CloseMoveMenu()
+
+	if !hit || idx < 0 || idx >= len(h.moveFolders) {
+		return nil
+	}
+
+	dest := h.moveFolders[idx]
+
+	return func() tea.Msg {
+		return noteMoveMsg{DestFolder: dest}
+	}
+}
+
+// MoveMenuHeight は移動先メニューの高さを返す。
+func (h *EditorHeader) MoveMenuHeight() int {
+	if !h.moveMenuOpen {
+		return 0
+	}
+
+	return h.MoveMenu.Height()
+}
+
+// SetMoveMenuHover は移動先メニューのホバーを更新する。
+func (h *EditorHeader) SetMoveMenuHover(x, y int) {
+	h.MoveMenu.SetHoverByPos(x, y)
 }
 
 func editorHeaderCmd(msg EditorHeaderMsg) tea.Cmd {

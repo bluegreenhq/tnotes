@@ -14,12 +14,14 @@ import (
 var (
 	ErrMissingFolderName    = errors.New("missing folder name")
 	ErrMissingFolderCommand = errors.New("missing folder subcommand")
+	ErrMissingNewFolderName = errors.New("missing new folder name")
 )
 
 const (
-	minArgsForFolderSub  = 3
-	minArgsForFolderName = 4
-	minArgsForFolderFlag = 5
+	minArgsForFolderSub    = 3
+	minArgsForFolderName   = 4
+	minArgsForFolderFlag   = 5
+	minArgsForFolderRename = 5
 )
 
 func validateFolder(a *app.App, name string) error {
@@ -37,7 +39,7 @@ func validateFolder(a *app.App, name string) error {
 
 func runFolder(args []string, a *app.App, r io.Reader, w io.Writer) error {
 	if len(args) < minArgsForFolderSub {
-		_, _ = fmt.Fprintln(w, "Usage: tnotes folder <list|create|delete>")
+		_, _ = fmt.Fprintln(w, "Usage: tnotes folder <list|create|delete|rename>")
 
 		return ErrMissingFolderCommand
 	}
@@ -49,6 +51,8 @@ func runFolder(args []string, a *app.App, r io.Reader, w io.Writer) error {
 		return runFolderCreate(args, a, w)
 	case "delete":
 		return runFolderDelete(args, a, r, w)
+	case "rename":
+		return runFolderRename(args, a, w)
 	default:
 		_, _ = fmt.Fprintf(w, "unknown folder command: %s\n", args[2])
 
@@ -142,6 +146,32 @@ func runFolderDelete(args []string, a *app.App, r io.Reader, w io.Writer) error 
 	} else {
 		_, _ = fmt.Fprintf(w, "Deleted folder: %s\n", name)
 	}
+
+	return nil
+}
+
+func runFolderRename(args []string, a *app.App, w io.Writer) error {
+	if len(args) < minArgsForFolderName {
+		_, _ = fmt.Fprintln(w, "Usage: tnotes folder rename <old-name> <new-name>")
+
+		return ErrMissingFolderName
+	}
+
+	if len(args) < minArgsForFolderRename {
+		_, _ = fmt.Fprintln(w, "Usage: tnotes folder rename <old-name> <new-name>")
+
+		return ErrMissingNewFolderName
+	}
+
+	oldName := args[3]
+	newName := args[4]
+
+	err := a.RenameFolder(oldName, newName)
+	if err != nil {
+		return err
+	}
+
+	_, _ = fmt.Fprintf(w, "Renamed folder: %s → %s\n", oldName, newName)
 
 	return nil
 }

@@ -48,8 +48,10 @@ type FolderList struct {
 	width      int
 	height     int
 	visible    bool
-	inputMode  bool   // インライン入力中かどうか
+	inputMode  bool   // インライン入力中かどうか（新規作成）
 	inputValue string // 入力中のフォルダ名
+	renameMode bool   // リネーム入力中かどうか
+	renameName string // リネーム元のフォルダ名
 	menuOpen   bool   // moreメニュー表示中かどうか
 	PopupMenu  *PopupMenu
 	hoverClose bool
@@ -70,6 +72,8 @@ func NewFolderList(width, height int) FolderList {
 		visible:    false,
 		inputMode:  false,
 		inputValue: "",
+		renameMode: false,
+		renameName: "",
 		menuOpen:   false,
 		PopupMenu:  NewPopupMenu(nil),
 		hoverClose: false,
@@ -106,6 +110,17 @@ func (fl *FolderList) IndexByKind(kind FolderKind) int {
 	return -1
 }
 
+// IndexByName は指定名のフォルダのインデックスを返す。該当なしは -1。
+func (fl *FolderList) IndexByName(name string) int {
+	for i, f := range fl.folders {
+		if f.Name == name {
+			return i
+		}
+	}
+
+	return -1
+}
+
 // Width は現在の幅を返す。
 func (fl *FolderList) Width() int { return fl.width }
 
@@ -115,8 +130,11 @@ func (fl *FolderList) SetSize(width, height int) {
 	fl.height = height
 }
 
-// InputMode はインライン入力中かどうかを返す。
+// InputMode はインライン入力中かどうかを返す（新規作成）。
 func (fl *FolderList) InputMode() bool { return fl.inputMode }
+
+// RenameMode はリネーム入力中かどうかを返す。
+func (fl *FolderList) RenameMode() bool { return fl.renameMode }
 
 // MenuOpen はmoreメニュー表示中かどうかを返す。
 func (fl *FolderList) MenuOpen() bool { return fl.menuOpen }
@@ -124,6 +142,7 @@ func (fl *FolderList) MenuOpen() bool { return fl.menuOpen }
 // OpenMenu はmoreメニューを開く。
 func (fl *FolderList) OpenMenu() {
 	fl.PopupMenu = NewPopupMenu([]MenuItem{
+		{Label: "Rename", Disabled: false},
 		{Label: "Delete", Disabled: false},
 	})
 	fl.menuOpen = true

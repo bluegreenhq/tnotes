@@ -2,13 +2,16 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 // --- イベントハンドラ ---
@@ -36,6 +39,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		return m, m.processFolderListMsg(msg, now)
 	case folderCreateMsg:
 		return m, m.handleFolderCreate(msg)
+	case folderRenameMsg:
+		return m, m.handleFolderRename(msg)
+	case noteMoveMsg:
+		return m, m.handleNoteMove(msg, now)
 	case folderDeleteMsg:
 		return m, m.handleFolderDelete(msg, now)
 	case NoteListMsg:
@@ -73,6 +80,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	m.infoMsg = ""
 	m.Footer.CloseMenu()
 	m.Editor.Header.CloseMenu()
+	m.Editor.Header.CloseMoveMenu()
 
 	switch {
 	case msg.Code == 'q' && (m.Focus == FocusNoteList || m.Focus == FocusFolderList):
@@ -172,7 +180,7 @@ func (m *Model) handleDefault(msg tea.Msg, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop // mouse dispatch
+func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // mouse dispatch
 	m.errMsg = ""
 
 	if msg.Button != tea.MouseLeft {
@@ -189,6 +197,26 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //no
 	// フッターメニューが開いている場合
 	if m.Footer.MenuOpen() {
 		return m.handleClickWithMenu(msg, now)
+	}
+
+	// 移動先メニューが開いている場合
+	if m.Editor.Header.MoveMenuOpen() {
+		edX := msg.X - m.noteListOffset() - m.noteListWidth
+		menuTopY := editorHeaderMenuTopY
+		menuHeight := m.Editor.Header.MoveMenuHeight()
+		menuWidth := m.Editor.Header.MoveMenu.Width()
+		menuX := m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+
+		if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
+			relX := edX - menuX
+			relY := msg.Y - menuTopY
+
+			return m.Editor.Header.HandleMoveMenuClick(relX, relY)
+		}
+
+		m.Editor.Header.CloseMoveMenu()
+
+		return nil
 	}
 
 	// エディタヘッダーメニューが開いている場合
@@ -353,12 +381,8 @@ func (m *Model) handleFolderMenuClick(msg tea.MouseClickMsg) tea.Cmd {
 		idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
 		m.FolderList.CloseMenu()
 
-		if hit && idx == 0 {
-			name := m.FolderList.SelectedName()
-
-			return func() tea.Msg {
-				return folderDeleteMsg{Name: name}
-			}
+		if hit {
+			return m.handleFolderMenuAction(idx)
 		}
 
 		return nil
@@ -556,6 +580,20 @@ func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
 	} else {
 		m.Editor.Header.ClearHover()
 	}
+
+	if m.Editor.Header.MoveMenuOpen() {
+		edX := mouse.X - editorStartX
+		menuTopY := editorHeaderMenuTopY
+		menuHeight := m.Editor.Header.MoveMenuHeight()
+		menuWidth := m.Editor.Header.MoveMenu.Width()
+		menuX := m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+
+		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
+			m.Editor.Header.SetMoveMenuHover(edX-menuX, mouse.Y-menuTopY)
+		} else {
+			m.Editor.Header.SetMoveMenuHover(-1, -1)
+		}
+	}
 }
 
 func (m *Model) updateFooterHover(mouse tea.Mouse) {
@@ -705,6 +743,8 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 		return m.pinNote()
 	case EditorHeaderUnpin:
 		return m.unpinNote()
+	case EditorHeaderMove:
+		return m.openMoveMenu()
 	}
 
 	return nil
@@ -833,12 +873,14 @@ func (m *Model) exitTrashMode(now time.Time) tea.Cmd {
 	m.App.ExitTrashMode()
 	m.Editor.SetReadOnly(false)
 	m.Editor.Header.SetTrashMode(false)
-	m.NoteList.Reset("Notes", true, m.App.Notes, now)
 
 	// フォルダ選択を同期
 	m.FolderList.SelectIndex(m.FolderList.IndexByKind(FolderNotes))
 
-	if len(m.App.Notes) > 0 {
+	notes := m.currentFolderNotes()
+	m.NoteList.Reset(app.DefaultFolder, true, notes, now)
+
+	if len(notes) > 0 {
 		m.loadSelectedNote()
 	} else {
 		m.Editor.Clear()
@@ -872,7 +914,7 @@ func (m *Model) restoreNote(now time.Time) tea.Cmd {
 
 	m.Editor.SetReadOnly(false)
 	m.Editor.Header.SetTrashMode(false)
-	m.NoteList.SetTitle("Notes")
+	m.NoteList.SetTitle(app.DefaultFolder)
 	m.NoteList.SetSectioned(true)
 	m.FolderList.SelectIndex(m.FolderList.IndexByKind(FolderNotes))
 
@@ -987,6 +1029,95 @@ func (m *Model) unpinNote() tea.Cmd {
 	return m.setInfoMsg("Unpinned")
 }
 
+func (m *Model) openMoveMenu() tea.Cmd {
+	id := m.Editor.NoteID()
+	if id == "" {
+		return nil
+	}
+
+	// 現在のフォルダを特定
+	currentFolder := ""
+
+	for _, n := range m.App.Notes {
+		if n.ID == id {
+			parts := strings.SplitN(n.Path, string(filepath.Separator), 2) //nolint:mnd // folder/rest
+			if len(parts) > 0 {
+				currentFolder = parts[0]
+			}
+
+			break
+		}
+	}
+
+	// 移動先候補: Notes + ユーザーフォルダから現在のフォルダを除外
+	folders, err := m.App.ListFolders()
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	candidates := make([]string, 0, len(folders)+1)
+	if currentFolder != app.DefaultFolder {
+		candidates = append(candidates, app.DefaultFolder)
+	}
+
+	for _, f := range folders {
+		if f != currentFolder {
+			candidates = append(candidates, f)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return m.setInfoMsg("No folders to move to")
+	}
+
+	m.Editor.Header.OpenMoveMenu(candidates)
+
+	return nil
+}
+
+func (m *Model) handleNoteMove(msg noteMoveMsg, now time.Time) tea.Cmd {
+	id := m.Editor.NoteID()
+	if id == "" {
+		return nil
+	}
+
+	m.syncEditorToNote(now)
+
+	err := m.App.MoveNoteToFolder(id, msg.DestFolder)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	// 移動先フォルダに切り替え
+	if m.FolderList.Visible() {
+		m.refreshFolderList()
+		m.FolderList.SelectIndex(m.FolderList.IndexByName(msg.DestFolder))
+
+		notes := m.App.ListByFolder(msg.DestFolder)
+		sectioned := msg.DestFolder == app.DefaultFolder
+		m.NoteList.Reset(msg.DestFolder, sectioned, notes, now)
+
+		// 移動したノートを選択
+		for i, n := range notes {
+			if n.ID == id {
+				m.NoteList.SelectIndex(i, now)
+
+				break
+			}
+		}
+
+		m.loadSelectedNote()
+	} else {
+		m.refreshNoteListKeepSelection(now)
+	}
+
+	return m.setInfoMsg("Moved to " + msg.DestFolder)
+}
+
 // --- ヘルパー ---
 
 func (m *Model) isOnSeparator(x int) bool {
@@ -1032,7 +1163,18 @@ func (m *Model) toggleFolderList(now time.Time) tea.Cmd {
 func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
 	switch m.FolderList.SelectedKind() {
 	case FolderNotes:
-		return m.exitTrashMode(now)
+		if m.App.TrashMode {
+			return m.exitTrashMode(now)
+		}
+
+		notes := m.App.ListByFolder(app.DefaultFolder)
+		m.NoteList.Reset(app.DefaultFolder, true, notes, now)
+
+		if len(notes) > 0 {
+			m.loadSelectedNote()
+		} else {
+			m.Editor.Clear()
+		}
 	case FolderTrash:
 		if !m.App.TrashMode {
 			return m.enterTrashMode(now)
@@ -1056,6 +1198,41 @@ func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
+	const (
+		menuRename = 0
+		menuDelete = 1
+	)
+
+	switch idx {
+	case menuRename:
+		m.FolderList.StartRename()
+
+		return nil
+	case menuDelete:
+		name := m.FolderList.SelectedName()
+
+		return func() tea.Msg {
+			return folderDeleteMsg{Name: name}
+		}
+	}
+
+	return nil
+}
+
+func (m *Model) handleFolderRename(msg folderRenameMsg) tea.Cmd {
+	err := m.App.RenameFolder(msg.OldName, msg.NewName)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	m.refreshFolderList()
+
+	return m.setInfoMsg("Renamed: " + msg.OldName + " → " + msg.NewName)
 }
 
 func (m *Model) handleFolderCreate(msg folderCreateMsg) tea.Cmd {
@@ -1204,10 +1381,7 @@ func (m *Model) loadSelectedNote() {
 
 // refreshNoteListKeepSelection はNoteListを現在のフォルダに応じたノート一覧で更新し、選択を維持する。
 func (m *Model) refreshNoteListKeepSelection(now time.Time) {
-	notes := m.App.Notes
-	if m.FolderList.Visible() && m.FolderList.SelectedKind() == FolderUser {
-		notes = m.App.ListByFolder(m.FolderList.SelectedName())
-	}
+	notes := m.currentFolderNotes()
 
 	// 現在選択中のノートIDを記憶
 	selectedID := m.Editor.NoteID()
@@ -1223,6 +1397,24 @@ func (m *Model) refreshNoteListKeepSelection(now time.Time) {
 
 	m.NoteList.SetNotes(notes, now)
 	m.NoteList.SelectIndex(selectIdx, now)
+}
+
+// currentFolderNotes は現在のフォルダビューに応じたノート一覧を返す。
+func (m *Model) currentFolderNotes() []note.Note {
+	if !m.FolderList.Visible() {
+		return m.App.Notes
+	}
+
+	switch m.FolderList.SelectedKind() {
+	case FolderNotes:
+		return m.App.ListByFolder(app.DefaultFolder)
+	case FolderUser:
+		return m.App.ListByFolder(m.FolderList.SelectedName())
+	case FolderTrash:
+		return m.App.TrashNotes
+	}
+
+	return m.App.Notes
 }
 
 func (m *Model) syncEditorToNote(now time.Time) {
@@ -1244,9 +1436,8 @@ func (m *Model) applyNoteResult(r app.NoteResult, now time.Time) tea.Cmd {
 	notes := r.Notes
 	selectIdx := r.SelectIdx
 
-	if m.FolderList.Visible() && m.FolderList.SelectedKind() == FolderUser {
-		name := m.FolderList.SelectedName()
-		notes = m.App.ListByFolder(name)
+	if m.FolderList.Visible() && m.FolderList.SelectedKind() != FolderTrash {
+		notes = m.currentFolderNotes()
 
 		// フィルタ後のリストでの選択インデックスを再計算
 		selectIdx = -1
