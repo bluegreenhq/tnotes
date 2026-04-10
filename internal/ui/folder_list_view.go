@@ -13,8 +13,8 @@ var folderListStyle = lipgloss.NewStyle().
 	BorderForeground(lipgloss.Color("8"))
 
 // View はフォルダ一覧の描画内容を返す。
-func (fl *FolderList) View(focused bool) string {
-	contentWidth := fl.width - folderListBorderWidth
+func (fl *FolderList) View(focused bool, hoverSeparator bool) string {
+	contentWidth := max(fl.width-folderListBorderWidth, 0)
 
 	var b strings.Builder
 
@@ -25,29 +25,8 @@ func (fl *FolderList) View(focused bool) string {
 	b.WriteString("\n")
 
 	// フォルダ一覧
-	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-
 	for i, folder := range fl.folders {
-		name := " " + folder.Name
-		count := fmt.Sprintf("%d ", folder.Count)
-
-		padding := max(contentWidth-lipgloss.Width(name)-lipgloss.Width(count), 0)
-
-		if i == fl.selected {
-			baseStyle := lipgloss.NewStyle().
-				Background(lipgloss.Color("4")).
-				Bold(true)
-			nameStr := baseStyle.Foreground(lipgloss.Color("15")).Render(name)
-			pad := baseStyle.Render(strings.Repeat(" ", padding))
-			countStr := baseStyle.Foreground(lipgloss.Color("7")).Render(count)
-			b.WriteString(nameStr + pad + countStr)
-		} else {
-			nameStr := lipgloss.NewStyle().Render(name)
-			pad := strings.Repeat(" ", padding)
-			countStr := countStyle.Render(count)
-			b.WriteString(nameStr + pad + countStr)
-		}
-
+		fl.renderFolder(&b, folder, i == fl.selected, contentWidth)
 		b.WriteString("\n\n")
 	}
 
@@ -74,7 +53,34 @@ func (fl *FolderList) View(focused bool) string {
 		style = style.BorderForeground(lipgloss.Color("4"))
 	}
 
+	if hoverSeparator {
+		style = style.BorderStyle(lipgloss.ThickBorder())
+	}
+
 	return style.Width(fl.width).Height(fl.height).Render(b.String())
+}
+
+var folderCountStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
+func (fl *FolderList) renderFolder(b *strings.Builder, folder Folder, selected bool, contentWidth int) {
+	name := " " + folder.Name
+	count := fmt.Sprintf("%d ", folder.Count)
+	padding := max(contentWidth-lipgloss.Width(name)-lipgloss.Width(count), 0)
+
+	if selected {
+		baseStyle := lipgloss.NewStyle().
+			Background(lipgloss.Color("4")).
+			Bold(true)
+		nameStr := baseStyle.Foreground(lipgloss.Color("15")).Render(name)
+		pad := baseStyle.Render(strings.Repeat(" ", padding))
+		countStr := baseStyle.Foreground(lipgloss.Color("7")).Render(count)
+		b.WriteString(nameStr + pad + countStr)
+	} else {
+		nameStr := lipgloss.NewStyle().Render(name)
+		pad := strings.Repeat(" ", padding)
+		countStr := folderCountStyle.Render(count)
+		b.WriteString(nameStr + pad + countStr)
+	}
 }
 
 func (fl *FolderList) renderHeader(b *strings.Builder, contentWidth int) {

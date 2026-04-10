@@ -26,6 +26,7 @@ const (
 	minWidth         = 80
 	defaultNoteListW = 32
 	minNoteListWidth = 20
+	minEditorWidth   = 20
 	maxNoteListPct   = 80
 	percentDivisor   = 100
 	defaultHeight    = 24
@@ -111,7 +112,14 @@ func (m *Model) Init() tea.Cmd {
 func (m *Model) NoteListWidth() int { return m.noteListWidth }
 
 func (m *Model) maxNoteListWidth() int {
-	return m.width * maxNoteListPct / percentDivisor
+	pctLimit := m.width * maxNoteListPct / percentDivisor
+
+	editorLimit := m.width - minEditorWidth
+	if m.FolderList.Visible() {
+		editorLimit -= m.folderListWidth
+	}
+
+	return min(pctLimit, editorLimit)
 }
 
 // confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。

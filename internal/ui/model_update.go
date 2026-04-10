@@ -118,6 +118,17 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 	m.height = msg.Height
 	m.noteListWidth = max(m.noteListWidth, minNoteListWidth)
 	m.noteListWidth = min(m.noteListWidth, m.maxNoteListWidth())
+
+	if m.FolderList.Visible() {
+		maxNoteWidth := m.width - m.folderListWidth - minEditorWidth
+		m.noteListWidth = min(m.noteListWidth, maxNoteWidth)
+		m.noteListWidth = max(m.noteListWidth, minNoteListWidth)
+
+		maxFolderWidth := m.width - m.noteListWidth - minEditorWidth
+		m.folderListWidth = max(m.folderListWidth, minFolderListWidth)
+		m.folderListWidth = min(m.folderListWidth, maxFolderWidth)
+	}
+
 	m.recalcLayout(now)
 	m.Footer.CloseMenu()
 
@@ -425,7 +436,9 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	m.hoverFolderSep = m.resizingFolder || (m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X))
 
 	if m.resizingFolder {
+		maxFolderWidth := m.width - m.noteListWidth - minEditorWidth
 		newWidth := max(mouse.X, minFolderListWidth)
+		newWidth = min(newWidth, maxFolderWidth)
 		m.folderListWidth = newWidth
 		m.recalcLayout(now)
 
@@ -1157,12 +1170,19 @@ func (m *Model) recalcLayout(now time.Time) {
 	bodyHeight := m.height - footerLineCount
 
 	if m.FolderList.Visible() {
-		m.FolderList.SetSize(m.folderListWidth, bodyHeight)
-		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
-		m.Editor.SetSize(m.width-m.noteListWidth-m.folderListWidth, bodyHeight)
+		folderW := max(m.folderListWidth, 0)
+		noteW := max(m.noteListWidth, 0)
+		editorW := max(m.width-noteW-folderW, minEditorWidth)
+
+		m.FolderList.SetSize(folderW, bodyHeight)
+		m.NoteList.SetSize(noteW, bodyHeight, now)
+		m.Editor.SetSize(editorW, bodyHeight)
 	} else {
-		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
-		m.Editor.SetSize(m.width-m.noteListWidth, bodyHeight)
+		noteW := max(m.noteListWidth, 0)
+		editorW := max(m.width-noteW, minEditorWidth)
+
+		m.NoteList.SetSize(noteW, bodyHeight, now)
+		m.Editor.SetSize(editorW, bodyHeight)
 	}
 }
 

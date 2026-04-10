@@ -402,10 +402,10 @@ func TestNoteListWidthClampedOnWindowResize(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel()) // width=100, noteListWidth=32
 
-	// ウィンドウを30に縮小 → maxNoteListWidth=24, noteListWidthは24にクランプ
+	// ウィンドウを30に縮小 → editorLimit=30-20=10, noteListWidthは10にクランプ
 	ret, _ := m.Update(tea.WindowSizeMsg{Width: 30, Height: 30})
 	model := mustModel(t, ret)
-	assert.Equal(t, 24, model.NoteListWidth())
+	assert.Equal(t, 10, model.NoteListWidth())
 }
 
 func TestWheelOnNoteListDoesNotChangeSelection(t *testing.T) {
