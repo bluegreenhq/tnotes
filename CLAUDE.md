@@ -31,3 +31,7 @@ store → note
   - 自コンポーネントの `_update` 内でしか使わない private メソッド → `_update`
 - **複数の系統から呼ばれる場合は `xxx.go`**: `_update` と `_view` の両方、または初期化処理からも呼ばれるものは本体に置く
 - **getter は `xxx.go`**: 状態を返すだけのメソッドは本体に置く
+
+## デモ録画の制約
+
+`demo.exp`（expect スクリプト）で asciinema 録画を行う際、Shift+Arrow キー（`\x1b[1;2B` 等）による範囲選択は bubbletea の Kitty キーボードプロトコル有効化環境で機能しない。デモでは Shift+Arrow の代わりに `Ctrl+Shift+A`（全選択）や `Ctrl+K`/`Ctrl+Y`（kill/yank）を使うこと。

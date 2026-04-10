@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+cd "$(dirname "$0")"
+
 rm -rf /tmp/tnotes-demo
-go build -o /tmp/tnotes-demo-bin .
+go build -o /tmp/tnotes-demo-bin ..
 
 DEMO_COLS=100
 DEMO_ROWS=24

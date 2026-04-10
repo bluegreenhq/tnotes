@@ -2,7 +2,7 @@
 
 ターミナルで使えるシンプルなメモ管理TUIアプリ。CLIモードにも対応。
 
-![demo](demo.gif)
+![demo](demo/demo.gif)
 
 ## インストール
 
