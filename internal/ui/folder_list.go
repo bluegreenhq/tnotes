@@ -13,6 +13,7 @@ const (
 const (
 	folderListHeaderLines = 2 // タイトル + 区切り線
 	folderListBorderWidth = 2 // 左右ボーダー分
+	folderListItemHeight  = 2 // 名前 + 空行
 	defaultFolderListW    = 20
 	minFolderListWidth    = 15
 )
@@ -96,8 +97,14 @@ func (fl *FolderList) HitTest(x, y int) int {
 		return -1
 	}
 
-	if contentY < len(fl.folders) {
-		return contentY
+	// 各フォルダは folderListItemHeight 行(名前+空行)を占める。空行の場合は該当なし。
+	folderIdx := contentY / folderListItemHeight
+	if contentY%folderListItemHeight != 0 {
+		return -1
+	}
+
+	if folderIdx < len(fl.folders) {
+		return folderIdx
 	}
 
 	return -1

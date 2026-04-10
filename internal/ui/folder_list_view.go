@@ -26,25 +26,34 @@ func (fl *FolderList) View(focused bool) string {
 	b.WriteString("\n")
 
 	// フォルダ一覧
+	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
 	for i, folder := range fl.folders {
-		label := fmt.Sprintf(" %s (%d)", folder.Name, folder.Count)
+		name := " " + folder.Name
+		count := fmt.Sprintf("%d ", folder.Count)
+
+		padding := max(contentWidth-lipgloss.Width(name)-lipgloss.Width(count), 0)
 
 		if i == fl.selected {
-			style := lipgloss.NewStyle().
+			baseStyle := lipgloss.NewStyle().
 				Background(lipgloss.Color("4")).
-				Foreground(lipgloss.Color("15")).
-				Bold(true).
-				Width(contentWidth)
-			b.WriteString(style.Render(label))
+				Bold(true)
+			nameStr := baseStyle.Foreground(lipgloss.Color("15")).Render(name)
+			pad := baseStyle.Render(strings.Repeat(" ", padding))
+			countStr := baseStyle.Foreground(lipgloss.Color("7")).Render(count)
+			b.WriteString(nameStr + pad + countStr)
 		} else {
-			b.WriteString(lipgloss.NewStyle().Width(contentWidth).Render(label))
+			nameStr := lipgloss.NewStyle().Render(name)
+			pad := strings.Repeat(" ", padding)
+			countStr := countStyle.Render(count)
+			b.WriteString(nameStr + pad + countStr)
 		}
 
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 	}
 
-	// 残りの高さを埋める
-	usedLines := folderListHeaderLines + len(fl.folders)
+	// 残りの高さを埋める (各フォルダの下に空行1行)
+	usedLines := folderListHeaderLines + len(fl.folders)*folderListItemHeight
 	for i := usedLines; i < fl.height; i++ {
 		b.WriteString("\n")
 	}
