@@ -63,6 +63,37 @@ func TestNoteListMoveDown(t *testing.T) {
 	assert.Equal(t, 1, nl.SelectedIndex())
 }
 
+func TestNoteListMoveFollowsSectionOrder(t *testing.T) {
+	t.Parallel()
+
+	fixedNow := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
+	// notes は更新日時降順: Today(idx=0), Pinned(idx=1), Today(idx=2)
+	// 画面上は Pinned(idx=1) → Today(idx=0) → Today(idx=2)
+	notes := []note.Note{
+		{Metadata: note.Metadata{ID: "today1", UpdatedAt: time.Date(2026, 4, 4, 12, 0, 0, 0, time.Local)}, Body: "Today 1"},
+		{Metadata: note.Metadata{ID: "pinned", UpdatedAt: time.Date(2026, 4, 4, 11, 0, 0, 0, time.Local), Pinned: true}, Body: "Pinned"},
+		{Metadata: note.Metadata{ID: "today2", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Today 2"},
+	}
+	nl := ui.NewNoteList(notes, 30, 40)
+
+	// 先頭（idx=0=Today1）から上に移動 → 画面上で上はPinned(idx=1)
+	nl.SelectIndex(0, fixedNow)
+	nl.MoveUp(fixedNow)
+	assert.Equal(t, 1, nl.SelectedIndex(), "Today1の上はPinned")
+
+	// Pinned(idx=1)から下に移動 → Today1(idx=0)
+	nl.MoveDown(fixedNow)
+	assert.Equal(t, 0, nl.SelectedIndex(), "Pinnedの下はToday1")
+
+	// Today1(idx=0)から下に移動 → Today2(idx=2)
+	nl.MoveDown(fixedNow)
+	assert.Equal(t, 2, nl.SelectedIndex(), "Today1の下はToday2")
+
+	// Today2(idx=2)から上に移動 → Today1(idx=0)
+	nl.MoveUp(fixedNow)
+	assert.Equal(t, 0, nl.SelectedIndex(), "Today2の上はToday1")
+}
+
 func TestNoteListHitTest(t *testing.T) {
 	t.Parallel()
 

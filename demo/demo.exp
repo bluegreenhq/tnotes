@@ -1,0 +1,197 @@
+#!/usr/bin/expect -f
+
+# asciinemaのPTYでonlcr（\n→\r\n変換）を無効化
+# bubbletea自身が\r\nを出力するため、二重変換を防ぐ
+exec stty -opost
+
+# spawnされるPTYのサイズを設定
+set stty_init "rows $env(DEMO_ROWS) columns $env(DEMO_COLS)"
+set timeout 10
+log_user 1
+
+# 出力をドレインしながら待機するプロシージャ
+# expectのsleepはspawnの出力を読み取らないため、
+# expect コマンドで定期的にドレインする必要がある
+proc wait {seconds} {
+    set ms [expr {int($seconds * 1000)}]
+    set end [expr {[clock milliseconds] + $ms}]
+    while {[clock milliseconds] < $end} {
+        if {[catch {expect -timeout 0 -re ".+" {} default {}}]} return
+        after 50
+    }
+}
+
+# マウスクリックを送信するプロシージャ（SGRマウスプロトコル）
+# SGR形式: ESC [ < button ; x ; y M (press) / m (release)
+# button=0: 左ボタン, x,y は1始まり
+proc click {x y} {
+    set cx [expr {$x + 1}]
+    set cy [expr {$y + 1}]
+    send "\x1b\[<0;${cx};${cy}M"
+    after 50
+    send "\x1b\[<0;${cx};${cy}m"
+}
+
+log_user 0
+spawn env NOTES_DATA_DIR=/tmp/tnotes-demo /tmp/tnotes-demo-bin
+log_user 1
+wait 2
+
+# ==================================================
+# 1. ノート作成 — 議事メモ（TODOなし版）
+# ==================================================
+send "n"
+wait 1
+send "週次ミーティング"
+send "\r"
+send "議題: リリーススケジュール"
+send "\r"
+send "結論: 来週月曜にv2.0リリース"
+wait 2
+
+# ノート一覧に戻る
+send "\x1b"
+wait 1
+
+# ==================================================
+# 2. TODOノートを直接作成
+# ==================================================
+send "n"
+wait 0.5
+send "リリースTODO"
+send "\r"
+send "リリースノート作成"
+send "\r"
+send "テスト環境の確認"
+wait 2
+
+# ノート一覧に戻る
+send "\x1b"
+wait 1
+
+# ==================================================
+# 3. ピン留め
+# ==================================================
+# リリースTODOが選択されている状態で、エディタヘッダーの ⋯ をクリック
+# ⋯ ボタン: X = noteListWidth(32) + editorWidth(68) - 2 = 98, Y = 0
+click 98 0
+wait 1
+
+# メニューの「Pin Note」をクリック（2番目の項目）
+# メニュー幅 = "Delete Note"(11) + padding(4) = 15
+# menuLeftX(エディタ相対) = 68 - 15 = 53, 画面絶対X = 32 + 53 + 2 = 87
+# メニュー相対Y: y=3 が「Pin Note」, menuTopY = 1, 画面絶対Y = 1 + 3 = 4
+click 87 4
+wait 2
+
+# ==================================================
+# 4. フォルダ
+# ==================================================
+# Ctrl+B でフォルダ一覧を表示
+send "\x02"
+wait 1
+
+# フォルダ一覧表示中のレイアウト:
+# folderListWidth=20, noteListOffset=20
+# + ボタン: contentWidth = 20-1(border) = 19
+# moreなし時: headerAddBtnOffsetNoMore=2, +のX = 19 - 2 = 17
+click 17 0
+wait 0.5
+
+# フォルダ名を入力
+send "Work"
+send "\r"
+wait 1
+
+# Work フォルダを選択（ノート一覧が空になる）
+send "j"
+wait 1
+
+# Notes フォルダに戻る
+send "k"
+wait 1
+
+# Ctrl+B でフォルダ一覧を閉じる
+send "\x02"
+wait 1
+
+# ==================================================
+# 5. 議事メモの編集（kill/yank）
+#    「議題:」行の内容を kill → 「結論:」行の末尾に yank
+# ==================================================
+# 週次ミーティングを選択（下に移動）
+send "j"
+wait 0.5
+
+# エディタへ
+send "\r"
+wait 0.5
+
+# カーソルは先頭(0,0) — Ctrl+N で2行目「議題:」行へ
+send "\x0e"
+wait 0.3
+
+# Ctrl+A で行頭 → Ctrl+F x4 で「議題: 」の後ろ（「リ」の手前）へ
+send "\x01"
+wait 0.2
+send "\x06"
+send "\x06"
+send "\x06"
+send "\x06"
+wait 0.3
+
+# Ctrl+K で「リリーススケジュール」を kill
+send "\x0b"
+wait 1
+
+# 内容を書き換え
+send "v2.0のスケジュール確認"
+wait 1
+
+# Ctrl+N で「結論:」行へ
+send "\x0e"
+wait 0.3
+
+# Ctrl+E で行末
+send "\x05"
+wait 0.3
+
+# Ctrl+Y で yank — 元の議題テキストを括弧付きで追記
+send " ("
+send "\x19"
+send ")"
+wait 2
+
+# ==================================================
+# 6. 全選択してコピー
+# ==================================================
+# Ctrl+Shift+A で全選択
+send "\x1b\[97;6u"
+wait 1
+
+# Ctrl+C でコピー
+send "\x03"
+wait 1
+
+# ==================================================
+# 7. ゴミ箱と復元
+# ==================================================
+# ノート一覧に戻る
+send "\x1b"
+wait 1
+
+# d でノートをゴミ箱に移動
+send "d"
+wait 1
+
+# Ctrl+Z で取り消し（ノートが復元される）
+send "\x1a"
+wait 2
+
+# ==================================================
+# 8. 終了
+# ==================================================
+send "q"
+wait 1
+
+catch {expect eof}

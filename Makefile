@@ -41,7 +41,7 @@ test-e2e:
 test: lint test-unit test-e2e
 
 demo-gif:
-	bash demo.sh
+	bash demo/demo.sh
 
 demo: demo-gif
 
