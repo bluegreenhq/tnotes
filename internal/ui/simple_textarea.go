@@ -18,6 +18,7 @@ type simpleTextArea struct {
 	height  int
 	focused bool
 	layout  lineLayout
+	killBuf []rune // Ctrl+K で削除した内容を保持（Ctrl+Y でペースト）
 }
 
 func newSimpleTextArea(noWrap bool) simpleTextArea {
@@ -38,6 +39,7 @@ func newSimpleTextArea(noWrap bool) simpleTextArea {
 		height:  0,
 		focused: false,
 		layout:  lo,
+		killBuf: nil,
 	}
 }
 

@@ -112,7 +112,7 @@ func (t *simpleTextArea) CursorDown() {
 	t.ensureVisible()
 }
 
-func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop // キーバインド分岐
+func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop,gocyclo,funlen // キーバインド分岐
 	switch {
 	case msg.Code == 'a' && msg.Mod == tea.ModCtrl:
 		t.col = 0
@@ -130,6 +130,8 @@ func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclo
 		t.delete()
 	case msg.Code == 'k' && msg.Mod == tea.ModCtrl:
 		t.killLine()
+	case msg.Code == 'y' && msg.Mod == tea.ModCtrl:
+		t.yank()
 	case msg.Text != "" && (msg.Mod == 0 || msg.Mod == tea.ModShift):
 		t.insertText(msg.Text)
 	case msg.Code == tea.KeyEnter:
@@ -220,12 +222,30 @@ func (t *simpleTextArea) delete() {
 func (t *simpleTextArea) killLine() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
+		killed := make([]rune, len(line)-t.col)
+		copy(killed, line[t.col:])
+		t.killBuf = killed
 		t.lines[t.row] = line[:t.col]
 		t.layout.rebuild(t.lines, t.width)
 	} else if t.row < len(t.lines)-1 {
+		t.killBuf = []rune{'\n'}
 		t.lines[t.row] = append(t.lines[t.row], t.lines[t.row+1]...)
 		t.lines = append(t.lines[:t.row+1], t.lines[t.row+2:]...)
 		t.layout.rebuild(t.lines, t.width)
+	}
+}
+
+func (t *simpleTextArea) yank() {
+	if len(t.killBuf) == 0 {
+		return
+	}
+
+	for _, r := range t.killBuf {
+		if r == '\n' {
+			t.insertNewline()
+		} else {
+			t.insertText(string(r))
+		}
 	}
 }
 
