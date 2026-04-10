@@ -557,6 +557,161 @@ func TestFileStore_PreviewCachedAfterTrash(t *testing.T) {
 	assert.Equal(t, "Cached preview", trashed[0].Preview())
 }
 
+func TestFileStore_ListFolders_Empty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	folders, err := s.ListFolders()
+	require.NoError(t, err)
+	assert.Empty(t, folders)
+}
+
+func TestFileStore_ListFolders(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Work"), 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Personal"), 0o750))
+
+	folders, err := s.ListFolders()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Personal", "Work"}, folders)
+}
+
+func TestFileStore_ListFolders_ExcludesSystem(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".hidden"), 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Work"), 0o750))
+
+	folders, err := s.ListFolders()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Work"}, folders)
+}
+
+func TestFileStore_CreateFolder(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	err = s.CreateFolder("Work")
+	require.NoError(t, err)
+
+	info, err := os.Stat(filepath.Join(dir, "Work"))
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+
+	folders, err := s.ListFolders()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Work"}, folders)
+}
+
+func TestFileStore_CreateFolder_AlreadyExists(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, s.CreateFolder("Work"))
+	err = s.CreateFolder("Work")
+	assert.Error(t, err)
+}
+
+func TestFileStore_CreateFolder_SystemName(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	err = s.CreateFolder("Notes")
+	require.Error(t, err)
+
+	err = s.CreateFolder(".hidden")
+	require.Error(t, err)
+}
+
+func TestFileStore_DeleteFolder_Empty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, s.CreateFolder("Work"))
+
+	err = s.DeleteFolder("Work")
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(dir, "Work"))
+	assert.True(t, os.IsNotExist(err))
+
+	folders, err := s.ListFolders()
+	require.NoError(t, err)
+	assert.Empty(t, folders)
+}
+
+func TestFileStore_DeleteFolder_NotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	err = s.DeleteFolder("nonexistent")
+	assert.Error(t, err)
+}
+
+func TestFileStore_DeleteFolder_SystemName(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	err = s.DeleteFolder("Notes")
+	assert.Error(t, err)
+}
+
+func TestFileStore_DeleteFolder_WithEmptySubdirs(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, s.CreateFolder("Work"))
+
+	// サブディレクトリを手動作成（日付ディレクトリを模倣）
+	subdir := filepath.Join(dir, "Work", "20260410")
+	require.NoError(t, os.MkdirAll(subdir, 0o700))
+
+	// 空サブディレクトリありでも削除できる
+	err = s.DeleteFolder("Work")
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(dir, "Work"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestFileStore_DeleteFolder_WithFiles(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, s.CreateFolder("Work"))
+
+	// ファイルが残っている場合はエラー
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Work", "orphan.md"), []byte("test"), 0o600))
+
+	err = s.DeleteFolder("Work")
+	assert.Error(t, err)
+}
+
 func TestFileStore_TrashPersistAcrossInstances(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

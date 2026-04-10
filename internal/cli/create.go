@@ -13,26 +13,19 @@ import (
 
 var ErrEmptyInput = errors.New("empty input")
 
-const minArgsForFile = 3
-
 func runCreate(args []string, a *app.App, r io.Reader, w io.Writer) error {
-	var body []byte
+	folder, fileArgs := parseFolderFlag(args[2:])
 
-	var err error
+	if folder != "" {
+		err := validateFolder(a, folder)
+		if err != nil {
+			return err
+		}
+	}
 
-	switch {
-	case len(args) >= minArgsForFile:
-		// ファイルから読み込み
-		body, err = os.ReadFile(args[2])
-		if err != nil {
-			return errors.WithStack(err)
-		}
-	default:
-		// 標準入力から読み込み
-		body, err = io.ReadAll(r)
-		if err != nil {
-			return errors.WithStack(err)
-		}
+	body, err := readBody(fileArgs, r)
+	if err != nil {
+		return err
 	}
 
 	if len(body) == 0 {
@@ -41,7 +34,7 @@ func runCreate(args []string, a *app.App, r io.Reader, w io.Writer) error {
 
 	now := time.Now()
 
-	result, err := a.CreateNote(now)
+	result, err := a.CreateNote(now, folder)
 	if err != nil {
 		return err
 	}
@@ -54,4 +47,34 @@ func runCreate(args []string, a *app.App, r io.Reader, w io.Writer) error {
 	_, _ = fmt.Fprintln(w, result.Note.ID)
 
 	return nil
+}
+
+func parseFolderFlag(fileArgs []string) (string, []string) {
+	for i := range fileArgs {
+		if fileArgs[i] == "--folder" && i+1 < len(fileArgs) {
+			folder := fileArgs[i+1]
+
+			return folder, append(fileArgs[:i], fileArgs[i+2:]...)
+		}
+	}
+
+	return "", fileArgs
+}
+
+func readBody(fileArgs []string, r io.Reader) ([]byte, error) {
+	if len(fileArgs) > 0 {
+		body, err := os.ReadFile(fileArgs[0])
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		return body, nil
+	}
+
+	body, err := io.ReadAll(r)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return body, nil
 }

@@ -14,25 +14,27 @@ const (
 
 // NoteList はノートリストの状態を表す。
 type NoteList struct {
-	notes     []note.Note
-	selected  int
-	width     int
-	height    int
-	offset    int
-	title     string
-	sectioned bool
+	notes          []note.Note
+	selected       int
+	width          int
+	height         int
+	offset         int
+	title          string
+	sectioned      bool
+	hoverFolderBtn bool
 }
 
 // NewNoteList は新しい NoteList を生成する。
 func NewNoteList(notes []note.Note, width, height int) NoteList {
 	return NoteList{
-		notes:     notes,
-		selected:  0,
-		width:     width,
-		height:    height,
-		offset:    0,
-		title:     "Notes",
-		sectioned: true,
+		notes:          notes,
+		selected:       0,
+		width:          width,
+		height:         height,
+		offset:         0,
+		title:          "Notes",
+		sectioned:      true,
+		hoverFolderBtn: false,
 	}
 }
 
@@ -57,6 +59,9 @@ func (s *NoteList) SelectedNote() (note.Note, bool) {
 
 	return s.notes[s.selected], true
 }
+
+// SetHoverFolderBtn はフォルダボタンのホバー状態を設定する。
+func (s *NoteList) SetHoverFolderBtn(v bool) { s.hoverFolderBtn = v }
 
 func (s *NoteList) visibleLines() int {
 	return s.height - noteListHeaderLines

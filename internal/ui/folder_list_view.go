@@ -18,9 +18,8 @@ func (fl *FolderList) View(focused bool) string {
 
 	var b strings.Builder
 
-	// ヘッダー: 閉じるボタン + タイトル
-	headerStr := " ✕ Folders"
-	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(headerStr))
+	// ヘッダー: 閉じるボタン + タイトル + ボタン
+	fl.renderHeader(&b, contentWidth)
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", contentWidth))
 	b.WriteString("\n")
@@ -52,8 +51,19 @@ func (fl *FolderList) View(focused bool) string {
 		b.WriteString("\n\n")
 	}
 
-	// 残りの高さを埋める (各フォルダの下に空行1行)
+	// インライン入力
+	if fl.inputMode {
+		inputStr := " " + fl.inputValue + "█"
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(inputStr))
+		b.WriteString("\n\n")
+	}
+
+	// 残りの高さを埋める
 	usedLines := folderListHeaderLines + len(fl.folders)*folderListItemHeight
+	if fl.inputMode {
+		usedLines += folderListItemHeight
+	}
+
 	for i := usedLines; i < fl.height; i++ {
 		b.WriteString("\n")
 	}
@@ -65,4 +75,41 @@ func (fl *FolderList) View(focused bool) string {
 	}
 
 	return style.Width(fl.width).Height(fl.height).Render(b.String())
+}
+
+func (fl *FolderList) renderHeader(b *strings.Builder, contentWidth int) {
+	closeBtn := " "
+	if fl.hoverClose {
+		closeBtn += buttonHoverStyle.Render("✕")
+	} else {
+		closeBtn += buttonStyle.Render("✕")
+	}
+
+	title := " Folders"
+
+	addBtn := " "
+	if fl.hoverAdd {
+		addBtn += buttonHoverStyle.Render("+")
+	} else {
+		addBtn += buttonStyle.Render("+")
+	}
+
+	moreBtn := ""
+	if fl.IsUserFolder() {
+		moreBtn = " "
+		if fl.hoverMore {
+			moreBtn += buttonHoverStyle.Render("⋯")
+		} else {
+			moreBtn += buttonStyle.Render("⋯")
+		}
+	}
+
+	headerLeft := closeBtn + title
+	headerRight := addBtn + moreBtn + " "
+	headerLeftWidth := lipgloss.Width(headerLeft)
+	headerRightWidth := lipgloss.Width(headerRight)
+	padding := max(contentWidth-headerLeftWidth-headerRightWidth, 0)
+
+	headerStr := headerLeft + strings.Repeat(" ", padding) + headerRight
+	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(headerStr))
 }

@@ -49,6 +49,16 @@ const (
 	FolderListFocusNext
 )
 
+// folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
+type folderCreateMsg struct {
+	Name string
+}
+
+// folderDeleteMsg はフォルダ削除を運ぶメッセージ。
+type folderDeleteMsg struct {
+	Name string
+}
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 

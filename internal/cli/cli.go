@@ -27,6 +27,8 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) { //
 	}
 
 	switch args[1] {
+	case "folder":
+		return true, runFolder(args, a, r, w)
 	case "list":
 		return true, runList(args, a, w)
 	case "purge":
@@ -59,13 +61,17 @@ func printUsage(w io.Writer) {
 	_, _ = fmt.Fprintf(w, "  %s --no-wrap        TUIモードで起動（水平スクロールモード）\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s list             ノート一覧を表示\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s list --trash     ゴミ箱のノート一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s list --folder <name> 指定フォルダのノート一覧を表示\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s purge            ゴミ箱を空にする（確認あり）\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s purge --force    ゴミ箱を空にする（確認なし）\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s get <id>         指定IDのノートを表示（ゴミ箱含む）\n", cmdName)
-	_, _ = fmt.Fprintf(w, "  %s create [file]    ファイルまたは標準入力からノートを作成\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s create [file] [--folder <name>] ファイルまたは標準入力からノートを作成\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s export <file>    データ一式をzipにエクスポート\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s import <file>    zipからデータをインポート\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s version          バージョンを表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s folder list         フォルダ一覧を表示\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s folder create <name> フォルダを作成\n", cmdName)
+	_, _ = fmt.Fprintf(w, "  %s folder delete <name> フォルダを削除\n", cmdName)
 	_, _ = fmt.Fprintf(w, "  %s help             このヘルプを表示\n", cmdName)
 }
 

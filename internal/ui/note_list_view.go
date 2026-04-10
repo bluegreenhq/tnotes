@@ -68,7 +68,14 @@ func (s *NoteList) writeHeader(b *strings.Builder, contentWidth int, folderVisib
 	if folderVisible {
 		titleName = " " + s.title
 	} else {
-		titleName = " ≡ " + s.title
+		folderBtn := "≡"
+		if s.hoverFolderBtn {
+			folderBtn = buttonHoverStyle.Render(folderBtn)
+		} else {
+			folderBtn = buttonStyle.Render(folderBtn)
+		}
+
+		titleName = " " + folderBtn + " " + s.title
 	}
 
 	count := fmt.Sprintf("%d ", len(s.notes))

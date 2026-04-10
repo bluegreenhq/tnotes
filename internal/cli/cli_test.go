@@ -80,7 +80,7 @@ func TestRun_List_WithNotes(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	result, _ := a.CreateNote(time.Now())
+	result, _ := a.CreateNote(time.Now(), "")
 	_, _ = a.SaveNote(result.Note.ID, "Hello World\nThis is body", time.Now())
 
 	var buf bytes.Buffer
@@ -121,7 +121,7 @@ func TestRun_Get_Found(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	result, _ := a.CreateNote(time.Now())
+	result, _ := a.CreateNote(time.Now(), "")
 	_, _ = a.SaveNote(result.Note.ID, "My Title\nMy body content", time.Now())
 
 	var buf bytes.Buffer
@@ -227,7 +227,7 @@ func TestRun_Export_Success(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Export test\nBody", now)
 
 	outPath := filepath.Join(t.TempDir(), "backup.zip")
@@ -272,7 +272,7 @@ func TestRun_Export_WithTrash(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Trash test\nBody", now)
 	_, _ = a.TrashNote(0)
 
@@ -336,7 +336,7 @@ func TestRun_Import_DataExists(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Existing note\nBody", now)
 
 	zipPath := filepath.Join(t.TempDir(), "import.zip")
@@ -356,7 +356,7 @@ func TestRun_Import_Success(t *testing.T) {
 	// まずexportでzipを作成
 	srcApp := newTestApp(t)
 	now := time.Now()
-	result, _ := srcApp.CreateNote(now)
+	result, _ := srcApp.CreateNote(now, "")
 	_, _ = srcApp.SaveNote(result.Note.ID, "Import test\nBody", now)
 
 	zipPath := filepath.Join(t.TempDir(), "export.zip")
@@ -401,7 +401,7 @@ func TestRun_Purge_Force(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Purge test\nBody", now)
 	_, _ = a.TrashNote(0)
 
@@ -431,7 +431,7 @@ func TestRun_Purge_ConfirmYes(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Confirm test\nBody", now)
 	_, _ = a.TrashNote(0)
 
@@ -448,7 +448,7 @@ func TestRun_Purge_ConfirmNo(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Cancel test\nBody", now)
 	_, _ = a.TrashNote(0)
 
@@ -469,7 +469,7 @@ func TestRun_Purge_ConfirmEmpty(t *testing.T) {
 
 	a := newTestApp(t)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Default no\nBody", now)
 	_, _ = a.TrashNote(0)
 
@@ -479,6 +479,174 @@ func TestRun_Purge_ConfirmEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Cancelled")
+}
+
+func TestRun_List_WithFolderFlag(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Default note\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "list", "--folder", "Notes"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Default note")
+}
+
+func TestRun_List_WithFolderFlag_Empty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "list", "--folder", "Work"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "No notes")
+}
+
+func TestRun_Folder_List_Empty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "list"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Notes")
+	assert.Contains(t, buf.String(), "Trash")
+}
+
+func TestRun_Folder_Create(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "create", "Work"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Created folder: Work")
+
+	var listBuf bytes.Buffer
+
+	_, _ = cli.Run([]string{"tnotes", "folder", "list"}, a, strings.NewReader(""), &listBuf)
+	assert.Contains(t, listBuf.String(), "Work")
+}
+
+func TestRun_Folder_Create_MissingName(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "create"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Folder_Delete_Empty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "delete", "Work"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Deleted folder: Work")
+}
+
+func TestRun_Folder_Delete_MissingName(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "delete"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Folder_Delete_Force(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "delete", "Work", "--force"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Deleted folder: Work")
+}
+
+func TestRun_List_WithFolderFlag_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "list", "--folder", "unknown"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "folder not found")
+}
+
+func TestRun_Create_WithFolder(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "create", "--folder", "Work"}, a, strings.NewReader("work note\nbody"), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	workNotes := a.ListByFolder("Work")
+	assert.Len(t, workNotes, 1)
+}
+
+func TestRun_Create_WithFolder_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "create", "--folder", "unknown"}, a, strings.NewReader("test\nbody"), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "folder not found")
+}
+
+func TestRun_Folder_NoSubcommand(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
 }
 
 func TestRun_Version_PrintsVersion(t *testing.T) {
