@@ -126,8 +126,8 @@ func TestEditorHeaderMenuClickCopy(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	// メニュー内: y=3 = "Copy Note"（空行を挟む）
-	cmd := h.HandleMenuClick(2, 3)
+	// メニュー内: y=5 = "Copy Note"（Delete Note=1, sep=2, Pin Note=3, sep=4, Copy Note=5）
+	cmd := h.HandleMenuClick(2, 5)
 	assert.NotNil(t, cmd)
 	msg := cmd()
 	assert.Equal(t, ui.EditorHeaderCopy, msg)
@@ -157,10 +157,42 @@ func TestEditorHeaderMenuNoCopyWhenEmpty(t *testing.T) {
 	h.SetHasContent(false)
 	h.RebuildMenu()
 
-	// メニューに "Copy Note" が含まれない（項目は Delete Note のみ）
+	// メニューに "Copy Note" が含まれない（項目は Delete Note + Pin Note）
 	items := h.PopupMenu.Items()
-	assert.Len(t, items, 1)
+	assert.Len(t, items, 2)
 	assert.Equal(t, "Delete Note", items[0].Label)
+	assert.Equal(t, "Pin Note", items[1].Label)
+}
+
+func TestEditorHeaderMenuClickPin(t *testing.T) {
+	t.Parallel()
+
+	h := ui.NewEditorHeader(60)
+	h.SetHasNote(true)
+	h.RebuildMenu()
+	h.OpenMenu()
+
+	// メニュー内: y=3 = "Pin Note"
+	cmd := h.HandleMenuClick(2, 3)
+	assert.NotNil(t, cmd)
+	msg := cmd()
+	assert.Equal(t, ui.EditorHeaderPin, msg)
+}
+
+func TestEditorHeaderMenuClickUnpin(t *testing.T) {
+	t.Parallel()
+
+	h := ui.NewEditorHeader(60)
+	h.SetHasNote(true)
+	h.SetPinned(true)
+	h.RebuildMenu()
+	h.OpenMenu()
+
+	// メニュー内: y=3 = "Unpin Note"
+	cmd := h.HandleMenuClick(2, 3)
+	assert.NotNil(t, cmd)
+	msg := cmd()
+	assert.Equal(t, ui.EditorHeaderUnpin, msg)
 }
 
 func TestEditorHeaderClickNewInTrashMode(t *testing.T) {

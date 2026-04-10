@@ -8,6 +8,7 @@ import (
 	iofs "io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -21,6 +22,9 @@ var (
 	ErrTrashedNoteNotFound = errors.New("trashed note not found")
 	ErrDataDirNotEmpty     = errors.New("data directory is not empty")
 	ErrInvalidZipPath      = errors.New("invalid path in zip")
+	ErrFolderAlreadyExists = errors.New("folder already exists")
+	ErrFolderNotFound      = errors.New("folder not found")
+	ErrSystemFolder        = errors.New("cannot operate on system folder")
 )
 
 const (
@@ -98,15 +102,21 @@ func (fs *FileStore) Load(id note.NoteID) (note.Note, error) {
 
 // Save はノートをファイルに書き出し、インデックスを更新する。
 func (fs *FileStore) Save(n note.Note) error {
-	dateDir := n.CreatedAt.Format("20060102")
-	relPath := filepath.Join(notesDir, dateDir, string(n.ID)+".md")
-	absPath := filepath.Join(fs.dir, relPath)
+	var relPath string
 
-	// 既存ノートの場合、元のパスを維持
 	if meta, ok := fs.index[n.ID]; ok {
+		// 既存ノートの場合、元のパスを維持
 		relPath = meta.Path
-		absPath = filepath.Join(fs.dir, relPath)
+	} else if n.Path != "" {
+		// 新規ノートでApp層がパスを設定済みの場合
+		relPath = n.Path
+	} else {
+		// フォールバック
+		dateDir := n.CreatedAt.Format("20060102")
+		relPath = filepath.Join(notesDir, dateDir, string(n.ID)+".md")
 	}
+
+	absPath := filepath.Join(fs.dir, relPath)
 
 	// ディレクトリ作成
 	err := os.MkdirAll(filepath.Dir(absPath), dirPerm)
@@ -138,6 +148,7 @@ func (fs *FileStore) Save(n note.Note) error {
 		ID:        n.ID,
 		Title:     n.Title(),
 		Preview:   n.Preview(),
+		Pinned:    n.Pinned,
 		CreatedAt: n.CreatedAt,
 		UpdatedAt: n.UpdatedAt,
 		Path:      relPath,
@@ -185,6 +196,7 @@ func (fs *FileStore) Trash(id note.NoteID) error {
 			ID:        meta.ID,
 			Title:     meta.Title,
 			Preview:   meta.Preview,
+			Pinned:    meta.Pinned,
 			CreatedAt: meta.CreatedAt,
 			UpdatedAt: meta.UpdatedAt,
 			Path:      dstRelPath,
@@ -249,6 +261,7 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 		ID:        meta.ID,
 		Title:     meta.Title,
 		Preview:   meta.Preview,
+		Pinned:    meta.Pinned,
 		CreatedAt: meta.CreatedAt,
 		UpdatedAt: meta.UpdatedAt,
 		Path:      meta.OriginalPath,
@@ -404,6 +417,99 @@ func (fs *FileStore) HasData() bool {
 	return err == nil
 }
 
+// ListFolders はデータDir直下のユーザー定義フォルダ名一覧をアルファベット順で返す。
+// Notes, .trash, ドットディレクトリ、ファイルは除外する。
+func (fs *FileStore) ListFolders() ([]string, error) {
+	entries, err := os.ReadDir(fs.dir)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	folders := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+
+		name := e.Name()
+		if fs.isSystemDir(name) {
+			continue
+		}
+
+		folders = append(folders, name)
+	}
+
+	sort.Strings(folders)
+
+	return folders, nil
+}
+
+// CreateFolder はユーザー定義フォルダを作成する。
+func (fs *FileStore) CreateFolder(name string) error {
+	if fs.isSystemDir(name) {
+		return errors.WithDetail(ErrSystemFolder, name)
+	}
+
+	path := filepath.Join(fs.dir, name)
+
+	_, err := os.Stat(path)
+	if err == nil {
+		return errors.WithDetail(ErrFolderAlreadyExists, name)
+	}
+
+	if !os.IsNotExist(err) {
+		return errors.WithStack(err)
+	}
+
+	return errors.WithStack(os.MkdirAll(path, dirPerm))
+}
+
+// DeleteFolder はユーザー定義フォルダを削除する。
+// 空サブディレクトリを再帰的に削除してからフォルダ自体を削除する。
+// 中のノートの移動は呼び出し側の責務。
+func (fs *FileStore) DeleteFolder(name string) error {
+	if fs.isSystemDir(name) {
+		return errors.WithDetail(ErrSystemFolder, name)
+	}
+
+	path := filepath.Join(fs.dir, name)
+
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return errors.WithDetail(ErrFolderNotFound, name)
+	}
+
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return errors.WithStack(removeEmptyDirs(path))
+}
+
+// removeEmptyDirs はディレクトリ内の空サブディレクトリを再帰的に削除してから、
+// 自身も削除する。ファイルが残っている場合はエラーを返す。
+func removeEmptyDirs(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	for _, e := range entries {
+		if e.IsDir() {
+			err := removeEmptyDirs(filepath.Join(dir, e.Name()))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return errors.WithStack(os.Remove(dir))
+}
+
+func (fs *FileStore) isSystemDir(name string) bool {
+	return name == notesDir || strings.HasPrefix(name, ".")
+}
+
 // lockAndReload はロックを取得し、indexを再読み込みする。
 // 戻り値の関数を呼ぶとロックを解放する。
 func (fs *FileStore) lockAndReload() (func(), error) {
@@ -458,6 +564,7 @@ func (fs *FileStore) loadIndex() error {
 			ID:        nid,
 			Title:     entry.Title,
 			Preview:   entry.Preview,
+			Pinned:    entry.Pinned,
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
 			Path:      entry.Path,
@@ -475,6 +582,7 @@ func (fs *FileStore) loadIndex() error {
 				ID:        nid,
 				Title:     entry.Title,
 				Preview:   entry.Preview,
+				Pinned:    entry.Pinned,
 				CreatedAt: createdAt,
 				UpdatedAt: updatedAt,
 				Path:      entry.Path,
@@ -496,6 +604,7 @@ func (fs *FileStore) saveIndex() error {
 		idx.Notes[string(id)] = indexEntry{
 			Title:     meta.Title,
 			Preview:   meta.Preview,
+			Pinned:    meta.Pinned,
 			CreatedAt: meta.CreatedAt.Format(timeFormat),
 			UpdatedAt: meta.UpdatedAt.Format(timeFormat),
 			Path:      meta.Path,
@@ -506,6 +615,7 @@ func (fs *FileStore) saveIndex() error {
 		idx.Trash[string(id)] = trashIndexEntry{
 			Title:        meta.Title,
 			Preview:      meta.Preview,
+			Pinned:       meta.Pinned,
 			CreatedAt:    meta.CreatedAt.Format(timeFormat),
 			UpdatedAt:    meta.UpdatedAt.Format(timeFormat),
 			Path:         meta.Path,

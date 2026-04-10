@@ -58,6 +58,68 @@ func TestGroupNotesBySectionEmpty(t *testing.T) {
 	assert.Empty(t, sections)
 }
 
+func TestGroupNotesBySection_Pinned(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
+	today := time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)
+	yesterday := time.Date(2026, 4, 3, 12, 0, 0, 0, time.Local)
+
+	notes := []note.Note{
+		{Metadata: note.Metadata{ID: "1", UpdatedAt: today, Pinned: true}, Body: "A"},
+		{Metadata: note.Metadata{ID: "2", UpdatedAt: yesterday}, Body: "B"},
+		{Metadata: note.Metadata{ID: "3", UpdatedAt: yesterday, Pinned: true}, Body: "C"},
+	}
+
+	sections := ui.GroupNotesBySection(notes, now)
+
+	assert.Len(t, sections, 2)
+
+	// Pinned セクションが先頭
+	assert.Equal(t, "Pinned", sections[0].Label)
+	assert.Len(t, sections[0].Notes, 2)
+	assert.Equal(t, note.NoteID("1"), sections[0].Notes[0].ID)
+	assert.Equal(t, note.NoteID("3"), sections[0].Notes[1].ID)
+
+	// unpinned のノートは日付セクションに入る
+	assert.Equal(t, "Yesterday", sections[1].Label)
+	assert.Len(t, sections[1].Notes, 1)
+	assert.Equal(t, note.NoteID("2"), sections[1].Notes[0].ID)
+}
+
+func TestGroupNotesBySection_PinnedOnly(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
+	today := time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)
+
+	notes := []note.Note{
+		{Metadata: note.Metadata{ID: "1", UpdatedAt: today, Pinned: true}, Body: "A"},
+	}
+
+	sections := ui.GroupNotesBySection(notes, now)
+
+	assert.Len(t, sections, 1)
+	assert.Equal(t, "Pinned", sections[0].Label)
+	assert.Len(t, sections[0].Notes, 1)
+}
+
+func TestGroupNotesBySection_NoPinned(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 4, 4, 15, 0, 0, 0, time.Local)
+	today := time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)
+
+	notes := []note.Note{
+		{Metadata: note.Metadata{ID: "1", UpdatedAt: today}, Body: "A"},
+	}
+
+	sections := ui.GroupNotesBySection(notes, now)
+
+	assert.Len(t, sections, 1)
+	assert.Equal(t, "Today", sections[0].Label)
+}
+
 func TestGroupNotesBySectionOnlyToday(t *testing.T) {
 	t.Parallel()
 

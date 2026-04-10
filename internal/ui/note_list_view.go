@@ -19,17 +19,7 @@ func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folder
 
 	var b strings.Builder
 
-	var titleStr string
-	if folderVisible {
-		titleStr = fmt.Sprintf(" %s (%d)", s.title, len(s.notes))
-	} else {
-		titleStr = fmt.Sprintf(" ≡ %s (%d)", s.title, len(s.notes))
-	}
-
-	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(titleStr))
-	b.WriteString("\n")
-	b.WriteString(strings.Repeat("─", contentWidth))
-	b.WriteString("\n")
+	s.writeHeader(&b, contentWidth, folderVisible)
 
 	rows := s.buildRows(now)
 	visEnd := visibleEndRow(rows, s.offset, s.visibleLines())
@@ -71,4 +61,32 @@ func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folder
 	}
 
 	return style.Width(s.width).Height(s.height).Render(b.String())
+}
+
+func (s *NoteList) writeHeader(b *strings.Builder, contentWidth int, folderVisible bool) {
+	var titleName string
+	if folderVisible {
+		titleName = " " + s.title
+	} else {
+		folderBtn := "≡"
+		if s.hoverFolderBtn {
+			folderBtn = buttonHoverStyle.Render(folderBtn)
+		} else {
+			folderBtn = buttonStyle.Render(folderBtn)
+		}
+
+		titleName = " " + folderBtn + " " + s.title
+	}
+
+	count := fmt.Sprintf("%d ", len(s.notes))
+	padding := max(contentWidth-lipgloss.Width(titleName)-lipgloss.Width(count), 0)
+
+	titleStr := lipgloss.NewStyle().Bold(true).Render(titleName) +
+		strings.Repeat(" ", padding) +
+		lipgloss.NewStyle().Foreground(lipgloss.Color("8")).Render(count)
+
+	b.WriteString(titleStr)
+	b.WriteString("\n")
+	b.WriteString(strings.Repeat("─", contentWidth))
+	b.WriteString("\n")
 }

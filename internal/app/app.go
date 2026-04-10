@@ -2,6 +2,9 @@ package app
 
 import (
 	"io"
+	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -10,8 +13,12 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/store"
 )
 
-// ErrNoteNotFound はノートが見つからない場合のエラー。
-var ErrNoteNotFound = errors.New("note not found")
+var (
+	// ErrNoteNotFound はノートが見つからない場合のエラー。
+	ErrNoteNotFound = errors.New("note not found")
+	// ErrFolderNotFound はフォルダが見つからない場合のエラー。
+	ErrFolderNotFound = errors.New("folder not found")
+)
 
 // App はノート管理のアプリケーションロジックを提供する。
 type App struct {
@@ -71,12 +78,19 @@ func (a *App) ListTrash() ([]note.Note, error) {
 }
 
 // CreateNote は新しいノートを作成し、リストの先頭に追加する。
+// folder が空の場合はデフォルトフォルダ（Notes）に保存する。
 // undo記録も内部で行う。
-func (a *App) CreateNote(now time.Time) (NoteResult, error) {
+func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 	n, err := note.New(now)
 	if err != nil {
 		return NoteResult{}, err
 	}
+
+	if folder == "" {
+		folder = DefaultFolder
+	}
+
+	n.Path = filepath.Join(folder, now.Format("20060102"), string(n.ID)+".md")
 
 	a.Notes = append([]note.Note{n}, a.Notes...)
 
@@ -293,6 +307,139 @@ func (a *App) SaveNote(id note.NoteID, body string, now time.Time) (int, error) 
 	}
 
 	return 0, nil
+}
+
+// PinNote は指定IDのノートをピン留めする。
+func (a *App) PinNote(id note.NoteID) error {
+	return a.setPinned(id, true)
+}
+
+// UnpinNote は指定IDのノートのピン留めを解除する。
+func (a *App) UnpinNote(id note.NoteID) error {
+	return a.setPinned(id, false)
+}
+
+// ListFolders はユーザー定義フォルダ名一覧を返す。
+func (a *App) ListFolders() ([]string, error) {
+	if a.store == nil {
+		return nil, nil
+	}
+
+	return a.store.ListFolders()
+}
+
+// CreateFolder はユーザー定義フォルダを作成する。
+func (a *App) CreateFolder(name string) error {
+	if a.store == nil {
+		return nil
+	}
+
+	return a.store.CreateFolder(name)
+}
+
+// DeleteFolder はユーザー定義フォルダを削除する。
+// フォルダ内のノートをゴミ箱に移動してからディレクトリを削除する。
+// 戻り値はゴミ箱に移動したノート件数。
+func (a *App) DeleteFolder(name string) (int, error) {
+	if a.store == nil {
+		return 0, nil
+	}
+
+	count := 0
+
+	for i := len(a.Notes) - 1; i >= 0; i-- {
+		if a.noteBelongsToFolder(a.Notes[i], name) {
+			_, err := a.trashNoteInternal(i)
+			if err != nil {
+				return count, err
+			}
+
+			count++
+		}
+	}
+
+	err := a.store.DeleteFolder(name)
+	if err != nil {
+		return count, err
+	}
+
+	return count, nil
+}
+
+// FolderNoteCount は指定フォルダのノート件数を返す。
+func (a *App) FolderNoteCount(name string) (int, error) {
+	count := 0
+
+	for _, n := range a.Notes {
+		if a.noteBelongsToFolder(n, name) {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
+// DefaultFolder はデフォルトのノートフォルダ名。
+const DefaultFolder = "Notes"
+
+// ListByFolder は指定フォルダに属するノート一覧を返す。
+func (a *App) ListByFolder(folderName string) []note.Note {
+	filtered := make([]note.Note, 0, len(a.Notes))
+
+	for _, n := range a.Notes {
+		if a.noteBelongsToFolder(n, folderName) {
+			filtered = append(filtered, n)
+		}
+	}
+
+	return filtered
+}
+
+// FolderExists は指定名のフォルダが存在するかを返す。
+func (a *App) FolderExists(name string) (bool, error) {
+	if name == DefaultFolder {
+		return true, nil
+	}
+
+	folders, err := a.ListFolders()
+	if err != nil {
+		return false, err
+	}
+
+	return slices.Contains(folders, name), nil
+}
+
+func (a *App) setPinned(id note.NoteID, pinned bool) error {
+	idx := a.findNoteIndex(id)
+	if idx < 0 {
+		return ErrNoteNotFound
+	}
+
+	a.Notes[idx].Pinned = pinned
+
+	if a.store != nil {
+		n, err := a.store.Load(id)
+		if err != nil {
+			return err
+		}
+
+		n.Pinned = pinned
+
+		return a.store.Save(n)
+	}
+
+	return nil
+}
+
+const pathSplitParts = 2
+
+func (a *App) noteBelongsToFolder(n note.Note, folderName string) bool {
+	parts := strings.SplitN(n.Path, string(filepath.Separator), pathSplitParts)
+	if len(parts) == 0 {
+		return false
+	}
+
+	return parts[0] == folderName
 }
 
 // trashNoteInternal はundo記録なしでノートをゴミ箱に移動する。

@@ -20,6 +20,14 @@ func (h *EditorHeader) RebuildMenu() {
 		}
 		h.menuMsgs = []EditorHeaderMsg{EditorHeaderTrash}
 
+		if h.pinned {
+			menuItems = append(menuItems, MenuItem{Label: "Unpin Note", Disabled: false})
+			h.menuMsgs = append(h.menuMsgs, EditorHeaderUnpin)
+		} else {
+			menuItems = append(menuItems, MenuItem{Label: "Pin Note", Disabled: false})
+			h.menuMsgs = append(h.menuMsgs, EditorHeaderPin)
+		}
+
 		if h.hasContent {
 			menuItems = append(menuItems, MenuItem{Label: "Copy Note", Disabled: false})
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderCopy)

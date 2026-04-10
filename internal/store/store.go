@@ -36,4 +36,10 @@ type Store interface { //nolint:interfacebloat // import/exportの責務もStore
 	Import(r io.Reader) error
 	// HasData はデータが存在するかを返す（index.json の存在チェック）。
 	HasData() bool
+	// ListFolders はユーザー定義フォルダ名一覧をアルファベット順で返す。
+	ListFolders() ([]string, error)
+	// CreateFolder はユーザー定義フォルダを作成する。
+	CreateFolder(name string) error
+	// DeleteFolder はユーザー定義フォルダを削除する（空ディレクトリのみ）。
+	DeleteFolder(name string) error
 }

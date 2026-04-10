@@ -18,33 +18,52 @@ func (fl *FolderList) View(focused bool) string {
 
 	var b strings.Builder
 
-	// ヘッダー: 閉じるボタン + タイトル
-	headerStr := " ✕ Folders"
-	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(headerStr))
+	// ヘッダー: 閉じるボタン + タイトル + ボタン
+	fl.renderHeader(&b, contentWidth)
 	b.WriteString("\n")
 	b.WriteString(strings.Repeat("─", contentWidth))
 	b.WriteString("\n")
 
 	// フォルダ一覧
+	countStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
 	for i, folder := range fl.folders {
-		label := fmt.Sprintf(" %s (%d)", folder.Name, folder.Count)
+		name := " " + folder.Name
+		count := fmt.Sprintf("%d ", folder.Count)
+
+		padding := max(contentWidth-lipgloss.Width(name)-lipgloss.Width(count), 0)
 
 		if i == fl.selected {
-			style := lipgloss.NewStyle().
+			baseStyle := lipgloss.NewStyle().
 				Background(lipgloss.Color("4")).
-				Foreground(lipgloss.Color("15")).
-				Bold(true).
-				Width(contentWidth)
-			b.WriteString(style.Render(label))
+				Bold(true)
+			nameStr := baseStyle.Foreground(lipgloss.Color("15")).Render(name)
+			pad := baseStyle.Render(strings.Repeat(" ", padding))
+			countStr := baseStyle.Foreground(lipgloss.Color("7")).Render(count)
+			b.WriteString(nameStr + pad + countStr)
 		} else {
-			b.WriteString(lipgloss.NewStyle().Width(contentWidth).Render(label))
+			nameStr := lipgloss.NewStyle().Render(name)
+			pad := strings.Repeat(" ", padding)
+			countStr := countStyle.Render(count)
+			b.WriteString(nameStr + pad + countStr)
 		}
 
-		b.WriteString("\n")
+		b.WriteString("\n\n")
+	}
+
+	// インライン入力
+	if fl.inputMode {
+		inputStr := " " + fl.inputValue + "█"
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(inputStr))
+		b.WriteString("\n\n")
 	}
 
 	// 残りの高さを埋める
-	usedLines := folderListHeaderLines + len(fl.folders)
+	usedLines := folderListHeaderLines + len(fl.folders)*folderListItemHeight
+	if fl.inputMode {
+		usedLines += folderListItemHeight
+	}
+
 	for i := usedLines; i < fl.height; i++ {
 		b.WriteString("\n")
 	}
@@ -56,4 +75,41 @@ func (fl *FolderList) View(focused bool) string {
 	}
 
 	return style.Width(fl.width).Height(fl.height).Render(b.String())
+}
+
+func (fl *FolderList) renderHeader(b *strings.Builder, contentWidth int) {
+	closeBtn := " "
+	if fl.hoverClose {
+		closeBtn += buttonHoverStyle.Render("✕")
+	} else {
+		closeBtn += buttonStyle.Render("✕")
+	}
+
+	title := " Folders"
+
+	addBtn := " "
+	if fl.hoverAdd {
+		addBtn += buttonHoverStyle.Render("+")
+	} else {
+		addBtn += buttonStyle.Render("+")
+	}
+
+	moreBtn := ""
+	if fl.IsUserFolder() {
+		moreBtn = " "
+		if fl.hoverMore {
+			moreBtn += buttonHoverStyle.Render("⋯")
+		} else {
+			moreBtn += buttonStyle.Render("⋯")
+		}
+	}
+
+	headerLeft := closeBtn + title
+	headerRight := addBtn + moreBtn + " "
+	headerLeftWidth := lipgloss.Width(headerLeft)
+	headerRightWidth := lipgloss.Width(headerRight)
+	padding := max(contentWidth-headerLeftWidth-headerRightWidth, 0)
+
+	headerStr := headerLeft + strings.Repeat(" ", padding) + headerRight
+	b.WriteString(lipgloss.NewStyle().Bold(true).Width(contentWidth).Render(headerStr))
 }

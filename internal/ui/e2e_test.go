@@ -28,7 +28,7 @@ func TestE2E_InitialRender(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		s := screen(bts)
 
-		return strings.Contains(s, "Notes (0)") &&
+		return strings.Contains(s, "Notes") &&
 			strings.Contains(s, "Menu")
 	}, teatest.WithDuration(3*time.Second))
 
@@ -44,7 +44,7 @@ func TestE2E_CreateAndEditNote(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes (0)")
+		return strings.Contains(screen(bts), "Notes")
 	}, teatest.WithDuration(3*time.Second))
 
 	// 'n' でノート作成 → New Note がサイドバーに表示される
@@ -86,7 +86,7 @@ func TestE2E_MultipleNotesNavigation(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes (0)")
+		return strings.Contains(screen(bts), "Notes")
 	}, teatest.WithDuration(3*time.Second))
 
 	// 1つ目のノート作成
@@ -109,7 +109,7 @@ func TestE2E_MultipleNotesNavigation(t *testing.T) {
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		s := screen(bts)
 
-		return strings.Contains(s, "Notes (2)") || strings.Contains(s, "2)")
+		return strings.Contains(s, "New Note")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'B', Text: "B"})
@@ -142,7 +142,7 @@ func TestE2E_QuitWithQ(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes (0)")
+		return strings.Contains(screen(bts), "Notes")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q'})
@@ -157,7 +157,7 @@ func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes (0)")
+		return strings.Contains(screen(bts), "Notes")
 	}, teatest.WithDuration(3*time.Second))
 
 	// ノート作成
@@ -193,7 +193,7 @@ func TestE2E_TrashAndRestoreViaFolder(t *testing.T) {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes (0)")
+		return strings.Contains(screen(bts), "Notes")
 	}, teatest.WithDuration(3*time.Second))
 
 	// ノート作成

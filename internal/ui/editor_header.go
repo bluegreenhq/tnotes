@@ -18,6 +18,7 @@ type EditorHeader struct {
 	hasNote    bool
 	hasContent bool
 	trashMode  bool
+	pinned     bool
 }
 
 // NewEditorHeader は新しい EditorHeader を生成する。
@@ -32,6 +33,7 @@ func NewEditorHeader(width int) *EditorHeader {
 		hasNote:    false,
 		hasContent: false,
 		trashMode:  false,
+		pinned:     false,
 	}
 }
 
@@ -58,3 +60,6 @@ func (h *EditorHeader) SetHasContent(v bool) { h.hasContent = v }
 
 // SetTrashMode はゴミ箱モードを設定する。
 func (h *EditorHeader) SetTrashMode(v bool) { h.trashMode = v }
+
+// SetPinned はピン留め状態を設定する。
+func (h *EditorHeader) SetPinned(v bool) { h.pinned = v }

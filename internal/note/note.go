@@ -24,6 +24,7 @@ type Metadata struct {
 	ID        NoteID
 	Title     string
 	Preview   string
+	Pinned    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Path      string // データディレクトリからの相対パス
@@ -43,7 +44,10 @@ func ZeroNote() Note {
 
 // ZeroMetadata はゼロ値の Metadata を返す。
 func ZeroMetadata() Metadata {
-	return Metadata{ID: "", Title: "", Preview: "", CreatedAt: time.Time{}, UpdatedAt: time.Time{}, Path: ""}
+	return Metadata{
+		ID: "", Title: "", Preview: "", Pinned: false,
+		CreatedAt: time.Time{}, UpdatedAt: time.Time{}, Path: "",
+	}
 }
 
 // New は新しい空のメモを生成する。
@@ -58,6 +62,7 @@ func New(now time.Time) (Note, error) {
 			ID:        id,
 			Title:     "",
 			Preview:   "",
+			Pinned:    false,
 			CreatedAt: now,
 			UpdatedAt: now,
 			Path:      "",

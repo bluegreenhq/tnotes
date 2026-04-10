@@ -40,11 +40,11 @@ func TestFooterClickMenuItem(t *testing.T) {
 	f.RebuildButtons(ui.FooterState{})
 	f.OpenMenu()
 
-	// メニュー内相対座標 y=1 = "New"
+	// メニュー内相対座標 y=1 = "Quit"
 	cmd := f.HandleMenuClick(2, 1)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterNew, msg)
+	assert.Equal(t, ui.FooterQuit, msg)
 	assert.False(t, f.MenuOpen())
 }
 
@@ -52,26 +52,14 @@ func TestFooterClickMenuItemTrash(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{TrashMode: true, TrashCount: 1})
+	f.RebuildButtons(ui.FooterState{TrashMode: true})
 	f.OpenMenu()
 
-	// y=1 = "Restore"
+	// y=1 = "Quit"
 	cmd := f.HandleMenuClick(2, 1)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterRestore, msg)
-}
-
-func TestFooterClickDisabledMenuItem(t *testing.T) {
-	t.Parallel()
-
-	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{TrashMode: true, TrashCount: 0})
-	f.OpenMenu()
-
-	// y=1 = "Restore" (disabled)
-	cmd := f.HandleMenuClick(2, 1)
-	assert.Nil(t, cmd)
+	assert.Equal(t, ui.FooterQuit, msg)
 }
 
 func TestFooterViewClosed(t *testing.T) {
@@ -103,7 +91,7 @@ func TestFooterClickDisabled(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	btn := ui.NewFooterButton("[Restore]", ui.HoverRestore)
+	btn := ui.NewFooterButton("[Quit]", ui.HoverQuit)
 	btn.Disabled = true
 	f.SetButtons([]ui.FooterButton{btn})
 	cmd := f.HandleClick(1)

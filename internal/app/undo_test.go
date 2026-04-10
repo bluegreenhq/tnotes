@@ -89,7 +89,7 @@ func TestCreateActionUndo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 
 	assert.Len(t, a.Notes, 1)
 
@@ -105,7 +105,7 @@ func TestCreateActionRedo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 
 	action := &app.CreateAction{NoteID: result.Note.ID}
 	_ = action.Undo(a)
@@ -121,7 +121,7 @@ func TestTrashActionUndo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 
 	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0}
 	_, _ = a.TrashNote(0)
@@ -137,7 +137,7 @@ func TestTrashActionRedo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now)
+	_, _ = a.CreateNote(now, "")
 
 	action := &app.TrashAction{NoteID: a.Notes[0].ID, OriginalIndex: 0}
 	_, _ = a.TrashNote(0)
@@ -154,7 +154,7 @@ func TestRestoreActionUndo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.TrashNote(0)
 
 	action := &app.RestoreAction{NoteID: result.Note.ID}
@@ -172,7 +172,7 @@ func TestRestoreActionRedo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	result, _ := a.CreateNote(now)
+	result, _ := a.CreateNote(now, "")
 	_, _ = a.TrashNote(0)
 
 	action := &app.RestoreAction{NoteID: result.Note.ID}
@@ -190,7 +190,7 @@ func TestAppUndoNote(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now)
+	_, _ = a.CreateNote(now, "")
 	assert.Len(t, a.Notes, 1)
 
 	_, _ = a.TrashNote(0)
@@ -207,7 +207,7 @@ func TestAppRedoNote(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now)
+	_, _ = a.CreateNote(now, "")
 	_, _ = a.TrashNote(0)
 	_, _ = a.UndoNote()
 

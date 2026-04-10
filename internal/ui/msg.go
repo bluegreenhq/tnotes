@@ -49,16 +49,22 @@ const (
 	FolderListFocusNext
 )
 
+// folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
+type folderCreateMsg struct {
+	Name string
+}
+
+// folderDeleteMsg はフォルダ削除を運ぶメッセージ。
+type folderDeleteMsg struct {
+	Name string
+}
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 
 const (
-	// FooterNew は新規ノート生成ボタンがクリックされたことを通知する。
-	FooterNew FooterMsg = iota
-	// FooterRestore は復元ボタンがクリックされたことを通知する。
-	FooterRestore
 	// FooterQuit は終了ボタンがクリックされたことを通知する。
-	FooterQuit
+	FooterQuit FooterMsg = iota
 	// FooterCopy はコピーボタンがクリックされたことを通知する。
 	FooterCopy
 	// FooterCut はカットボタンがクリックされたことを通知する。
@@ -79,4 +85,8 @@ const (
 	EditorHeaderCopy
 	// EditorHeaderRestore はゴミ箱からのノート復元を要求する。
 	EditorHeaderRestore
+	// EditorHeaderPin はノートのピン留めを要求する。
+	EditorHeaderPin
+	// EditorHeaderUnpin はノートのピン留め解除を要求する。
+	EditorHeaderUnpin
 )

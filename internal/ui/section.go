@@ -25,6 +25,7 @@ func GroupNotesBySection(notes []note.Note, now time.Time) []Section {
 	yesterday := today.AddDate(0, 0, -1)
 	sevenDaysAgo := today.AddDate(0, 0, -7)
 
+	pinned := newSection("Pinned")
 	all := []Section{
 		newSection("Today"),
 		newSection("Yesterday"),
@@ -33,6 +34,12 @@ func GroupNotesBySection(notes []note.Note, now time.Time) []Section {
 	}
 
 	for _, n := range notes {
+		if n.Pinned {
+			pinned.Notes = append(pinned.Notes, n)
+
+			continue
+		}
+
 		t := n.UpdatedAt
 		switch {
 		case !t.Before(today):
@@ -47,6 +54,10 @@ func GroupNotesBySection(notes []note.Note, now time.Time) []Section {
 	}
 
 	var sections []Section
+
+	if len(pinned.Notes) > 0 {
+		sections = append(sections, pinned)
+	}
 
 	for _, s := range all {
 		if len(s.Notes) > 0 {

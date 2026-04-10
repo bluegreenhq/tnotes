@@ -18,6 +18,7 @@ const (
 type indexEntry struct {
 	Title     string `json:"title"`
 	Preview   string `json:"preview,omitempty"`
+	Pinned    bool   `json:"pinned,omitempty"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 	Path      string `json:"path"`
@@ -27,6 +28,7 @@ type indexEntry struct {
 type trashIndexEntry struct {
 	Title        string `json:"title"`
 	Preview      string `json:"preview,omitempty"`
+	Pinned       bool   `json:"pinned,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 	Path         string `json:"path"`
