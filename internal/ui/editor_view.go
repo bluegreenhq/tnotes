@@ -21,18 +21,22 @@ var (
 
 // View はエディタの描画内容を返す。
 func (e *Editor) View() string {
+	headerLine := e.Header.View()
+
 	if e.noteID == "" {
 		placeholder := "Press 'n' to create a note"
 		if e.readOnly {
 			placeholder = ""
 		}
 
-		return lipgloss.NewStyle().
+		body := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("8")).
 			Width(e.width).
-			Height(e.height).
+			Height(e.height-editorHeaderHeight).
 			Align(lipgloss.Center, lipgloss.Center).
 			Render(placeholder)
+
+		return headerLine + "\n" + body
 	}
 
 	raw := e.textarea.View()
@@ -45,7 +49,9 @@ func (e *Editor) View() string {
 
 	raw = e.applyTitleBold(raw)
 
-	return editorStyle.Width(e.width).Height(e.height).Render(raw)
+	textBody := editorStyle.Width(e.width).Height(e.height - editorHeaderHeight).Render(raw)
+
+	return headerLine + "\n" + textBody
 }
 
 // applyTitleBold は先頭のタイトル行を太字にする。

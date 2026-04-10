@@ -13,8 +13,8 @@ type PopupMenu struct {
 }
 
 // NewPopupMenu は新しい PopupMenu を生成する。
-func NewPopupMenu(items []MenuItem) PopupMenu {
-	return PopupMenu{items: items, hover: -1}
+func NewPopupMenu(items []MenuItem) *PopupMenu {
+	return &PopupMenu{items: items, hover: -1}
 }
 
 // Items はメニュー項目のリストを返す。

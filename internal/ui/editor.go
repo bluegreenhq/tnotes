@@ -21,6 +21,7 @@ func selBefore(a, b SelectionAnchor) bool {
 
 // Editor はテキスト編集ペインの状態を表す。
 type Editor struct {
+	Header       *EditorHeader
 	textarea     simpleTextArea
 	noteID       note.NoteID
 	original     string
@@ -39,9 +40,10 @@ type Editor struct {
 func NewEditor(width, height int, noWrap bool) Editor {
 	ta := newSimpleTextArea(noWrap)
 	ta.SetWidth(width - editorPadding)
-	ta.SetHeight(height)
+	ta.SetHeight(height - editorHeaderHeight)
 
 	return Editor{
+		Header:       NewEditorHeader(width),
 		textarea:     ta,
 		noteID:       "",
 		original:     "",

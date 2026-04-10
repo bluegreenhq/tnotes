@@ -14,7 +14,7 @@ func (f *Footer) OpenMenu() { f.menuOpen = true }
 // CloseMenu はメニューを閉じる。
 func (f *Footer) CloseMenu() {
 	f.menuOpen = false
-	f.popupMenu.hover = -1
+	f.PopupMenu.hover = -1
 }
 
 // MenuHeight はメニューが開いている場合のメニュー部分の高さを返す。
@@ -23,7 +23,7 @@ func (f *Footer) MenuHeight() int {
 		return 0
 	}
 
-	return f.popupMenu.Height()
+	return f.PopupMenu.Height()
 }
 
 // HitTest はフッター行のX座標からホバーターゲットを判定する。
@@ -91,7 +91,7 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 // HandleMenuClick はメニュー領域のクリックを処理する。
 // x, y はメニュー左上を原点とする相対座標。
 func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
-	idx, hit := f.popupMenu.HandleClick(x, y)
+	idx, hit := f.PopupMenu.HandleClick(x, y)
 	f.CloseMenu()
 
 	if !hit || idx < 0 || idx >= len(f.menuMsgs) {
@@ -104,7 +104,7 @@ func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
 // SetMenuHover はメニュー領域のホバーを更新する。
 // x, y はメニュー左上を原点とする相対座標。
 func (f *Footer) SetMenuHover(x, y int) {
-	f.popupMenu.SetHoverByPos(x, y)
+	f.PopupMenu.SetHoverByPos(x, y)
 }
 
 func footerCmd(msg FooterMsg) tea.Cmd {

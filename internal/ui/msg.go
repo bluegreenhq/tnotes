@@ -66,3 +66,17 @@ const (
 	// FooterMore はMoreボタンがクリックされたことを通知する。
 	FooterMore
 )
+
+// EditorHeaderMsg はエディタヘッダーからモデルへの通知メッセージ。
+type EditorHeaderMsg int
+
+const (
+	// EditorHeaderNew は新規ノート作成を要求する。
+	EditorHeaderNew EditorHeaderMsg = iota
+	// EditorHeaderTrash はノートのゴミ箱移動を要求する。
+	EditorHeaderTrash
+	// EditorHeaderCopy はノート内容のクリップボードコピーを要求する。
+	EditorHeaderCopy
+	// EditorHeaderRestore はゴミ箱からのノート復元を要求する。
+	EditorHeaderRestore
+)

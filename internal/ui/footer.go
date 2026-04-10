@@ -30,7 +30,7 @@ type Footer struct {
 	hover     HoverTarget
 	buttons   []FooterButton
 	menuOpen  bool
-	popupMenu PopupMenu
+	PopupMenu *PopupMenu
 	menuMsgs  []FooterMsg // menuItems[i] に対応する FooterMsg
 }
 
@@ -40,7 +40,7 @@ func NewFooter() Footer {
 		hover:     HoverNone,
 		buttons:   nil,
 		menuOpen:  false,
-		popupMenu: PopupMenu{items: nil, hover: -1},
+		PopupMenu: NewPopupMenu(nil),
 		menuMsgs:  nil,
 	}
 }
@@ -50,9 +50,6 @@ func (f *Footer) Hover() HoverTarget { return f.hover }
 
 // MenuOpen はメニューが開いているかを返す。
 func (f *Footer) MenuOpen() bool { return f.menuOpen }
-
-// PopupMenuRef はポップアップメニューへの参照を返す。
-func (f *Footer) PopupMenuRef() *PopupMenu { return &f.popupMenu }
 
 // FooterState はフッターのボタン構築に必要な状態。
 type FooterState struct {
@@ -98,7 +95,7 @@ func (f *Footer) RebuildButtons(s FooterState) {
 		f.menuMsgs = []FooterMsg{FooterNew, FooterQuit}
 	}
 
-	prevHover := f.popupMenu.hover
-	f.popupMenu = NewPopupMenu(menuItems)
-	f.popupMenu.hover = prevHover
+	prevHover := f.PopupMenu.hover
+	f.PopupMenu = NewPopupMenu(menuItems)
+	f.PopupMenu.hover = prevHover
 }
