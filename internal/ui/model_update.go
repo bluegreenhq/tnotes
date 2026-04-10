@@ -40,6 +40,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		return m, m.handleFooterMsg(msg, now)
 	case tea.FocusMsg:
 		return m, m.handleFocusRestore()
+	case tea.BlurMsg: // 他アプリへ切り替え時に編集中の内容を保存
+		m.syncEditorToNote(now)
+
+		return m, nil
 	case cursorBlinkMsg:
 		cmd := m.Editor.HandleBlinkMsg(msg)
 
