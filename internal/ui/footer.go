@@ -6,7 +6,6 @@ type HoverTarget int
 const (
 	HoverNone HoverTarget = iota
 	HoverQuit
-	HoverRestore
 	HoverCopy
 	HoverCut
 	HoverMore
@@ -53,7 +52,6 @@ func (f *Footer) MenuOpen() bool { return f.menuOpen }
 // FooterState はフッターのボタン構築に必要な状態。
 type FooterState struct {
 	TrashMode    bool
-	TrashCount   int
 	HasSelection bool
 	EditorDirty  bool
 }
@@ -78,20 +76,11 @@ func (f *Footer) RebuildButtons(s FooterState) {
 	}
 
 	// メニュー項目を構築
-	var menuItems []MenuItem
-
-	if s.TrashMode {
-		menuItems = []MenuItem{
-			{Label: "Restore", Disabled: s.TrashCount == 0},
-			{Label: "Quit", Disabled: false},
-		}
-		f.menuMsgs = []FooterMsg{FooterRestore, FooterQuit}
-	} else {
-		menuItems = []MenuItem{
-			{Label: "Quit", Disabled: false},
-		}
-		f.menuMsgs = []FooterMsg{FooterQuit}
+	var menuItems = []MenuItem{
+		{Label: "Quit", Disabled: false},
 	}
+
+	f.menuMsgs = []FooterMsg{FooterQuit}
 
 	prevHover := f.PopupMenu.hover
 	f.PopupMenu = NewPopupMenu(menuItems)

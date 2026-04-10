@@ -63,10 +63,8 @@ type folderDeleteMsg struct {
 type FooterMsg int
 
 const (
-	// FooterRestore は復元ボタンがクリックされたことを通知する。
-	FooterRestore FooterMsg = iota
 	// FooterQuit は終了ボタンがクリックされたことを通知する。
-	FooterQuit
+	FooterQuit FooterMsg = iota
 	// FooterCopy はコピーボタンがクリックされたことを通知する。
 	FooterCopy
 	// FooterCut はカットボタンがクリックされたことを通知する。
