@@ -49,6 +49,8 @@ func (e *Editor) LoadNote(n note.Note) {
 	e.textarea.MoveToBegin()
 	e.ClearSelection()
 	e.UndoMgr.Clear()
+	e.Header.SetHasNote(true)
+	e.Header.CloseMenu()
 }
 
 // SetValue はテキストエリアの値を設定する。
@@ -76,8 +78,9 @@ func (e *Editor) Blur() {
 func (e *Editor) SetSize(width, height int) {
 	e.width = width
 	e.height = height
+	e.Header.SetWidth(width)
 	e.textarea.SetWidth(width - editorPadding)
-	e.textarea.SetHeight(height)
+	e.textarea.SetHeight(height - editorHeaderHeight)
 }
 
 // SetReadOnly は読み取り専用モードを設定する。
@@ -89,6 +92,8 @@ func (e *Editor) Clear() {
 	e.original = ""
 	e.textarea.SetValue("")
 	e.ClearSelection()
+	e.Header.SetHasNote(false)
+	e.Header.CloseMenu()
 }
 
 // --- イベントハンドラ ---
@@ -466,6 +471,82 @@ func cellToRuneIndex(runes []rune, cellCol int) int {
 	return len(runes)
 }
 
+// --- クリック・ホバー ---
+
+// HandleClick はエディタ領域のクリックを処理する。
+// x, y はエディタ左上を原点とする相対座標。
+// メニューが開いている場合はメニューのクリック処理を行い、メニュー外なら閉じる。
+func (e *Editor) HandleClick(x, y int) tea.Cmd {
+	// メニューが開いている場合
+	if e.Header.MenuOpen() {
+		menuTopY := editorHeaderMenuTopY
+		menuHeight := e.Header.MenuHeight()
+
+		if y >= menuTopY && y < menuTopY+menuHeight {
+			menuRelX := x - e.menuLeftX()
+
+			return e.Header.HandleMenuClick(menuRelX, y-menuTopY)
+		}
+
+		e.Header.CloseMenu()
+
+		return nil
+	}
+
+	// ヘッダー行
+	if y == 0 {
+		e.Header.SetHasContent(e.textarea.Value() != "")
+
+		return e.Header.HandleClick(x)
+	}
+
+	return nil
+}
+
+// HandleHover はエディタ領域のホバーを処理する。
+// x, y はエディタ左上を原点とする相対座標。
+func (e *Editor) HandleHover(x, y int) {
+	// ヘッダーボタンのホバー
+	if y == 0 {
+		e.Header.SetHover(x)
+	} else {
+		e.Header.ClearHover()
+	}
+
+	// メニューのホバー
+	if e.Header.MenuOpen() {
+		menuTopY := editorHeaderMenuTopY
+		menuHeight := e.Header.MenuHeight()
+
+		if y >= menuTopY && y < menuTopY+menuHeight {
+			menuRelX := x - e.menuLeftX()
+			e.Header.SetMenuHover(menuRelX, y-menuTopY)
+		}
+	}
+}
+
+// menuLeftX はメニュー左端のエディタ相対X座標を返す。
+func (e *Editor) menuLeftX() int {
+	return e.Header.Width() - e.Header.PopupMenu.Width()
+}
+
+// IsHeaderMenuOpen はヘッダーメニューが開いているかを返す。
+func (e *Editor) IsHeaderMenuOpen() bool {
+	return e.Header.MenuOpen()
+}
+
+// --- スクロール ---
+
+// ScrollUp は表示を n 行上にスクロールする。カーソルは動かさない。
+func (e *Editor) ScrollUp(n int) {
+	e.textarea.ScrollUp(n)
+}
+
+// ScrollDown は表示を n 行下にスクロールする。カーソルは動かさない。
+func (e *Editor) ScrollDown(n int) {
+	e.textarea.ScrollDown(n)
+}
+
 // --- Undo/Redo ---
 
 // SaveSnapshot はエディタのスナップショットをデバウンス付きで保存する。
@@ -532,16 +613,6 @@ func (e *Editor) saveSnapshotBefore(prevText string, prevLine, prevCol int, forc
 	} else {
 		e.UndoMgr.MaybeSave(snap, now)
 	}
-}
-
-// ScrollUp は表示を n 行上にスクロールする。カーソルは動かさない。
-func (e *Editor) ScrollUp(n int) {
-	e.textarea.ScrollUp(n)
-}
-
-// ScrollDown は表示を n 行下にスクロールする。カーソルは動かさない。
-func (e *Editor) ScrollDown(n int) {
-	e.textarea.ScrollDown(n)
 }
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {

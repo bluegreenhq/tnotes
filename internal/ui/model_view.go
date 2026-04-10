@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // View はターミナルに描画する内容を返す。
@@ -54,13 +55,48 @@ func (m *Model) renderView(now time.Time) string {
 		bodyLines = append(bodyLines, "")
 	}
 
-	// メニューオーバーレイ
+	// エディタヘッダーメニューオーバーレイ
+	if m.Editor.Header.MenuOpen() {
+		menuLines := m.Editor.Header.PopupMenu.View()
+		m.overlayEditorHeaderMenu(bodyLines, menuLines)
+	}
+
+	// フッターメニューオーバーレイ
 	if m.Footer.MenuOpen() {
-		menuLines := m.Footer.PopupMenuRef().View()
+		menuLines := m.Footer.PopupMenu.View()
 		m.overlayMenu(bodyLines, menuLines)
 	}
 
 	return strings.Join(bodyLines, "\n") + "\n" + footer
+}
+
+// overlayEditorHeaderMenu はエディタヘッダーメニューをオーバーレイする。
+// メニューはヘッダーの直下、エディタ領域の右端寄せで表示する。
+func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) {
+	if len(menuLines) == 0 {
+		return
+	}
+
+	editorStartX := m.noteListOffset() + m.noteListWidth
+	menuWidth := m.Editor.Header.PopupMenu.Width()
+	menuX := editorStartX + m.Editor.Header.Width() - menuWidth
+
+	menuX = max(menuX, editorStartX)
+
+	startY := editorHeaderMenuTopY // セパレーター行に重ねる
+
+	for i, menuLine := range menuLines {
+		y := startY + i
+		if y >= len(bodyLines) {
+			break
+		}
+
+		// ANSI エスケープシーケンスを考慮して視覚幅で切り詰め
+		truncated := ansi.Truncate(bodyLines[y], menuX, "")
+		w := lipgloss.Width(truncated)
+		padded := truncated + strings.Repeat(" ", menuX-w)
+		bodyLines[y] = padded + menuLine
+	}
 }
 
 // overlayMenu はノート一覧領域にメニューをオーバーレイする。

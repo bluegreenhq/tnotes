@@ -31,13 +31,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 	case tea.MouseMsg:
 		return m, m.handleHover(msg)
 	case FolderListMsg:
-		return m, m.handleFolderListMsg(msg, now)
+		return m, m.processFolderListMsg(msg, now)
 	case NoteListMsg:
-		return m, m.handleNoteListMsg(msg, now)
+		return m, m.processNoteListMsg(msg, now)
 	case EditorMsg:
-		return m, m.handleEditorMsg(msg, now)
+		return m, m.processEditorMsg(msg, now)
+	case EditorHeaderMsg:
+		return m, m.processEditorHeaderMsg(msg, now)
 	case FooterMsg:
-		return m, m.handleFooterMsg(msg, now)
+		return m, m.processFooterMsg(msg, now)
 	case tea.FocusMsg:
 		return m, m.handleFocusRestore()
 	case tea.BlurMsg: // 他アプリへ切り替え時に編集中の内容を保存
@@ -59,6 +61,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	m.errMsg = ""
 	m.infoMsg = ""
 	m.Footer.CloseMenu()
+	m.Editor.Header.CloseMenu()
 
 	switch {
 	case msg.Code == 'q' && (m.Focus == FocusNoteList || m.Focus == FocusFolderList):
@@ -161,9 +164,17 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //no
 
 	footerLabelY := m.height - footerLineCount + 1 // フッター3行の中央（ラベル行）
 
-	// メニューが開いている場合
+	// フッターメニューが開いている場合
 	if m.Footer.MenuOpen() {
 		return m.handleClickWithMenu(msg, now)
+	}
+
+	// エディタヘッダーメニューが開いている場合
+	if m.Editor.IsHeaderMenuOpen() {
+		edX := msg.X - m.noteListOffset() - m.noteListWidth
+		cmd := m.Editor.HandleClick(edX, msg.Y)
+
+		return m.processEditorHeaderCmd(cmd, now)
 	}
 
 	switch {
@@ -208,7 +219,7 @@ func (m *Model) handleClickWithMenu(msg tea.MouseClickMsg, now time.Time) tea.Cm
 			return cmd
 		}
 
-		return m.handleFooterMsg(fMsg, now)
+		return m.processFooterMsg(fMsg, now)
 	}
 
 	// メニュー外クリック → メニューを閉じるだけ
@@ -232,7 +243,7 @@ func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
 		return cmd
 	}
 
-	return m.handleFooterMsg(fMsg, now)
+	return m.processFooterMsg(fMsg, now)
 }
 
 func (m *Model) handleNoteListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
@@ -260,6 +271,15 @@ func (m *Model) handleNoteListClick(msg tea.MouseClickMsg, now time.Time) tea.Cm
 }
 
 func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
+	edX := msg.X - m.noteListOffset() - m.noteListWidth
+
+	// ヘッダー行のクリック
+	if msg.Y == 0 {
+		cmd := m.Editor.HandleClick(edX, 0)
+
+		return m.processEditorHeaderCmd(cmd, time.Now())
+	}
+
 	if m.App.TrashMode || m.Editor.NoteID() == "" {
 		return nil
 	}
@@ -268,10 +288,33 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	cmd := m.Editor.Focus()
 	m.Editor.ClearSelection()
 
-	edX := msg.X - m.noteListOffset() - m.noteListWidth
-	m.Editor.StartDragSelection(edX, msg.Y)
+	// textarea 領域はヘッダー分だけ Y を補正
+	m.Editor.StartDragSelection(edX, msg.Y-editorHeaderHeight)
 
 	return cmd
+}
+
+func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	// ヘッダーの閉じるボタン（✕）クリック判定
+	if msg.Y < folderListHeaderLines {
+		if msg.X >= 1 && msg.X <= 2 {
+			return m.toggleFolderList(now)
+		}
+
+		return nil
+	}
+
+	idx := m.FolderList.HitTest(msg.X, msg.Y)
+	if idx >= 0 {
+		cmd := m.FolderList.SelectIndex(idx)
+		m.Focus = FocusFolderList
+
+		return m.processFolderListCmd(cmd, now)
+	}
+
+	m.Focus = FocusFolderList
+
+	return nil
 }
 
 func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd {
@@ -333,11 +376,12 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 
 	if m.Focus == FocusEditor && m.Editor.Selecting() {
 		edX := mouse.X - m.noteListOffset() - m.noteListWidth
-		m.Editor.UpdateDragSelection(edX, mouse.Y)
+		m.Editor.UpdateDragSelection(edX, mouse.Y-editorHeaderHeight)
 
 		return nil
 	}
 
+	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
 	return nil
@@ -367,128 +411,19 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.hoverFolderSep = m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X)
+	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
 	return nil
 }
 
-func (m *Model) isOnSeparator(x int) bool {
-	sepX := m.noteListOffset() + m.noteListWidth
-
-	return x >= sepX-1 && x <= sepX
-}
-
-func (m *Model) isOnFolderSeparator(x int) bool {
-	return x >= m.folderListWidth-1 && x <= m.folderListWidth
-}
-
-func (m *Model) noteListOffset() int {
-	if m.FolderList.Visible() {
-		return m.folderListWidth
-	}
-
-	return 0
-}
-
-func (m *Model) toggleFolderList(now time.Time) tea.Cmd {
-	m.FolderList.ToggleVisible()
-
-	if m.FolderList.Visible() {
-		m.Focus = FocusFolderList
-		m.FolderList.UpdateCounts(len(m.App.Notes), len(m.App.TrashNotes))
-
-		// 現在のTrashMode状態をフォルダ選択に反映
-		if m.App.TrashMode {
-			m.FolderList.SelectIndex(1) // Trash
-		} else {
-			m.FolderList.SelectIndex(0) // Notes
-		}
-	} else if m.Focus == FocusFolderList {
-		m.Focus = FocusNoteList
-	}
-
-	m.recalcLayout(now)
-
-	return nil
-}
-
-func (m *Model) recalcLayout(now time.Time) {
-	bodyHeight := m.height - footerLineCount
-
-	if m.FolderList.Visible() {
-		m.FolderList.SetSize(m.folderListWidth, bodyHeight)
-		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
-		m.Editor.SetSize(m.width-m.noteListWidth-m.folderListWidth, bodyHeight)
+func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
+	editorStartX := m.noteListOffset() + m.noteListWidth
+	if mouse.X >= editorStartX {
+		m.Editor.HandleHover(mouse.X-editorStartX, mouse.Y)
 	} else {
-		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
-		m.Editor.SetSize(m.width-m.noteListWidth, bodyHeight)
+		m.Editor.Header.ClearHover()
 	}
-}
-
-func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
-	if cmd == nil {
-		return nil
-	}
-
-	msg := cmd()
-
-	flMsg, ok := msg.(FolderListMsg)
-	if !ok {
-		return cmd
-	}
-
-	return m.handleFolderListMsg(flMsg, now)
-}
-
-func (m *Model) handleFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
-	switch msg {
-	case FolderListSelect:
-		return m.handleFolderSelect(now)
-	case FolderListFocusNext:
-		m.Focus = FocusNoteList
-
-		return nil
-	}
-
-	return nil
-}
-
-func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
-	switch m.FolderList.SelectedKind() {
-	case FolderNotes:
-		if m.App.TrashMode {
-			return m.exitTrashMode(now)
-		}
-	case FolderTrash:
-		if !m.App.TrashMode {
-			return m.enterTrashMode(now)
-		}
-	}
-
-	return nil
-}
-
-func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	// ヘッダーの閉じるボタン（✕）クリック判定
-	if msg.Y < folderListHeaderLines {
-		if msg.X >= 1 && msg.X <= 2 {
-			return m.toggleFolderList(now)
-		}
-
-		return nil
-	}
-
-	idx := m.FolderList.HitTest(msg.X, msg.Y)
-	if idx >= 0 {
-		cmd := m.FolderList.SelectIndex(idx)
-		m.Focus = FocusFolderList
-
-		return m.processFolderListCmd(cmd, now)
-	}
-
-	m.Focus = FocusFolderList
-
-	return nil
 }
 
 func (m *Model) updateFooterHover(mouse tea.Mouse) {
@@ -517,26 +452,46 @@ func (m *Model) updateFooterHover(mouse tea.Mouse) {
 	}
 }
 
-// --- メッセージディスパッチ ---
+func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
 
-// processNoteListCmd は NoteList.Update が返した tea.Cmd を即座に処理する。
-// NoteListMsg の場合はアクションを実行し、それ以外はそのまま返す。
+	msg, ok := cmd().(FolderListMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.processFolderListMsg(msg, now)
+}
+
+func (m *Model) processFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
+	switch msg {
+	case FolderListSelect:
+		return m.handleFolderSelect(now)
+	case FolderListFocusNext:
+		m.Focus = FocusNoteList
+
+		return nil
+	}
+
+	return nil
+}
+
 func (m *Model) processNoteListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 	if cmd == nil {
 		return nil
 	}
 
-	msg := cmd()
-
-	nMsg, ok := msg.(NoteListMsg)
+	msg, ok := cmd().(NoteListMsg)
 	if !ok {
 		return cmd
 	}
 
-	return m.handleNoteListMsg(nMsg, now)
+	return m.processNoteListMsg(msg, now)
 }
 
-func (m *Model) handleNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd {
+func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case NoteListSelect:
 		m.loadSelectedNote()
@@ -570,17 +525,15 @@ func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	msg := cmd()
-
-	eMsg, ok := msg.(EditorMsg)
+	msg, ok := cmd().(EditorMsg)
 	if !ok {
 		return cmd
 	}
 
-	return m.handleEditorMsg(eMsg, now)
+	return m.processEditorMsg(msg, now)
 }
 
-func (m *Model) handleEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
+func (m *Model) processEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case EditorBlur:
 		return m.blurEditor(now)
@@ -593,7 +546,35 @@ func (m *Model) handleEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
+func (m *Model) processEditorHeaderCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+
+	msg, ok := cmd().(EditorHeaderMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.processEditorHeaderMsg(msg, now)
+}
+
+func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cmd {
+	switch msg {
+	case EditorHeaderNew:
+		return m.createNote(now)
+	case EditorHeaderTrash:
+		return m.trashNote(now)
+	case EditorHeaderCopy:
+		return m.copyNote()
+	case EditorHeaderRestore:
+		return m.restoreNote(now)
+	}
+
+	return nil
+}
+
+func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case FooterNew:
 		return m.createNote(now)
@@ -691,6 +672,7 @@ func (m *Model) enterTrashMode(now time.Time) tea.Cmd {
 
 	m.Editor.Blur()
 	m.Editor.SetReadOnly(true)
+	m.Editor.Header.SetTrashMode(true)
 
 	if m.Focus != FocusFolderList {
 		m.Focus = FocusNoteList
@@ -713,6 +695,7 @@ func (m *Model) enterTrashMode(now time.Time) tea.Cmd {
 func (m *Model) exitTrashMode(now time.Time) tea.Cmd {
 	m.App.ExitTrashMode()
 	m.Editor.SetReadOnly(false)
+	m.Editor.Header.SetTrashMode(false)
 	m.NoteList.Reset("Notes", true, m.App.Notes, now)
 
 	// フォルダ選択を同期
@@ -828,6 +811,74 @@ func (m *Model) copyNote() tea.Cmd {
 }
 
 // --- ヘルパー ---
+
+func (m *Model) isOnSeparator(x int) bool {
+	sepX := m.noteListOffset() + m.noteListWidth
+
+	return x >= sepX-1 && x <= sepX
+}
+
+func (m *Model) isOnFolderSeparator(x int) bool {
+	return x >= m.folderListWidth-1 && x <= m.folderListWidth
+}
+
+func (m *Model) noteListOffset() int {
+	if m.FolderList.Visible() {
+		return m.folderListWidth
+	}
+
+	return 0
+}
+
+func (m *Model) toggleFolderList(now time.Time) tea.Cmd {
+	m.FolderList.ToggleVisible()
+
+	if m.FolderList.Visible() {
+		m.Focus = FocusFolderList
+		m.FolderList.UpdateCounts(len(m.App.Notes), len(m.App.TrashNotes))
+
+		// 現在のTrashMode状態をフォルダ選択に反映
+		if m.App.TrashMode {
+			m.FolderList.SelectIndex(1) // Trash
+		} else {
+			m.FolderList.SelectIndex(0) // Notes
+		}
+	} else if m.Focus == FocusFolderList {
+		m.Focus = FocusNoteList
+	}
+
+	m.recalcLayout(now)
+
+	return nil
+}
+
+func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
+	switch m.FolderList.SelectedKind() {
+	case FolderNotes:
+		if m.App.TrashMode {
+			return m.exitTrashMode(now)
+		}
+	case FolderTrash:
+		if !m.App.TrashMode {
+			return m.enterTrashMode(now)
+		}
+	}
+
+	return nil
+}
+
+func (m *Model) recalcLayout(now time.Time) {
+	bodyHeight := m.height - footerLineCount
+
+	if m.FolderList.Visible() {
+		m.FolderList.SetSize(m.folderListWidth, bodyHeight)
+		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
+		m.Editor.SetSize(m.width-m.noteListWidth-m.folderListWidth, bodyHeight)
+	} else {
+		m.NoteList.SetSize(m.noteListWidth, bodyHeight, now)
+		m.Editor.SetSize(m.width-m.noteListWidth, bodyHeight)
+	}
+}
 
 func (m *Model) loadSelectedNote() {
 	n, ok := m.NoteList.SelectedNote()

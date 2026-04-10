@@ -159,16 +159,16 @@ func TestMouseDragSelection(t *testing.T) {
 
 	model := mustModel(t, ret)
 
-	// エディタ領域でマウスダウン（noteListWidth=32 なので x=33 がエディタ先頭付近）
-	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 0, Button: tea.MouseLeft})
+	// エディタ領域でマウスダウン（noteListWidth=32 なので x=33 がエディタ先頭付近、Y=1 はヘッダーの下）
+	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 
 	// マウスドラッグ（MouseMotionMsg）
-	ret, _ = model.Update(tea.MouseMotionMsg{X: 38, Y: 0, Button: tea.MouseLeft})
+	ret, _ = model.Update(tea.MouseMotionMsg{X: 38, Y: 1, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 
 	// マウスリリース
-	ret, _ = model.Update(tea.MouseReleaseMsg{X: 38, Y: 0, Button: tea.MouseLeft})
+	ret, _ = model.Update(tea.MouseReleaseMsg{X: 38, Y: 1, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 
 	assert.True(t, model.Editor.HasSelection())
@@ -190,10 +190,10 @@ func TestFooterShowsCopyCutWhenSelected(t *testing.T) {
 	assert.NotContains(t, view.Content, " Copy ")
 	assert.NotContains(t, view.Content, " Cut ")
 
-	// エディタで選択をシミュレート（マウスドラッグ）
-	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 0, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseMotionMsg{X: 38, Y: 0, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 38, Y: 0, Button: tea.MouseLeft})
+	// エディタで選択をシミュレート（マウスドラッグ、Y=1 はヘッダーの下）
+	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseMotionMsg{X: 38, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 38, Y: 1, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 
 	// 選択あり: Copy/Cut ボタンが表示される
@@ -223,9 +223,9 @@ func TestSelectionClearedOnNoteSwitch(t *testing.T) {
 
 	// Tab でエディタへ移動し選択
 	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-	ret, _ = ret.Update(tea.MouseClickMsg{X: 33, Y: 0, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseMotionMsg{X: 40, Y: 0, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 40, Y: 0, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseMotionMsg{X: 40, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 40, Y: 1, Button: tea.MouseLeft})
 	model = mustModel(t, ret)
 	assert.True(t, model.Editor.HasSelection())
 
