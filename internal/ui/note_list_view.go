@@ -15,7 +15,7 @@ var noteListStyle = lipgloss.NewStyle().
 
 // View はノート一覧の描画内容を返す。
 func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folderVisible bool) string {
-	contentWidth := s.width - noteListBorderWidth
+	contentWidth := max(s.width-noteListBorderWidth, 0)
 
 	var b strings.Builder
 
@@ -32,7 +32,7 @@ func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folder
 			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(" " + row.label))
 			b.WriteString("\n")
 
-			line := " " + strings.Repeat("─", contentWidth-sectionLinePadding)
+			line := " " + strings.Repeat("─", max(contentWidth-sectionLinePadding, 0))
 			b.WriteString(sectionHeaderStyle.Width(contentWidth).Render(line))
 			b.WriteString("\n")
 

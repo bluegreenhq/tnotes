@@ -35,7 +35,7 @@ func (m *Model) renderView(now time.Time) string {
 	var body string
 
 	if m.FolderList.Visible() {
-		folderView := m.FolderList.View(m.Focus == FocusFolderList)
+		folderView := m.FolderList.View(m.Focus == FocusFolderList, m.hoverFolderSep || m.resizingFolder)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, folderView, noteListView, m.Editor.View())
 	} else {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())
@@ -57,28 +57,7 @@ func (m *Model) renderView(now time.Time) string {
 		bodyLines = append(bodyLines, "")
 	}
 
-	// フォルダリストメニューオーバーレイ
-	if m.FolderList.MenuOpen() {
-		menuLines := m.FolderList.PopupMenu.View()
-		m.overlayFolderListMenu(bodyLines, menuLines)
-	}
-
-	// エディタヘッダーメニューオーバーレイ
-	if m.Editor.Header.MenuOpen() {
-		menuLines := m.Editor.Header.PopupMenu.View()
-		m.overlayEditorHeaderMenu(bodyLines, menuLines)
-	}
-
-	// フッターメニューオーバーレイ
-	if m.Footer.MenuOpen() {
-		menuLines := m.Footer.PopupMenu.View()
-		m.overlayMenu(bodyLines, menuLines)
-	}
-
-	// フォルダ削除確認ダイアログオーバーレイ
-	if m.confirmDialog != nil {
-		m.overlayConfirmDialog(bodyLines)
-	}
+	m.applyOverlays(bodyLines)
 
 	return strings.Join(bodyLines, "\n") + "\n" + footer
 }
@@ -98,6 +77,27 @@ func (m *Model) updateFolderCounts() {
 				m.FolderList.folders[i].Count = count
 			}
 		}
+	}
+}
+
+func (m *Model) applyOverlays(bodyLines []string) {
+	if m.FolderList.MenuOpen() {
+		menuLines := m.FolderList.PopupMenu.View()
+		m.overlayFolderListMenu(bodyLines, menuLines)
+	}
+
+	if m.Editor.Header.MenuOpen() {
+		menuLines := m.Editor.Header.PopupMenu.View()
+		m.overlayEditorHeaderMenu(bodyLines, menuLines)
+	}
+
+	if m.Footer.MenuOpen() {
+		menuLines := m.Footer.PopupMenu.View()
+		m.overlayMenu(bodyLines, menuLines)
+	}
+
+	if m.confirmDialog != nil {
+		m.overlayConfirmDialog(bodyLines)
 	}
 }
 

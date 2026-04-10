@@ -24,7 +24,7 @@ func (fl *FolderList) HitTestHeader(x, y int) string {
 		return ""
 	}
 
-	contentWidth := fl.width - folderListBorderWidth
+	contentWidth := max(fl.width-folderListBorderWidth, 0)
 
 	// ✕ ボタン (左端)
 	if x <= headerCloseBtnWidth {

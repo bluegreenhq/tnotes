@@ -38,7 +38,7 @@ func (h *EditorHeader) View() string {
 	gap = max(gap, 0)
 
 	buttonLine := left + strings.Repeat(" ", gap) + right
-	separator := strings.Repeat("─", h.width)
+	separator := strings.Repeat("─", max(h.width, 0))
 
 	return buttonLine + "\n" + separator
 }
