@@ -1,11 +1,17 @@
 package app
 
 import (
+	"io"
 	"time"
+
+	"github.com/cockroachdb/errors"
 
 	"github.com/bluegreenhq/tnotes/internal/note"
 	"github.com/bluegreenhq/tnotes/internal/store"
 )
+
+// ErrNoteNotFound はノートが見つからない場合のエラー。
+var ErrNoteNotFound = errors.New("note not found")
 
 // App はノート管理のアプリケーションロジックを提供する。
 type App struct {
@@ -35,7 +41,33 @@ func New(s store.Store) (*App, error) {
 
 	note.SortByUpdatedDesc(a.Notes)
 
+	a.TrashNotes, err = s.ListTrashed()
+	if err != nil {
+		return a, err
+	}
+
+	note.SortByUpdatedDesc(a.TrashNotes)
+
 	return a, nil
+}
+
+// List はノート一覧を返す。
+func (a *App) List() []note.Note { return a.Notes }
+
+// ListTrash はゴミ箱ノート一覧をストアから読み込んで返す。
+func (a *App) ListTrash() ([]note.Note, error) {
+	if a.store == nil {
+		return a.TrashNotes, nil
+	}
+
+	trashNotes, err := a.store.ListTrashed()
+	if err != nil {
+		return nil, err
+	}
+
+	note.SortByUpdatedDesc(trashNotes)
+
+	return trashNotes, nil
 }
 
 // CreateNote は新しいノートを作成し、リストの先頭に追加する。
@@ -144,6 +176,15 @@ func (a *App) PurgeTrash() (int, error) {
 	return count, nil
 }
 
+// Export はデータディレクトリの内容を zip 形式で書き出す。
+func (a *App) Export(w io.Writer) error { return a.store.Export(w) }
+
+// Import は zip 形式のデータを読み込み、データディレクトリに展開する。
+func (a *App) Import(r io.Reader) error { return a.store.Import(r) }
+
+// HasData はデータが存在するかを返す。
+func (a *App) HasData() bool { return a.store.HasData() }
+
 // DataDir はデータディレクトリのパスを返す。
 func (a *App) DataDir() string {
 	return a.store.DataDir()
@@ -187,6 +228,30 @@ func (a *App) IndexModTime() (time.Time, error) {
 	}
 
 	return a.store.IndexModTime()
+}
+
+// GetNote は指定IDのノートを通常ノート・ゴミ箱の両方から検索し、本文を含むNoteを返す。
+func (a *App) GetNote(id note.NoteID) (note.Note, error) {
+	for _, n := range a.Notes {
+		if n.ID == id {
+			return a.LoadNote(n)
+		}
+	}
+
+	if a.store != nil {
+		trashNotes, err := a.store.ListTrashed()
+		if err != nil {
+			return note.Note{}, err
+		}
+
+		for _, n := range trashNotes {
+			if n.ID == id {
+				return a.store.Load(id)
+			}
+		}
+	}
+
+	return note.Note{}, ErrNoteNotFound
 }
 
 // LoadNote はノートの本文をストアから読み込む。

@@ -75,6 +75,7 @@ func parseNoteFile(content string) (note.Note, error) {
 		Metadata: note.Metadata{
 			ID:        fm.ID,
 			Title:     "",
+			Preview:   "",
 			CreatedAt: fm.CreatedAt,
 			UpdatedAt: fm.UpdatedAt,
 			Path:      "",
