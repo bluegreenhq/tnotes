@@ -36,18 +36,35 @@ func (s *NoteList) SelectIndex(idx int, now time.Time) {
 
 // MoveUp は選択を1つ上に移動する。
 func (s *NoteList) MoveUp(now time.Time) {
-	if s.selected > 0 {
-		s.selected--
+	idx := s.adjacentNoteIndex(now, -1)
+	if idx >= 0 {
+		s.selected = idx
 		s.clampOffset(now)
 	}
 }
 
 // MoveDown は選択を1つ下に移動する。
 func (s *NoteList) MoveDown(now time.Time) {
-	if s.selected < len(s.notes)-1 {
-		s.selected++
+	idx := s.adjacentNoteIndex(now, 1)
+	if idx >= 0 {
+		s.selected = idx
 		s.clampOffset(now)
 	}
+}
+
+// adjacentNoteIndex はセクション表示の行順序で前後のノートインデックスを返す。
+// direction は -1（上）または 1（下）。該当なしは -1 を返す。
+func (s *NoteList) adjacentNoteIndex(now time.Time, direction int) int {
+	rows := s.buildRows(now)
+	cur := findSelectedRow(rows, s.selected)
+
+	for i := cur + direction; i >= 0 && i < len(rows); i += direction {
+		if !rows[i].isHeader {
+			return rows[i].noteIndex
+		}
+	}
+
+	return -1
 }
 
 // SetTitle はノート一覧のヘッダータイトルを設定する。
