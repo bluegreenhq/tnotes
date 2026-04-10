@@ -53,10 +53,8 @@ const (
 type FooterMsg int
 
 const (
-	// FooterNew は新規ノート生成ボタンがクリックされたことを通知する。
-	FooterNew FooterMsg = iota
 	// FooterRestore は復元ボタンがクリックされたことを通知する。
-	FooterRestore
+	FooterRestore FooterMsg = iota
 	// FooterQuit は終了ボタンがクリックされたことを通知する。
 	FooterQuit
 	// FooterCopy はコピーボタンがクリックされたことを通知する。

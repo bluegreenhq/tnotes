@@ -576,8 +576,6 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 
 func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 	switch msg {
-	case FooterNew:
-		return m.createNote(now)
 	case FooterRestore:
 		return m.restoreNote(now)
 	case FooterQuit:

@@ -40,11 +40,11 @@ func TestFooterClickMenuItem(t *testing.T) {
 	f.RebuildButtons(ui.FooterState{})
 	f.OpenMenu()
 
-	// メニュー内相対座標 y=1 = "New"
+	// メニュー内相対座標 y=1 = "Quit"
 	cmd := f.HandleMenuClick(2, 1)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterNew, msg)
+	assert.Equal(t, ui.FooterQuit, msg)
 	assert.False(t, f.MenuOpen())
 }
 

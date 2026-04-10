@@ -5,7 +5,6 @@ type HoverTarget int
 
 const (
 	HoverNone HoverTarget = iota
-	HoverNew
 	HoverQuit
 	HoverRestore
 	HoverCopy
@@ -89,10 +88,9 @@ func (f *Footer) RebuildButtons(s FooterState) {
 		f.menuMsgs = []FooterMsg{FooterRestore, FooterQuit}
 	} else {
 		menuItems = []MenuItem{
-			{Label: "New", Disabled: false},
 			{Label: "Quit", Disabled: false},
 		}
-		f.menuMsgs = []FooterMsg{FooterNew, FooterQuit}
+		f.menuMsgs = []FooterMsg{FooterQuit}
 	}
 
 	prevHover := f.PopupMenu.hover

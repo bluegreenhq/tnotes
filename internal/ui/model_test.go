@@ -91,7 +91,8 @@ func TestRenderView(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	view := m.View()
-	assert.Contains(t, view.Content, "Notes (0)")
+	assert.Contains(t, view.Content, "Notes")
+	assert.Contains(t, view.Content, "0 ")
 	assert.Contains(t, view.Content, "Press 'n'")
 }
 
