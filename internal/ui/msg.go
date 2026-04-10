@@ -77,4 +77,8 @@ const (
 	EditorHeaderCopy
 	// EditorHeaderRestore はゴミ箱からのノート復元を要求する。
 	EditorHeaderRestore
+	// EditorHeaderPin はノートのピン留めを要求する。
+	EditorHeaderPin
+	// EditorHeaderUnpin はノートのピン留め解除を要求する。
+	EditorHeaderUnpin
 )

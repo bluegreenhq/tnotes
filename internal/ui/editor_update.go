@@ -50,6 +50,7 @@ func (e *Editor) LoadNote(n note.Note) {
 	e.ClearSelection()
 	e.UndoMgr.Clear()
 	e.Header.SetHasNote(true)
+	e.Header.SetPinned(n.Pinned)
 	e.Header.CloseMenu()
 }
 

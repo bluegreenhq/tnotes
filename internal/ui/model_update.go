@@ -569,6 +569,10 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 		return m.copyNote()
 	case EditorHeaderRestore:
 		return m.restoreNote(now)
+	case EditorHeaderPin:
+		return m.pinNote()
+	case EditorHeaderUnpin:
+		return m.unpinNote()
 	}
 
 	return nil
@@ -806,6 +810,44 @@ func (m *Model) copyNote() tea.Cmd {
 	}
 
 	return m.setInfoMsg("Copied")
+}
+
+func (m *Model) pinNote() tea.Cmd {
+	id := m.Editor.NoteID()
+	if id == "" {
+		return nil
+	}
+
+	err := m.App.PinNote(id)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	m.Editor.Header.SetPinned(true)
+	m.NoteList.SetNotes(m.App.Notes, time.Now())
+
+	return m.setInfoMsg("Pinned")
+}
+
+func (m *Model) unpinNote() tea.Cmd {
+	id := m.Editor.NoteID()
+	if id == "" {
+		return nil
+	}
+
+	err := m.App.UnpinNote(id)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	m.Editor.Header.SetPinned(false)
+	m.NoteList.SetNotes(m.App.Notes, time.Now())
+
+	return m.setInfoMsg("Unpinned")
 }
 
 // --- ヘルパー ---

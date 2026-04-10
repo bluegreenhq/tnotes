@@ -295,6 +295,38 @@ func (a *App) SaveNote(id note.NoteID, body string, now time.Time) (int, error) 
 	return 0, nil
 }
 
+// PinNote は指定IDのノートをピン留めする。
+func (a *App) PinNote(id note.NoteID) error {
+	return a.setPinned(id, true)
+}
+
+// UnpinNote は指定IDのノートのピン留めを解除する。
+func (a *App) UnpinNote(id note.NoteID) error {
+	return a.setPinned(id, false)
+}
+
+func (a *App) setPinned(id note.NoteID, pinned bool) error {
+	idx := a.findNoteIndex(id)
+	if idx < 0 {
+		return ErrNoteNotFound
+	}
+
+	a.Notes[idx].Pinned = pinned
+
+	if a.store != nil {
+		n, err := a.store.Load(id)
+		if err != nil {
+			return err
+		}
+
+		n.Pinned = pinned
+
+		return a.store.Save(n)
+	}
+
+	return nil
+}
+
 // trashNoteInternal はundo記録なしでノートをゴミ箱に移動する。
 // undo/redoアクション実行用。
 // 戻り値は次に選択すべきインデックス（ノートが空なら -1）。

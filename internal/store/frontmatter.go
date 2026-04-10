@@ -20,6 +20,7 @@ const frontmatterDelimiter = "---"
 
 type frontmatter struct {
 	ID        note.NoteID `yaml:"id"`
+	Pinned    bool        `yaml:"pinned,omitempty"`
 	CreatedAt time.Time   `yaml:"created_at"`
 	UpdatedAt time.Time   `yaml:"updated_at"`
 }
@@ -28,6 +29,7 @@ type frontmatter struct {
 func marshalNoteFile(n note.Note) string {
 	fm := frontmatter{
 		ID:        n.ID,
+		Pinned:    n.Pinned,
 		CreatedAt: n.CreatedAt,
 		UpdatedAt: n.UpdatedAt,
 	}
@@ -76,6 +78,7 @@ func parseNoteFile(content string) (note.Note, error) {
 			ID:        fm.ID,
 			Title:     "",
 			Preview:   "",
+			Pinned:    fm.Pinned,
 			CreatedAt: fm.CreatedAt,
 			UpdatedAt: fm.UpdatedAt,
 			Path:      "",

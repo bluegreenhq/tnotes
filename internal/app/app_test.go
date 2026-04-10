@@ -42,6 +42,43 @@ func TestPurgeTrash(t *testing.T) {
 	assert.Empty(t, a.TrashNotes)
 }
 
+func TestPinNote(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Now()
+	result, err := a.CreateNote(now)
+	require.NoError(t, err)
+
+	err = a.PinNote(result.Note.ID)
+	require.NoError(t, err)
+	assert.True(t, a.Notes[0].Pinned)
+
+	err = a.UnpinNote(result.Note.ID)
+	require.NoError(t, err)
+	assert.False(t, a.Notes[0].Pinned)
+}
+
+func TestPinNote_NotFound(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	err = a.PinNote("nonexistent")
+	assert.Error(t, err)
+}
+
 func TestPurgeTrash_Empty(t *testing.T) {
 	t.Parallel()
 
