@@ -36,6 +36,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		return m, m.processFolderListMsg(msg, now)
 	case folderCreateMsg:
 		return m, m.handleFolderCreate(msg)
+	case folderRenameMsg:
+		return m, m.handleFolderRename(msg)
 	case folderDeleteMsg:
 		return m, m.handleFolderDelete(msg, now)
 	case NoteListMsg:
@@ -353,12 +355,8 @@ func (m *Model) handleFolderMenuClick(msg tea.MouseClickMsg) tea.Cmd {
 		idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
 		m.FolderList.CloseMenu()
 
-		if hit && idx == 0 {
-			name := m.FolderList.SelectedName()
-
-			return func() tea.Msg {
-				return folderDeleteMsg{Name: name}
-			}
+		if hit {
+			return m.handleFolderMenuAction(idx)
 		}
 
 		return nil
@@ -1056,6 +1054,41 @@ func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
+	const (
+		menuRename = 0
+		menuDelete = 1
+	)
+
+	switch idx {
+	case menuRename:
+		m.FolderList.StartRename()
+
+		return nil
+	case menuDelete:
+		name := m.FolderList.SelectedName()
+
+		return func() tea.Msg {
+			return folderDeleteMsg{Name: name}
+		}
+	}
+
+	return nil
+}
+
+func (m *Model) handleFolderRename(msg folderRenameMsg) tea.Cmd {
+	err := m.App.RenameFolder(msg.OldName, msg.NewName)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	m.refreshFolderList()
+
+	return m.setInfoMsg("Renamed: " + msg.OldName + " → " + msg.NewName)
 }
 
 func (m *Model) handleFolderCreate(msg folderCreateMsg) tea.Cmd {

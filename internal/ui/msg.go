@@ -59,6 +59,12 @@ type folderDeleteMsg struct {
 	Name string
 }
 
+// folderRenameMsg はフォルダリネームを運ぶメッセージ。
+type folderRenameMsg struct {
+	OldName string
+	NewName string
+}
+
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 

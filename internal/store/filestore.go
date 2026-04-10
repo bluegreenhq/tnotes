@@ -486,6 +486,89 @@ func (fs *FileStore) DeleteFolder(name string) error {
 	return errors.WithStack(removeEmptyDirs(path))
 }
 
+// RenameFolder はユーザー定義フォルダをリネームする。
+// ディレクトリのリネームとindex内のノートパスを更新する。
+func (fs *FileStore) RenameFolder(oldName, newName string) error {
+	oldPath, newPath, err := fs.validateRename(oldName, newName)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(oldPath, newPath)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	// ロック取得 → index再読み込み → パス更新 → 書き込み → ロック解放
+	unlock, err := lockFile(fs.dir)
+	if err != nil {
+		_ = os.Rename(newPath, oldPath)
+
+		return err
+	}
+	defer unlock()
+
+	err = fs.loadIndex()
+	if err != nil {
+		_ = os.Rename(newPath, oldPath)
+
+		return err
+	}
+
+	oldPrefix := oldName + string(filepath.Separator)
+	newPrefix := newName + string(filepath.Separator)
+
+	for id, meta := range fs.index {
+		if after, ok := strings.CutPrefix(meta.Path, oldPrefix); ok {
+			meta.Path = newPrefix + after
+			fs.index[id] = meta
+		}
+	}
+
+	err = fs.saveIndex()
+	if err != nil {
+		_ = os.Rename(newPath, oldPath)
+
+		return err
+	}
+
+	return nil
+}
+
+func (fs *FileStore) validateRename(oldName, newName string) (string, string, error) {
+	if fs.isSystemDir(oldName) {
+		return "", "", errors.WithDetail(ErrSystemFolder, oldName)
+	}
+
+	if fs.isSystemDir(newName) {
+		return "", "", errors.WithDetail(ErrSystemFolder, newName)
+	}
+
+	oldPath := filepath.Join(fs.dir, oldName)
+
+	_, err := os.Stat(oldPath)
+	if os.IsNotExist(err) {
+		return "", "", errors.WithDetail(ErrFolderNotFound, oldName)
+	}
+
+	if err != nil {
+		return "", "", errors.WithStack(err)
+	}
+
+	newPath := filepath.Join(fs.dir, newName)
+
+	_, err = os.Stat(newPath)
+	if err == nil {
+		return "", "", errors.WithDetail(ErrFolderAlreadyExists, newName)
+	}
+
+	if !os.IsNotExist(err) {
+		return "", "", errors.WithStack(err)
+	}
+
+	return oldPath, newPath, nil
+}
+
 // removeEmptyDirs はディレクトリ内の空サブディレクトリを再帰的に削除してから、
 // 自身も削除する。ファイルが残っている場合はエラーを返す。
 func removeEmptyDirs(dir string) error {

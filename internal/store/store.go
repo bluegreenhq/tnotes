@@ -42,4 +42,6 @@ type Store interface { //nolint:interfacebloat // import/exportの責務もStore
 	CreateFolder(name string) error
 	// DeleteFolder はユーザー定義フォルダを削除する（空ディレクトリのみ）。
 	DeleteFolder(name string) error
+	// RenameFolder はユーザー定義フォルダをリネームする。
+	RenameFolder(oldName, newName string) error
 }

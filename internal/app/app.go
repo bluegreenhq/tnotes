@@ -366,6 +366,31 @@ func (a *App) DeleteFolder(name string) (int, error) {
 	return count, nil
 }
 
+// RenameFolder はユーザー定義フォルダをリネームする。
+// フォルダ内のノートのパスも更新する。
+func (a *App) RenameFolder(oldName, newName string) error {
+	if a.store == nil {
+		return nil
+	}
+
+	err := a.store.RenameFolder(oldName, newName)
+	if err != nil {
+		return err
+	}
+
+	// インメモリのノートパスを更新
+	oldPrefix := oldName + string(filepath.Separator)
+	newPrefix := newName + string(filepath.Separator)
+
+	for i := range a.Notes {
+		if after, ok := strings.CutPrefix(a.Notes[i].Path, oldPrefix); ok {
+			a.Notes[i].Path = newPrefix + after
+		}
+	}
+
+	return nil
+}
+
 // FolderNoteCount は指定フォルダのノート件数を返す。
 func (a *App) FolderNoteCount(name string) (int, error) {
 	count := 0

@@ -2,7 +2,7 @@ package ui
 
 import tea "charm.land/bubbletea/v2"
 
-// StartInput はインライン入力モードを開始する。
+// StartInput はインライン入力モードを開始する（新規作成用）。
 func (fl *FolderList) StartInput() {
 	fl.inputMode = true
 	fl.inputValue = ""
@@ -11,6 +11,21 @@ func (fl *FolderList) StartInput() {
 // CancelInput はインライン入力をキャンセルする。
 func (fl *FolderList) CancelInput() {
 	fl.inputMode = false
+	fl.inputValue = ""
+}
+
+// StartRename はリネーム入力モードを開始する。
+func (fl *FolderList) StartRename() {
+	name := fl.SelectedName()
+	fl.renameMode = true
+	fl.renameName = name
+	fl.inputValue = name
+}
+
+// CancelRename はリネーム入力をキャンセルする。
+func (fl *FolderList) CancelRename() {
+	fl.renameMode = false
+	fl.renameName = ""
 	fl.inputValue = ""
 }
 
@@ -63,6 +78,11 @@ func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 		}
 
 		fl.CloseMenu()
+	}
+
+	// リネーム入力モード
+	if fl.renameMode {
+		return fl.updateRename(keyMsg)
 	}
 
 	// インライン入力モード
@@ -131,6 +151,44 @@ func (fl *FolderList) moveDown() (FolderList, tea.Cmd) {
 	}
 
 	return *fl, nil
+}
+
+func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
+	switch keyMsg.Code {
+	case tea.KeyEnter:
+		if fl.inputValue != "" && fl.inputValue != fl.renameName {
+			oldName := fl.renameName
+			newName := fl.inputValue
+			fl.renameMode = false
+			fl.renameName = ""
+			fl.inputValue = ""
+
+			return *fl, func() tea.Msg {
+				return folderRenameMsg{OldName: oldName, NewName: newName}
+			}
+		}
+
+		fl.CancelRename()
+
+		return *fl, nil
+	case tea.KeyEscape:
+		fl.CancelRename()
+
+		return *fl, nil
+	case tea.KeyBackspace:
+		if len(fl.inputValue) > 0 {
+			runes := []rune(fl.inputValue)
+			fl.inputValue = string(runes[:len(runes)-1])
+		}
+
+		return *fl, nil
+	default:
+		if keyMsg.Text != "" {
+			fl.inputValue += keyMsg.Text
+		}
+
+		return *fl, nil
+	}
 }
 
 func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
