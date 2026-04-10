@@ -91,6 +91,11 @@ func (m *Model) applyOverlays(bodyLines []string) {
 		m.overlayEditorHeaderMenu(bodyLines, menuLines)
 	}
 
+	if m.Editor.Header.MoveMenuOpen() {
+		menuLines := m.Editor.Header.MoveMenu.View()
+		m.overlayMoveMenu(bodyLines, menuLines)
+	}
+
 	if m.Footer.MenuOpen() {
 		menuLines := m.Footer.PopupMenu.View()
 		m.overlayMenu(bodyLines, menuLines)
@@ -150,6 +155,34 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 		}
 
 		// ANSI エスケープシーケンスを考慮して視覚幅で切り詰め
+		truncated := ansi.Truncate(bodyLines[y], menuX, "")
+		w := lipgloss.Width(truncated)
+		padded := truncated + strings.Repeat(" ", menuX-w)
+		bodyLines[y] = padded + menuLine
+	}
+}
+
+// overlayMoveMenu は移動先メニューをオーバーレイする。
+// メニュー右端を ⋯ ボタンの右端（headerWidth - moreButtonOffset + 1）に揃える。
+func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
+	if len(menuLines) == 0 {
+		return
+	}
+
+	editorStartX := m.noteListOffset() + m.noteListWidth
+	menuWidth := m.Editor.Header.MoveMenu.Width()
+	menuX := editorStartX + m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+
+	menuX = max(menuX, editorStartX)
+
+	startY := editorHeaderMenuTopY
+
+	for i, menuLine := range menuLines {
+		y := startY + i
+		if y >= len(bodyLines) {
+			break
+		}
+
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)

@@ -110,6 +110,17 @@ func (fl *FolderList) IndexByKind(kind FolderKind) int {
 	return -1
 }
 
+// IndexByName は指定名のフォルダのインデックスを返す。該当なしは -1。
+func (fl *FolderList) IndexByName(name string) int {
+	for i, f := range fl.folders {
+		if f.Name == name {
+			return i
+		}
+	}
+
+	return -1
+}
+
 // Width は現在の幅を返す。
 func (fl *FolderList) Width() int { return fl.width }
 

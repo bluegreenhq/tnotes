@@ -96,7 +96,7 @@ var (
 	urlGrayStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
-// applyURLStyle はテキスト中の URL をグレー文字色にする。
+// applyURLStyle はテキスト中の URL をグレー文字色にし、OSC 8 ハイパーリンクを付与する。
 // 論理行の元テキストから URL 位置を検出し、視覚行上の対応範囲にスタイルを適用する。
 func (e *Editor) applyURLStyle(raw string) string {
 	scrollOffset := e.textarea.ScrollYOffset()
@@ -117,49 +117,61 @@ func (e *Editor) applyURLStyle(raw string) string {
 			continue
 		}
 
-		runes := []rune(line)
-		lineLen := len(runes)
-		vLines := e.textarea.layout.visualLinesFor(logLine)
+		visLen := findVisualLineLength(e.textarea.layout.visualLinesFor(logLine), startRuneOff)
+		styled := styleURLsInLine([]rune(line), logicalText, locs, startRuneOff, visLen)
 
-		var visLen int
-
-		for _, v := range vLines {
-			if v.startRune == startRuneOff {
-				visLen = v.length
-
-				break
-			}
-		}
-
-		var result strings.Builder
-
-		pos := 0
-
-		for _, loc := range locs {
-			urlStartRune := utf8.RuneCountInString(logicalText[:loc[0]])
-			urlEndRune := utf8.RuneCountInString(logicalText[:loc[1]])
-
-			// この視覚行に対応する範囲にクリップ
-			colStart := max(urlStartRune-startRuneOff, 0)
-			colEnd := min(urlEndRune-startRuneOff, visLen)
-			colEnd = min(colEnd, lineLen)
-
-			if colStart >= colEnd {
-				continue
-			}
-
-			result.WriteString(string(runes[pos:colStart]))
-			result.WriteString(urlGrayStyle.Render(string(runes[colStart:colEnd])))
-			pos = colEnd
-		}
-
-		if pos > 0 {
-			result.WriteString(string(runes[pos:]))
-			viewLines[i] = result.String()
+		if styled != "" {
+			viewLines[i] = styled
 		}
 	}
 
 	return strings.Join(viewLines, "\n")
+}
+
+func findVisualLineLength(vLines []visualLine, startRuneOff int) int {
+	for _, v := range vLines {
+		if v.startRune == startRuneOff {
+			return v.length
+		}
+	}
+
+	return 0
+}
+
+func styleURLsInLine(runes []rune, logicalText string, locs [][]int, startRuneOff, visLen int) string {
+	lineLen := len(runes)
+
+	var result strings.Builder
+
+	pos := 0
+
+	for _, loc := range locs {
+		urlStartRune := utf8.RuneCountInString(logicalText[:loc[0]])
+		urlEndRune := utf8.RuneCountInString(logicalText[:loc[1]])
+		urlText := logicalText[loc[0]:loc[1]]
+
+		colStart := max(urlStartRune-startRuneOff, 0)
+		colEnd := min(urlEndRune-startRuneOff, visLen)
+		colEnd = min(colEnd, lineLen)
+
+		if colStart >= colEnd {
+			continue
+		}
+
+		styled := urlGrayStyle.Hyperlink(urlText).Render(string(runes[colStart:colEnd]))
+		result.WriteString(string(runes[pos:colStart]))
+		result.WriteString(styled)
+
+		pos = colEnd
+	}
+
+	if pos > 0 {
+		result.WriteString(string(runes[pos:]))
+
+		return result.String()
+	}
+
+	return ""
 }
 
 // applyCursor はカーソル位置の文字を反転表示する。

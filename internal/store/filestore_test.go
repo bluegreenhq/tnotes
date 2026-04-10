@@ -742,3 +742,90 @@ func TestFileStore_TrashPersistAcrossInstances(t *testing.T) {
 	assert.Len(t, trashed, 1)
 	assert.Equal(t, note.NoteID("persist-trash"), trashed[0].ID)
 }
+
+func TestFileStore_MoveNote(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	n := note.Note{
+		Metadata: note.Metadata{
+			ID:        "move1",
+			CreatedAt: now,
+			UpdatedAt: now,
+			Path:      "Notes/20260404/move1.md",
+		},
+		Body: "Move me",
+	}
+	require.NoError(t, s.Save(n))
+
+	require.NoError(t, s.CreateFolder("Work"))
+
+	err = s.MoveNote("move1", "Work")
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(dir, "Notes", "20260404", "move1.md"))
+	assert.True(t, os.IsNotExist(err))
+
+	_, err = os.Stat(filepath.Join(dir, "Work", "20260404", "move1.md"))
+	require.NoError(t, err)
+
+	s2, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	metas, err := s2.List()
+	require.NoError(t, err)
+	require.Len(t, metas, 1)
+	assert.Equal(t, "Work/20260404/move1.md", metas[0].Path)
+
+	loaded, err := s2.Load("move1")
+	require.NoError(t, err)
+	assert.Equal(t, "Move me", loaded.Body)
+}
+
+func TestFileStore_MoveNote_NotFound(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	err = s.MoveNote("nonexistent", "Work")
+	assert.Error(t, err)
+}
+
+func TestFileStore_MoveNote_ToNotes(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	require.NoError(t, s.CreateFolder("Work"))
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	n := note.Note{
+		Metadata: note.Metadata{
+			ID:        "move2",
+			CreatedAt: now,
+			UpdatedAt: now,
+			Path:      "Work/20260404/move2.md",
+		},
+		Body: "Move back",
+	}
+	require.NoError(t, s.Save(n))
+
+	err = s.MoveNote("move2", "Notes")
+	require.NoError(t, err)
+
+	_, err = os.Stat(filepath.Join(dir, "Notes", "20260404", "move2.md"))
+	require.NoError(t, err)
+
+	s2, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	metas, err := s2.List()
+	require.NoError(t, err)
+	require.Len(t, metas, 1)
+	assert.Equal(t, "Notes/20260404/move2.md", metas[0].Path)
+}

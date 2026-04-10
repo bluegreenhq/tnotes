@@ -535,6 +535,56 @@ func (fs *FileStore) RenameFolder(oldName, newName string) error {
 	return nil
 }
 
+// MoveNote はノートを別のフォルダに移動する。
+// ファイルの移動とindex内のパスを更新する。
+func (fs *FileStore) MoveNote(id note.NoteID, destFolder string) error {
+	unlock, err := fs.lockAndReload()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	meta, ok := fs.index[id]
+	if !ok {
+		return errors.WithDetail(ErrNoteNotFound, string(id))
+	}
+
+	const pathParts = 2
+
+	parts := strings.SplitN(meta.Path, string(filepath.Separator), pathParts)
+	if len(parts) < pathParts {
+		return errors.WithDetail(ErrNoteNotFound, string(id))
+	}
+
+	subPath := parts[1] // "20260404/id.md"
+
+	newRelPath := filepath.Join(destFolder, subPath)
+	srcPath := filepath.Join(fs.dir, meta.Path)
+	dstPath := filepath.Join(fs.dir, newRelPath)
+
+	err = os.MkdirAll(filepath.Dir(dstPath), dirPerm)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	err = os.Rename(srcPath, dstPath)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	meta.Path = newRelPath
+	fs.index[id] = meta
+
+	err = fs.saveIndex()
+	if err != nil {
+		_ = os.Rename(dstPath, srcPath)
+
+		return err
+	}
+
+	return nil
+}
+
 func (fs *FileStore) validateRename(oldName, newName string) (string, string, error) {
 	if fs.isSystemDir(oldName) {
 		return "", "", errors.WithDetail(ErrSystemFolder, oldName)

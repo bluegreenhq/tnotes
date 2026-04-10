@@ -391,6 +391,31 @@ func (a *App) RenameFolder(oldName, newName string) error {
 	return nil
 }
 
+// MoveNoteToFolder は指定IDのノートを別のフォルダに移動する。
+// インメモリのノートパスも更新する。
+func (a *App) MoveNoteToFolder(id note.NoteID, destFolder string) error {
+	idx := a.findNoteIndex(id)
+	if idx < 0 {
+		return ErrNoteNotFound
+	}
+
+	if a.store != nil {
+		err := a.store.MoveNote(id, destFolder)
+		if err != nil {
+			return err
+		}
+	}
+
+	oldPath := a.Notes[idx].Path
+
+	parts := strings.SplitN(oldPath, string(filepath.Separator), pathSplitParts)
+	if len(parts) >= pathSplitParts {
+		a.Notes[idx].Path = filepath.Join(destFolder, parts[1])
+	}
+
+	return nil
+}
+
 // FolderNoteCount は指定フォルダのノート件数を返す。
 func (a *App) FolderNoteCount(name string) (int, error) {
 	count := 0

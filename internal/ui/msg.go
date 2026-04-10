@@ -95,4 +95,11 @@ const (
 	EditorHeaderPin
 	// EditorHeaderUnpin はノートのピン留め解除を要求する。
 	EditorHeaderUnpin
+	// EditorHeaderMove はノートのフォルダ移動を要求する。
+	EditorHeaderMove
 )
+
+// noteMoveMsg はノートを別フォルダに移動するメッセージ。
+type noteMoveMsg struct {
+	DestFolder string
+}

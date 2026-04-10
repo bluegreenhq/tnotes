@@ -30,6 +30,8 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) { //
 	switch args[1] {
 	case "folder":
 		return true, runFolder(args, a, r, w)
+	case "move":
+		return true, runMove(args, a, w)
 	case "list":
 		return true, runList(args, a, w)
 	case "purge":
@@ -66,6 +68,7 @@ func printUsage(w io.Writer) {
 		{"purge", "ゴミ箱を空にする（確認あり）"},
 		{"purge --force", "ゴミ箱を空にする（確認なし）"},
 		{"get <id>", "指定IDのノートを表示（ゴミ箱含む）"},
+		{"move <id> <folder>", "ノートを指定フォルダに移動"},
 		{"create [file] [--folder <name>]", "ファイルまたは標準入力からノートを作成"},
 		{"export <file>", "データ一式をzipにエクスポート"},
 		{"import <file>", "zipからデータをインポート"},

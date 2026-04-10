@@ -44,4 +44,6 @@ type Store interface { //nolint:interfacebloat // import/exportの責務もStore
 	DeleteFolder(name string) error
 	// RenameFolder はユーザー定義フォルダをリネームする。
 	RenameFolder(oldName, newName string) error
+	// MoveNote はノートを別のフォルダに移動する。
+	MoveNote(id note.NoteID, destFolder string) error
 }

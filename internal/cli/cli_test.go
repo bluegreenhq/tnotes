@@ -637,6 +637,67 @@ func TestRun_Create_WithFolder_NotFound(t *testing.T) {
 	assert.Contains(t, err.Error(), "folder not found")
 }
 
+func TestRun_Move_Success(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "move test\nbody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "move", string(result.Note.ID), "Work"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Moved")
+
+	workNotes := a.ListByFolder("Work")
+	assert.Len(t, workNotes, 1)
+}
+
+func TestRun_Move_MissingArgs(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "move"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Move_NoteNotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "move", "nonexistent", "Work"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Move_FolderNotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "test\nbody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "move", string(result.Note.ID), "unknown"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
 func TestRun_Folder_NoSubcommand(t *testing.T) {
 	t.Parallel()
 
