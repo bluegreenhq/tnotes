@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -77,7 +76,7 @@ func (m *Model) renderView(now time.Time) string {
 	}
 
 	// フォルダ削除確認ダイアログオーバーレイ
-	if m.confirmDeleteFolder != "" {
+	if m.confirmDialog != nil {
 		m.overlayConfirmDialog(bodyLines)
 	}
 
@@ -160,26 +159,10 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 
 // overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
 func (m *Model) overlayConfirmDialog(bodyLines []string) {
-	msg := fmt.Sprintf("Delete %q?", m.confirmDeleteFolder)
-	detail := fmt.Sprintf("%d note(s) will be moved to Trash.", m.confirmDeleteCount)
-	buttons := "[Y]es  [N]o"
-
-	content := msg + "\n" + detail + "\n\n" + buttons
-
-	const (
-		dialogPaddingH = 2
-		dialogWidth    = 40
-		centerDivisor  = 2
-	)
-
-	style := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("9")).
-		Padding(1, dialogPaddingH).
-		Width(dialogWidth)
-
-	rendered := style.Render(content)
+	rendered := m.confirmDialog.View()
 	dialogLines := strings.Split(rendered, "\n")
+
+	const centerDivisor = 2
 
 	// 画面中央に配置
 	startY := max((len(bodyLines)-len(dialogLines))/centerDivisor, 0)

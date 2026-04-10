@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -55,8 +57,8 @@ type Model struct {
 	infoMsg             string
 	infoMsgID           int
 	indexModTime        time.Time
-	confirmDeleteFolder string // 削除確認中のフォルダ名（空文字 = 確認なし）
-	confirmDeleteCount  int    // 削除確認中のフォルダのノート件数
+	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
+	confirmDeleteFolder string         // 削除確認中のフォルダ名
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -82,8 +84,8 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		infoMsg:             "",
 		infoMsgID:           0,
 		indexModTime:        time.Time{},
+		confirmDialog:       nil,
 		confirmDeleteFolder: "",
-		confirmDeleteCount:  0,
 	}
 
 	return m
@@ -110,6 +112,31 @@ func (m *Model) NoteListWidth() int { return m.noteListWidth }
 
 func (m *Model) maxNoteListWidth() int {
 	return m.width * maxNoteListPct / percentDivisor
+}
+
+// confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。
+// overlayConfirmDialog と同じ起点計算を行い、border + padding 分を加算する。
+func (m *Model) confirmDialogOrigin() (int, int) {
+	if m.confirmDialog == nil {
+		return 0, 0
+	}
+
+	rendered := m.confirmDialog.View()
+	dialogLines := strings.Split(rendered, "\n")
+
+	const (
+		centerDivisor      = 2
+		borderPaddingLines = 2 // border上 + padding上
+		borderPaddingCols  = 3 // border左1 + padding左2
+	)
+
+	bodyHeight := m.height - footerLineCount
+	dialogWidth := lipgloss.Width(dialogLines[0])
+
+	sy := max((bodyHeight-len(dialogLines))/centerDivisor, 0) + borderPaddingLines
+	sx := max((m.width-dialogWidth)/centerDivisor, 0) + borderPaddingCols
+
+	return sx, sy
 }
 
 func (m *Model) rebuildFooterButtons() {

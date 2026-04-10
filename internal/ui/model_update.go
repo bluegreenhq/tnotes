@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -64,7 +65,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // key dispatch
 	// 確認ダイアログ表示中
-	if m.confirmDeleteFolder != "" {
+	if m.confirmDialog != nil {
 		return m.handleConfirmDialogKey(msg)
 	}
 
@@ -165,6 +166,11 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //no
 
 	if msg.Button != tea.MouseLeft {
 		return nil
+	}
+
+	// 確認ダイアログ表示中
+	if m.confirmDialog != nil {
+		return m.handleConfirmDialogClick(msg)
 	}
 
 	footerLabelY := m.height - footerLineCount + 1 // フッター3行の中央（ラベル行）
@@ -442,12 +448,25 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
+	m.updateConfirmDialogHover(mouse)
 	m.updateNoteListFolderBtnHover(mouse)
 	m.updateFolderListHeaderHover(mouse)
 	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
 	return nil
+}
+
+func (m *Model) updateConfirmDialogHover(mouse tea.Mouse) {
+	if m.confirmDialog == nil {
+		return
+	}
+
+	originX, originY := m.confirmDialogOrigin()
+	relX := mouse.X - originX
+	relY := mouse.Y - originY
+
+	m.confirmDialog.HandleMotion(relX, relY)
 }
 
 func (m *Model) updateNoteListFolderBtnHover(mouse tea.Mouse) {
@@ -485,6 +504,7 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.hoverFolderSep = m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X)
+	m.updateConfirmDialogHover(mouse)
 	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
@@ -1050,7 +1070,9 @@ func (m *Model) handleFolderDelete(msg folderDeleteMsg, _ time.Time) tea.Cmd {
 
 	if count > 0 {
 		m.confirmDeleteFolder = msg.Name
-		m.confirmDeleteCount = count
+		detail := fmt.Sprintf("%d note(s) will be moved to Trash.", count)
+		dialog := NewConfirmDialog(fmt.Sprintf("Delete %q?", msg.Name), detail)
+		m.confirmDialog = &dialog
 
 		return nil
 	}
@@ -1069,11 +1091,23 @@ func (m *Model) handleFolderDelete(msg folderDeleteMsg, _ time.Time) tea.Cmd {
 }
 
 func (m *Model) handleConfirmDialogKey(msg tea.KeyPressMsg) tea.Cmd {
-	switch msg.Code {
-	case 'y', 'Y':
+	return m.applyConfirmResult(m.confirmDialog.Update(msg))
+}
+
+func (m *Model) handleConfirmDialogClick(msg tea.MouseClickMsg) tea.Cmd {
+	originX, originY := m.confirmDialogOrigin()
+	relX := msg.X - originX
+	relY := msg.Y - originY
+
+	return m.applyConfirmResult(m.confirmDialog.HandleClick(relX, relY))
+}
+
+func (m *Model) applyConfirmResult(result ConfirmResult) tea.Cmd {
+	switch result {
+	case ConfirmYes:
 		name := m.confirmDeleteFolder
+		m.confirmDialog = nil
 		m.confirmDeleteFolder = ""
-		m.confirmDeleteCount = 0
 
 		deleted, err := m.App.DeleteFolder(name)
 		if err != nil {
@@ -1085,10 +1119,12 @@ func (m *Model) handleConfirmDialogKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.refreshFolderList()
 
 		return m.setInfoMsg("Deleted: " + name + " (" + strconv.Itoa(deleted) + " note(s) trashed)")
-	case 'n', 'N', tea.KeyEscape:
+	case ConfirmNo:
+		m.confirmDialog = nil
 		m.confirmDeleteFolder = ""
-		m.confirmDeleteCount = 0
 
+		return nil
+	case ConfirmContinue:
 		return nil
 	}
 
