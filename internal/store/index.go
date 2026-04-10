@@ -17,6 +17,7 @@ const (
 // indexEntry はindex.jsonの各エントリを表す。
 type indexEntry struct {
 	Title     string `json:"title"`
+	Preview   string `json:"preview,omitempty"`
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
 	Path      string `json:"path"`
@@ -25,6 +26,7 @@ type indexEntry struct {
 // trashIndexEntry はゴミ箱ノートの各エントリを表す。
 type trashIndexEntry struct {
 	Title        string `json:"title"`
+	Preview      string `json:"preview,omitempty"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
 	Path         string `json:"path"`

@@ -137,6 +137,7 @@ func (fs *FileStore) Save(n note.Note) error {
 	fs.index[n.ID] = note.Metadata{
 		ID:        n.ID,
 		Title:     n.Title(),
+		Preview:   n.Preview(),
 		CreatedAt: n.CreatedAt,
 		UpdatedAt: n.UpdatedAt,
 		Path:      relPath,
@@ -183,6 +184,7 @@ func (fs *FileStore) Trash(id note.NoteID) error {
 		Metadata: note.Metadata{
 			ID:        meta.ID,
 			Title:     meta.Title,
+			Preview:   meta.Preview,
 			CreatedAt: meta.CreatedAt,
 			UpdatedAt: meta.UpdatedAt,
 			Path:      dstRelPath,
@@ -246,6 +248,7 @@ func (fs *FileStore) Restore(id note.NoteID) error {
 	restoredMeta := note.Metadata{
 		ID:        meta.ID,
 		Title:     meta.Title,
+		Preview:   meta.Preview,
 		CreatedAt: meta.CreatedAt,
 		UpdatedAt: meta.UpdatedAt,
 		Path:      meta.OriginalPath,
@@ -454,6 +457,7 @@ func (fs *FileStore) loadIndex() error {
 		fs.index[nid] = note.Metadata{
 			ID:        nid,
 			Title:     entry.Title,
+			Preview:   entry.Preview,
 			CreatedAt: createdAt,
 			UpdatedAt: updatedAt,
 			Path:      entry.Path,
@@ -470,6 +474,7 @@ func (fs *FileStore) loadIndex() error {
 			Metadata: note.Metadata{
 				ID:        nid,
 				Title:     entry.Title,
+				Preview:   entry.Preview,
 				CreatedAt: createdAt,
 				UpdatedAt: updatedAt,
 				Path:      entry.Path,
@@ -490,6 +495,7 @@ func (fs *FileStore) saveIndex() error {
 	for id, meta := range fs.index {
 		idx.Notes[string(id)] = indexEntry{
 			Title:     meta.Title,
+			Preview:   meta.Preview,
 			CreatedAt: meta.CreatedAt.Format(timeFormat),
 			UpdatedAt: meta.UpdatedAt.Format(timeFormat),
 			Path:      meta.Path,
@@ -499,6 +505,7 @@ func (fs *FileStore) saveIndex() error {
 	for id, meta := range fs.trashIndex {
 		idx.Trash[string(id)] = trashIndexEntry{
 			Title:        meta.Title,
+			Preview:      meta.Preview,
 			CreatedAt:    meta.CreatedAt.Format(timeFormat),
 			UpdatedAt:    meta.UpdatedAt.Format(timeFormat),
 			Path:         meta.Path,

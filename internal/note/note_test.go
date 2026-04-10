@@ -49,17 +49,40 @@ func TestTitle(t *testing.T) {
 func TestPreview(t *testing.T) {
 	t.Parallel()
 
-	n, _ := note.New(time.Now())
-	n.Body = "Title\nThis is the preview text"
-	assert.Equal(t, "This is the preview text", n.Preview())
+	tests := []struct {
+		name            string
+		body            string
+		metadataPreview string
+		want            string
+	}{
+		{"second line", "Title\nThis is the preview text", "", "This is the preview text"},
+		{"skip empty lines", "Title\n\n\nActual preview", "", "Actual preview"},
+		{"skip whitespace lines", "Title\n  \n\t\nVisible line", "", "Visible line"},
+		{"only title", "Only title", "", ""},
+		{"empty body with metadata", "", "Cached preview", "Cached preview"},
+		{"only blank lines after title with metadata", "Title\n\n\n", "Cached preview", "Cached preview"},
+		{"empty body no metadata", "", "", ""},
+		{"long preview truncated", "Title\n" + longLine(90), "", longLine(80) + "…"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			n, _ := note.New(time.Now())
+			n.Body = tt.body
+			n.Metadata.Preview = tt.metadataPreview
+			assert.Equal(t, tt.want, n.Preview())
+		})
+	}
 }
 
-func TestPreviewEmpty(t *testing.T) {
-	t.Parallel()
+func longLine(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = 'A'
+	}
 
-	n, _ := note.New(time.Now())
-	n.Body = "Only title"
-	assert.Empty(t, n.Preview())
+	return string(b)
 }
 
 func TestSortByUpdatedDesc(t *testing.T) {

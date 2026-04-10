@@ -23,6 +23,7 @@ type NoteID string
 type Metadata struct {
 	ID        NoteID
 	Title     string
+	Preview   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	Path      string // データディレクトリからの相対パス
@@ -42,7 +43,7 @@ func ZeroNote() Note {
 
 // ZeroMetadata はゼロ値の Metadata を返す。
 func ZeroMetadata() Metadata {
-	return Metadata{ID: "", Title: "", CreatedAt: time.Time{}, UpdatedAt: time.Time{}, Path: ""}
+	return Metadata{ID: "", Title: "", Preview: "", CreatedAt: time.Time{}, UpdatedAt: time.Time{}, Path: ""}
 }
 
 // New は新しい空のメモを生成する。
@@ -56,6 +57,7 @@ func New(now time.Time) (Note, error) {
 		Metadata: Metadata{
 			ID:        id,
 			Title:     "",
+			Preview:   "",
 			CreatedAt: now,
 			UpdatedAt: now,
 			Path:      "",
@@ -91,24 +93,37 @@ func (n Note) Title() string {
 	return line
 }
 
-// Preview はBodyの2行目のみをプレビューとして返す。
+// Preview はBodyの2行目以降で最初の非空行を返す。Bodyが空ならMetadata.Previewを返す。
 func (n Note) Preview() string {
 	body := strings.TrimSpace(n.Body)
 
 	_, after, found := strings.Cut(body, "\n")
 	if !found {
-		return ""
+		return n.Metadata.Preview
 	}
 
-	// 2行目のみ取得
-	preview, _, _ := strings.Cut(strings.TrimSpace(after), "\n")
-	preview = strings.TrimSpace(preview)
+	preview := firstVisibleLine(after)
+	if preview == "" {
+		return n.Metadata.Preview
+	}
 
 	if len([]rune(preview)) > maxPreviewLen {
 		return string([]rune(preview)[:maxPreviewLen]) + "…"
 	}
 
 	return preview
+}
+
+// firstVisibleLine は文字列から最初の非空行を返す。
+func firstVisibleLine(s string) string {
+	for line := range strings.SplitSeq(s, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+
+	return ""
 }
 
 // SortByUpdatedDesc はメモを更新日時の降順でソートする。

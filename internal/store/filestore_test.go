@@ -501,6 +501,62 @@ func TestFileStore_PurgeTrash_PreservesNormalNotes(t *testing.T) {
 	assert.Empty(t, trashed)
 }
 
+func TestFileStore_PreviewCachedInIndex(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	n := note.Note{
+		Metadata: note.Metadata{
+			ID:        "preview1",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Body: "Title line\n\nPreview line\nMore content",
+	}
+	require.NoError(t, s.Save(n))
+
+	// 別インスタンスで読み直し、Listで取得したMetadataにPreviewが入っていること
+	s2, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	metas, err := s2.List()
+	require.NoError(t, err)
+	require.Len(t, metas, 1)
+	assert.Equal(t, "Title line", metas[0].Title())
+	assert.Equal(t, "Preview line", metas[0].Preview())
+}
+
+func TestFileStore_PreviewCachedAfterTrash(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
+	n := note.Note{
+		Metadata: note.Metadata{
+			ID:        "preview-trash",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Body: "Title\n\nCached preview",
+	}
+	require.NoError(t, s.Save(n))
+	require.NoError(t, s.Trash("preview-trash"))
+
+	// ゴミ箱のメタデータにもPreviewが保持されること
+	s2, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	trashed, err := s2.ListTrashed()
+	require.NoError(t, err)
+	require.Len(t, trashed, 1)
+	assert.Equal(t, "Cached preview", trashed[0].Preview())
+}
+
 func TestFileStore_TrashPersistAcrossInstances(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
