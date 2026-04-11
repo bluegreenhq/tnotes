@@ -71,6 +71,7 @@ var folderCountStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 func (fl *FolderList) renderFolder(b *strings.Builder, folder Folder, selected bool, contentWidth int) {
 	name := " " + folder.Name
 	count := fmt.Sprintf("%d ", folder.Count)
+	name = truncateForCount(name, count, contentWidth)
 	padding := max(contentWidth-lipgloss.Width(name)-lipgloss.Width(count), 0)
 
 	if selected {
@@ -87,6 +88,30 @@ func (fl *FolderList) renderFolder(b *strings.Builder, folder Folder, selected b
 		countStr := folderCountStyle.Render(count)
 		b.WriteString(nameStr + pad + countStr)
 	}
+}
+
+// truncateForCount はフォルダ名をカウント文字列と合わせて contentWidth に収まるように省略する。
+func truncateForCount(name, count string, contentWidth int) string {
+	nameW := lipgloss.Width(name)
+	countW := lipgloss.Width(count)
+	maxNameW := contentWidth - countW
+
+	if nameW <= maxNameW {
+		return name
+	}
+
+	runes := []rune(name)
+
+	const ellipsis = "…"
+
+	for i := len(runes) - 1; i >= 0; i-- {
+		candidate := string(runes[:i]) + ellipsis
+		if lipgloss.Width(candidate) <= maxNameW {
+			return candidate
+		}
+	}
+
+	return ellipsis
 }
 
 func (fl *FolderList) renderHeader(b *strings.Builder, contentWidth int) {
