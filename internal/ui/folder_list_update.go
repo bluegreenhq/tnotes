@@ -111,7 +111,7 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 	case tea.KeyDown, 'j':
 		return fl.moveDown()
 	case tea.KeyEnter, tea.KeyTab:
-		return *fl, folderListCmd(FolderListFocusNext)
+		return *fl, FolderListFocusNext.Cmd()
 	}
 
 	return *fl, nil
@@ -127,7 +127,7 @@ func (fl *FolderList) SelectIndex(idx int) tea.Cmd {
 	fl.selected = idx
 
 	if prev != fl.selected {
-		return folderListCmd(FolderListSelect)
+		return FolderListSelect.Cmd()
 	}
 
 	return nil
@@ -137,7 +137,7 @@ func (fl *FolderList) moveUp() (FolderList, tea.Cmd) {
 	if fl.selected > 0 {
 		fl.selected--
 
-		return *fl, folderListCmd(FolderListSelect)
+		return *fl, FolderListSelect.Cmd()
 	}
 
 	return *fl, nil
@@ -147,7 +147,7 @@ func (fl *FolderList) moveDown() (FolderList, tea.Cmd) {
 	if fl.selected < len(fl.folders)-1 {
 		fl.selected++
 
-		return *fl, folderListCmd(FolderListSelect)
+		return *fl, FolderListSelect.Cmd()
 	}
 
 	return *fl, nil
@@ -260,7 +260,3 @@ func (fl *FolderList) HoverAdd() bool { return fl.hoverAdd }
 
 // HoverMore は ⋯ ボタンがホバー中かを返す。
 func (fl *FolderList) HoverMore() bool { return fl.hoverMore }
-
-func folderListCmd(msg FolderListMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
-}

@@ -1,7 +1,14 @@
 package ui
 
+import tea "charm.land/bubbletea/v2"
+
 // NoteListMsg はノート一覧からモデルへの通知メッセージ。
 type NoteListMsg int
+
+// Cmd は NoteListMsg を返す tea.Cmd を生成する。
+func (m NoteListMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
 
 const (
 	// NoteListSelect はカーソル移動によりノート選択が変わったことを通知する。
@@ -32,6 +39,11 @@ type cursorBlinkMsg struct {
 // EditorMsg はエディタからモデルへの通知メッセージ。
 type EditorMsg int
 
+// Cmd は EditorMsg を返す tea.Cmd を生成する。
+func (m EditorMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
 const (
 	// EditorBlur はノート一覧へのフォーカス切り替えを要求する。
 	EditorBlur EditorMsg = iota
@@ -46,6 +58,11 @@ type editorOpenURLMsg struct {
 
 // FolderListMsg はフォルダ一覧からモデルへの通知メッセージ。
 type FolderListMsg int
+
+// Cmd は FolderListMsg を返す tea.Cmd を生成する。
+func (m FolderListMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
 
 const (
 	// FolderListSelect はフォルダ選択変更を通知する。
@@ -73,6 +90,11 @@ type folderRenameMsg struct {
 // FooterMsg はフッターからモデルへの通知メッセージ。
 type FooterMsg int
 
+// Cmd は FooterMsg を返す tea.Cmd を生成する。
+func (m FooterMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
 const (
 	// FooterQuit は終了ボタンがクリックされたことを通知する。
 	FooterQuit FooterMsg = iota
@@ -86,6 +108,11 @@ const (
 
 // EditorHeaderMsg はエディタヘッダーからモデルへの通知メッセージ。
 type EditorHeaderMsg int
+
+// Cmd は EditorHeaderMsg を返す tea.Cmd を生成する。
+func (m EditorHeaderMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
 
 const (
 	// EditorHeaderNew は新規ノート作成を要求する。

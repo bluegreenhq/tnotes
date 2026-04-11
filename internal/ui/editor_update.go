@@ -172,7 +172,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cmd) { //nolint:cyclop // キーバインド分岐
 	switch {
 	case msg.Code == tea.KeyTab:
-		return true, editorCmd(EditorBlur)
+		return true, EditorBlur.Cmd()
 	case msg.Code == tea.KeyEscape:
 		if e.HasSelection() {
 			e.ClearSelection()
@@ -180,9 +180,9 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 			return true, nil
 		}
 
-		return true, editorCmd(EditorBlur)
+		return true, EditorBlur.Cmd()
 	case msg.Code == 's' && msg.Mod == tea.ModCtrl:
-		return true, editorCmd(EditorSave)
+		return true, EditorSave.Cmd()
 	case msg.Code == 'z' && msg.Mod == tea.ModCtrl:
 		e.Undo()
 	case msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift):
@@ -216,10 +216,6 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 	}
 
 	return true, nil
-}
-
-func editorCmd(msg EditorMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
 }
 
 func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {

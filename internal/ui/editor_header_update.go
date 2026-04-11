@@ -69,7 +69,7 @@ func (h *EditorHeader) MenuHeight() int {
 func (h *EditorHeader) HandleClick(x int) tea.Cmd {
 	// + ボタン判定
 	if !h.trashMode && x == newButtonX {
-		return editorHeaderCmd(EditorHeaderNew)
+		return EditorHeaderNew.Cmd()
 	}
 
 	// ⋯ ボタン判定
@@ -96,7 +96,7 @@ func (h *EditorHeader) HandleMenuClick(x, y int) tea.Cmd {
 		return nil
 	}
 
-	return editorHeaderCmd(h.menuMsgs[idx])
+	return h.menuMsgs[idx].Cmd()
 }
 
 // SetMenuHover はメニュー領域のホバーを更新する。
@@ -179,8 +179,4 @@ func (h *EditorHeader) MoveMenuHeight() int {
 // SetMoveMenuHover は移動先メニューのホバーを更新する。
 func (h *EditorHeader) SetMoveMenuHover(x, y int) {
 	h.MoveMenu.SetHoverByPos(x, y)
-}
-
-func editorHeaderCmd(msg EditorHeaderMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
 }
