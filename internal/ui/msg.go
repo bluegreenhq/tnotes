@@ -31,11 +31,6 @@ const (
 	NoteListQuit
 )
 
-// cursorBlinkMsg はカーソルの点滅状態を切り替えるメッセージ。
-type cursorBlinkMsg struct {
-	tag int
-}
-
 // EditorMsg はエディタからモデルへの通知メッセージ。
 type EditorMsg int
 

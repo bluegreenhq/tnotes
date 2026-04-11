@@ -3,34 +3,40 @@ package ui
 import tea "charm.land/bubbletea/v2"
 
 // StartInput はインライン入力モードを開始する（新規作成用）。
-func (fl *FolderList) StartInput() {
+func (fl *FolderList) StartInput() tea.Cmd {
 	fl.inputMode = true
-	fl.inputValue = ""
+	fl.lineInput.Reset()
+
+	return fl.blink.Reset()
 }
 
 // CancelInput はインライン入力をキャンセルする。
 func (fl *FolderList) CancelInput() {
 	fl.inputMode = false
-	fl.inputValue = ""
+	fl.lineInput.Reset()
+	fl.blink.Stop()
 }
 
 // StartRename はリネーム入力モードを開始する。
-func (fl *FolderList) StartRename() {
+func (fl *FolderList) StartRename() tea.Cmd {
 	name := fl.SelectedName()
 	fl.renameMode = true
 	fl.renameName = name
-	fl.inputValue = name
+	fl.lineInput.SetValue(name)
+
+	return fl.blink.Reset()
 }
 
 // CancelRename はリネーム入力をキャンセルする。
 func (fl *FolderList) CancelRename() {
 	fl.renameMode = false
 	fl.renameName = ""
-	fl.inputValue = ""
+	fl.lineInput.Reset()
+	fl.blink.Stop()
 }
 
 // InputValue は入力中のフォルダ名を返す。
-func (fl *FolderList) InputValue() string { return fl.inputValue }
+func (fl *FolderList) InputValue() string { return fl.lineInput.Value() }
 
 // HitTestHeader はヘッダー領域のクリック判定を行う.
 // 戻り値: headerHitClose, headerHitAdd, headerHitMore, "" (該当なし).
@@ -154,72 +160,61 @@ func (fl *FolderList) moveDown() (FolderList, tea.Cmd) {
 }
 
 func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
-	switch keyMsg.Code {
-	case tea.KeyEnter:
-		if fl.inputValue != "" && fl.inputValue != fl.renameName {
+	result := fl.lineInput.handleKey(keyMsg)
+
+	switch result {
+	case lineInputNone:
+		return *fl, fl.blink.Reset()
+	case lineInputSubmit:
+		val := fl.lineInput.Value()
+		if val != "" && val != fl.renameName {
 			oldName := fl.renameName
-			newName := fl.inputValue
 			fl.renameMode = false
 			fl.renameName = ""
-			fl.inputValue = ""
+			fl.lineInput.Reset()
+			fl.blink.Stop()
 
-			return *fl, folderRenameMsg{OldName: oldName, NewName: newName}.Cmd()
+			return *fl, folderRenameMsg{OldName: oldName, NewName: val}.Cmd()
 		}
 
 		fl.CancelRename()
 
 		return *fl, nil
-	case tea.KeyEscape:
+	case lineInputCancel:
 		fl.CancelRename()
-
-		return *fl, nil
-	case tea.KeyBackspace:
-		if len(fl.inputValue) > 0 {
-			runes := []rune(fl.inputValue)
-			fl.inputValue = string(runes[:len(runes)-1])
-		}
-
-		return *fl, nil
-	default:
-		if keyMsg.Text != "" {
-			fl.inputValue += keyMsg.Text
-		}
 
 		return *fl, nil
 	}
+
+	return *fl, nil
 }
 
 func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
-	switch keyMsg.Code {
-	case tea.KeyEnter:
-		if fl.inputValue != "" {
+	result := fl.lineInput.handleKey(keyMsg)
+
+	switch result {
+	case lineInputNone:
+		return *fl, fl.blink.Reset()
+	case lineInputSubmit:
+		val := fl.lineInput.Value()
+		if val != "" {
 			fl.inputMode = false
-			name := fl.inputValue
-			fl.inputValue = ""
+			fl.lineInput.Reset()
+			fl.blink.Stop()
 
-			return *fl, folderCreateMsg{Name: name}.Cmd()
+			return *fl, folderCreateMsg{Name: val}.Cmd()
 		}
 
 		return *fl, nil
-	case tea.KeyEscape:
+	case lineInputCancel:
 		fl.inputMode = false
-		fl.inputValue = ""
-
-		return *fl, nil
-	case tea.KeyBackspace:
-		if len(fl.inputValue) > 0 {
-			runes := []rune(fl.inputValue)
-			fl.inputValue = string(runes[:len(runes)-1])
-		}
-
-		return *fl, nil
-	default:
-		if keyMsg.Text != "" {
-			fl.inputValue += keyMsg.Text
-		}
+		fl.lineInput.Reset()
+		fl.blink.Stop()
 
 		return *fl, nil
 	}
+
+	return *fl, nil
 }
 
 // SetHeaderHover はヘッダーのホバー状態を更新する。

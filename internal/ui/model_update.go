@@ -62,9 +62,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 
 		return m, nil
 	case cursorBlinkMsg:
-		cmd := m.Editor.HandleBlinkMsg(msg)
+		switch msg.owner {
+		case blinkOwnerEditor:
+			return m, m.Editor.HandleBlinkMsg(msg)
+		case blinkOwnerFolderList:
+			return m, m.FolderList.blink.HandleMsg(msg)
+		}
 
-		return m, cmd
+		return m, nil
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
@@ -103,7 +108,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		m.Focus = FocusFolderList
 
 		return nil
-	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0 && m.Focus != FocusEditor:
+	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0 &&
+		m.Focus != FocusEditor &&
+		!m.FolderList.InputMode() && !m.FolderList.RenameMode():
 		return m.toggleFolderList(now)
 	}
 
@@ -406,10 +413,10 @@ func (m *Model) handleFolderHeaderClick(msg tea.MouseClickMsg, now time.Time) te
 	case headerHitClose:
 		return m.toggleFolderList(now)
 	case headerHitAdd:
-		m.FolderList.StartInput()
+		blinkCmd := m.FolderList.StartInput()
 		m.Focus = FocusFolderList
 
-		return nil
+		return blinkCmd
 	case headerHitMore:
 		if m.FolderList.IsUserFolder() {
 			if m.FolderList.MenuOpen() {
@@ -1214,9 +1221,7 @@ func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
 
 	switch idx {
 	case menuRename:
-		m.FolderList.StartRename()
-
-		return nil
+		return m.FolderList.StartRename()
 	case menuDelete:
 		name := m.FolderList.SelectedName()
 
