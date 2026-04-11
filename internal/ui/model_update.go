@@ -49,6 +49,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		return m, m.processNoteListMsg(msg, now)
 	case EditorMsg:
 		return m, m.processEditorMsg(msg, now)
+	case editorOpenURLMsg:
+		return m, openURLInBrowser(msg.URL)
 	case EditorHeaderMsg:
 		return m, m.processEditorHeaderMsg(msg, now)
 	case FooterMsg:
@@ -1418,17 +1420,28 @@ func (m *Model) currentFolderNotes() []note.Note {
 }
 
 func (m *Model) syncEditorToNote(now time.Time) {
-	if !m.Editor.Dirty() {
+	saved := false
+
+	if m.Editor.Dirty() {
+		_, err := m.App.SaveNote(m.Editor.NoteID(), m.Editor.Value(), now)
+		if err != nil {
+			m.errMsg = err.Error()
+		}
+
+		m.Editor.MarkClean()
+
+		saved = true
+	}
+
+	if m.App.DiscardIfEmpty(m.Editor.NoteID()) {
+		m.refreshNoteListKeepSelection(now)
+
 		return
 	}
 
-	_, err := m.App.SaveNote(m.Editor.NoteID(), m.Editor.Value(), now)
-	if err != nil {
-		m.errMsg = err.Error()
+	if saved {
+		m.refreshNoteListKeepSelection(now)
 	}
-
-	m.Editor.MarkClean()
-	m.refreshNoteListKeepSelection(now)
 }
 
 // applyNoteResult は NoteResult をUI状態に反映する。

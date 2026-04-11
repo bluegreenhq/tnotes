@@ -15,6 +15,8 @@ type Store interface { //nolint:interfacebloat // import/exportの責務もStore
 	Load(id note.NoteID) (note.Note, error)
 	// Save はノートをファイルに書き出し、インデックスを更新する。
 	Save(n note.Note) error
+	// Delete はノートを完全に削除する（ゴミ箱には移動しない）。
+	Delete(id note.NoteID) error
 	// Trash はノートをゴミ箱に移動する。
 	Trash(id note.NoteID) error
 	// ListTrashed はゴミ箱内のノート一覧を返す（Bodyは空）。

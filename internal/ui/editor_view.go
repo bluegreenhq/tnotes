@@ -10,17 +10,6 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
-const (
-	ansiBoldOn  = "\x1b[1m"
-	ansiBoldOff = "\x1b[m"
-	ansiReset   = "\x1b[m"
-)
-
-var (
-	editorStyle       = lipgloss.NewStyle().Padding(0, 1)
-	editorCursorStyle = lipgloss.NewStyle().Reverse(true)
-)
-
 // View はエディタの描画内容を返す。
 func (e *Editor) View() string {
 	headerLine := e.Header.View()
@@ -43,14 +32,14 @@ func (e *Editor) View() string {
 
 	raw := e.textarea.View()
 
+	raw = e.applyTitleBold(raw)
+	raw = e.applyURLStyle(raw)
+
 	if e.HasSelection() {
 		raw = e.applySelectionHighlight(raw)
 	} else if e.textarea.Focused() && e.blinkVisible {
 		raw = e.applyCursor(raw)
 	}
-
-	raw = e.applyTitleBold(raw)
-	raw = e.applyURLStyle(raw)
 
 	textBody := editorStyle.Width(e.width).Height(e.height - editorHeaderHeight).Render(raw)
 
@@ -84,8 +73,8 @@ func (e *Editor) applyTitleBold(raw string) string {
 	for i := range boldCount {
 		line := viewLines[i]
 		// 内部のリセットシーケンス後に太字を再適用する
-		line = strings.ReplaceAll(line, ansiReset, ansiReset+ansiBoldOn)
-		viewLines[i] = ansiBoldOn + line + ansiBoldOff
+		line = strings.ReplaceAll(line, ansiReset, ansiReset+editorBoldOn)
+		viewLines[i] = editorBoldOn + line + editorBoldOff
 	}
 
 	return strings.Join(viewLines, "\n")
@@ -175,6 +164,7 @@ func styleURLsInLine(runes []rune, logicalText string, locs [][]int, startRuneOf
 }
 
 // applyCursor はカーソル位置の文字を反転表示する。
+// ANSI エスケープシーケンスをスキップして可視ルーン位置を計算する。
 func (e *Editor) applyCursor(raw string) string {
 	visualRow := e.textarea.layout.logicalToVisual(e.textarea.Line(), e.textarea.Column())
 	cursorViewRow := visualRow - e.textarea.ScrollYOffset()
@@ -188,29 +178,22 @@ func (e *Editor) applyCursor(raw string) string {
 	}
 
 	line := viewLines[cursorViewRow]
-	runes := []rune(line)
 
-	if cursorCol < 0 || cursorCol > len(runes) {
-		return raw
-	}
-
-	if cursorCol < len(runes) {
-		before := string(runes[:cursorCol])
-		cursor := editorCursorStyle.Render(string(runes[cursorCol]))
-		after := string(runes[cursorCol+1:])
-		viewLines[cursorViewRow] = before + cursor + after
+	byteStart, byteEnd := visibleRuneByteRange(line, cursorCol)
+	if byteStart < 0 {
+		// カーソルが行末の場合
+		viewLines[cursorViewRow] = line + editorCursorOn + " " + editorCursorOff
 	} else {
-		viewLines[cursorViewRow] = line + editorCursorStyle.Render(" ")
+		before := line[:byteStart]
+		cursor := editorCursorOn + line[byteStart:byteEnd] + editorCursorOff
+		after := line[byteEnd:]
+		viewLines[cursorViewRow] = before + cursor + after
 	}
 
 	return strings.Join(viewLines, "\n")
 }
 
 func (e *Editor) applySelectionHighlight(raw string) string {
-	selectionStyle := lipgloss.NewStyle().
-		Background(lipgloss.Color("4")).
-		Foreground(lipgloss.Color("15"))
-
 	if !e.HasSelection() {
 		return raw
 	}
@@ -228,7 +211,7 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 			continue
 		}
 
-		runes := []rune(line)
+		visibleCount := countVisibleRunes(line)
 
 		var colStart, colEnd int
 		if logLine == start.Line {
@@ -238,21 +221,29 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 		if logLine == end.Line {
 			colEnd = end.Column - startRuneOff
 		} else {
-			colEnd = len(runes)
+			colEnd = visibleCount
 		}
 
-		colStart = utils.ClampInt(colStart, 0, len(runes))
-		colEnd = utils.ClampInt(colEnd, 0, len(runes))
+		colStart = utils.ClampInt(colStart, 0, visibleCount)
+		colEnd = utils.ClampInt(colEnd, 0, visibleCount)
 
 		if colStart >= colEnd {
 			continue
 		}
 
-		before := string(runes[:colStart])
-		middle := string(runes[colStart:colEnd])
-		after := string(runes[colEnd:])
+		byteStart, _ := visibleRuneByteRange(line, colStart)
+		_, byteEnd := visibleRuneByteRange(line, colEnd-1)
 
-		viewLines[i] = before + selectionStyle.Render(middle) + after
+		if byteStart < 0 || byteEnd < 0 {
+			continue
+		}
+
+		before := line[:byteStart]
+		middle := line[byteStart:byteEnd]
+		after := line[byteEnd:]
+
+		restore := collectANSIState(line, byteEnd)
+		viewLines[i] = before + editorSelectionOn + middle + editorSelectionOff + restore + after
 	}
 
 	return strings.Join(viewLines, "\n")
