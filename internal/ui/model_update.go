@@ -85,6 +85,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	m.Editor.Header.CloseMoveMenu()
 
 	switch {
+	case msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0:
+		m.syncEditorToNote(now)
+
+		return tea.Quit
 	case msg.Code == 'q' && (m.Focus == FocusNoteList || m.Focus == FocusFolderList):
 		m.syncEditorToNote(now)
 
