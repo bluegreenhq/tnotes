@@ -269,6 +269,19 @@ func (t *simpleTextArea) cursorRight() {
 	}
 }
 
+// MoveTo はカーソルを指定の論理行・列に移動する。
+func (t *simpleTextArea) MoveTo(line, col int) {
+	line = max(line, 0)
+	line = min(line, len(t.lines)-1)
+	t.row = line
+
+	col = max(col, 0)
+	col = min(col, len(t.lines[t.row]))
+	t.col = col
+
+	t.ensureVisible()
+}
+
 // positionFromCell は視覚行・セル列から論理行・ルーン列を返す。
 // 視覚行が範囲外の場合はクランプする。
 func (t *simpleTextArea) positionFromCell(visualRow, cellCol int) (int, int) {

@@ -397,13 +397,7 @@ func (e *Editor) DeleteSelection() {
 	e.textarea.SetValue(strings.Join(result, "\n"))
 
 	// カーソルを選択開始位置に移動
-	e.textarea.MoveToBegin()
-
-	for range start.Line {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(start.Column)
+	e.textarea.MoveTo(start.Line, start.Column)
 
 	e.ClearSelection()
 }
@@ -440,13 +434,7 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 }
 
 func (e *Editor) moveCursorTo(pos SelectionAnchor) {
-	e.textarea.MoveToBegin()
-
-	for range pos.Line {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(pos.Column)
+	e.textarea.MoveTo(pos.Line, pos.Column)
 }
 
 // cellToRuneIndex はセル幅の位置をルーンインデックスに変換する。
@@ -634,12 +622,6 @@ func (e *Editor) urlAtCursor() string {
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {
 	e.textarea.SetValue(snap.Text)
-	e.textarea.MoveToBegin()
-
-	for range snap.CursorLine {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(snap.CursorCol)
+	e.textarea.MoveTo(snap.CursorLine, snap.CursorCol)
 	e.ClearSelection()
 }
