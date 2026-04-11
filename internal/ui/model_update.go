@@ -116,9 +116,7 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 
 	switch m.Focus {
 	case FocusFolderList:
-		_, cmd := m.FolderList.Update(msg)
-
-		return m.processFolderListCmd(cmd, now)
+		return m.handleFolderListKey(msg, now)
 	case FocusNoteList:
 		_, cmd := m.NoteList.Update(msg, now, m.App.TrashMode)
 
@@ -357,6 +355,19 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
+func (m *Model) handleFolderListKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+	_, cmd := m.FolderList.Update(msg)
+	folderCmd := m.processFolderListCmd(cmd, now)
+
+	if m.FolderList.InputMode() || m.FolderList.RenameMode() {
+		blinkCmd := m.FolderList.blink.Reset()
+
+		return tea.Batch(folderCmd, blinkCmd)
+	}
+
+	return folderCmd
+}
+
 func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	// moreメニューが開いている場合
 	if m.FolderList.MenuOpen() {
@@ -370,6 +381,9 @@ func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.
 
 	idx := m.FolderList.HitTest(msg.X, msg.Y)
 	if idx >= 0 {
+		m.FolderList.CancelInput()
+		m.FolderList.CancelRename()
+
 		cmd := m.FolderList.SelectIndex(idx)
 		m.Focus = FocusFolderList
 

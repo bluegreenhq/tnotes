@@ -164,7 +164,7 @@ func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 
 	switch result {
 	case lineInputNone:
-		return *fl, fl.blink.Reset()
+		// blink reset は model_update 側で行う
 	case lineInputSubmit:
 		val := fl.lineInput.Value()
 		if val != "" && val != fl.renameName {
@@ -194,7 +194,7 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) 
 
 	switch result {
 	case lineInputNone:
-		return *fl, fl.blink.Reset()
+		// blink reset は model_update 側で行う
 	case lineInputSubmit:
 		val := fl.lineInput.Value()
 		if val != "" {
