@@ -576,6 +576,47 @@ func (e *Editor) urlAtCursor() string {
 	return ""
 }
 
+// OpenContextMenu はエディタのコンテキストメニューを開く。
+func (e *Editor) OpenContextMenu() {
+	hasSel := e.HasSelection()
+	items := []MenuItem{
+		{Label: "Copy", Disabled: !hasSel},
+		{Label: "Cut", Disabled: !hasSel || e.readOnly},
+		{Label: "Paste", Disabled: e.readOnly},
+	}
+	e.ContextMenu = NewPopupMenu(items)
+	e.contextMenuOpen = true
+}
+
+// CloseContextMenu はエディタのコンテキストメニューを閉じる。
+func (e *Editor) CloseContextMenu() {
+	e.contextMenuOpen = false
+	e.ContextMenu.hover = -1
+}
+
+// IsContextMenuOpen はコンテキストメニューが開いているかを返す。
+func (e *Editor) IsContextMenuOpen() bool { return e.contextMenuOpen }
+
+// HandleContextMenuClick はコンテキストメニューのクリックを処理する。
+// x, y はメニュー左上を原点とする相対座標。
+func (e *Editor) HandleContextMenuClick(x, y int) {
+	idx, hit := e.ContextMenu.HandleClick(x, y)
+	e.CloseContextMenu()
+
+	if !hit {
+		return
+	}
+
+	switch editorContextMsg(idx) {
+	case editorContextCopy:
+		_ = e.CopySelection()
+	case editorContextCut:
+		_ = e.CutSelection()
+	case editorContextPaste:
+		_ = e.PasteFromClipboard()
+	}
+}
+
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {
 	e.textarea.SetValue(snap.Text)
 	e.textarea.MoveTo(snap.CursorLine, snap.CursorCol)

@@ -46,6 +46,15 @@ const (
 	EditorSave
 )
 
+// editorContextMsg はエディタコンテキストメニューのアクション。
+type editorContextMsg int
+
+const (
+	editorContextCopy editorContextMsg = iota
+	editorContextCut
+	editorContextPaste
+)
+
 // editorOpenURLMsg はカーソル位置のURLをブラウザで開くことを要求するメッセージ。
 type editorOpenURLMsg struct {
 	URL string

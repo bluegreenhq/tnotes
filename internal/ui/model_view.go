@@ -83,17 +83,30 @@ func (m *Model) updateFolderCounts() {
 func (m *Model) applyOverlays(bodyLines []string) {
 	if m.FolderList.MenuOpen() {
 		menuLines := m.FolderList.PopupMenu.View()
-		m.overlayFolderListMenu(bodyLines, menuLines)
+		if m.menuAnchor != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		} else {
+			m.overlayFolderListMenu(bodyLines, menuLines)
+		}
 	}
 
 	if m.Editor.Header.MenuOpen() {
 		menuLines := m.Editor.Header.PopupMenu.View()
-		m.overlayEditorHeaderMenu(bodyLines, menuLines)
+		if m.menuAnchor != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		} else {
+			m.overlayEditorHeaderMenu(bodyLines, menuLines)
+		}
 	}
 
 	if m.Editor.Header.MoveMenuOpen() {
 		menuLines := m.Editor.Header.MoveMenu.View()
 		m.overlayMoveMenu(bodyLines, menuLines)
+	}
+
+	if m.Editor.IsContextMenuOpen() && m.menuAnchor != nil {
+		menuLines := m.Editor.ContextMenu.View()
+		m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
 	}
 
 	if m.Footer.MenuOpen() {
@@ -103,6 +116,32 @@ func (m *Model) applyOverlays(bodyLines []string) {
 
 	if m.confirmDialog != nil {
 		m.overlayConfirmDialog(bodyLines)
+	}
+}
+
+// overlayAtAnchor はメニューを指定座標にオーバーレイする。
+// 画面端でメニューがはみ出す場合は左方向・上方向にフォールバックする。
+func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *menuAnchor) {
+	if len(menuLines) == 0 {
+		return
+	}
+
+	menuWidth := lipgloss.Width(menuLines[0])
+	x, y := m.clampAnchor(anchor, menuWidth, len(menuLines))
+
+	menuRight := x + menuWidth
+
+	for i, menuLine := range menuLines {
+		row := y + i
+		if row < 0 || row >= len(bodyLines) {
+			continue
+		}
+
+		truncated := ansi.Truncate(bodyLines[row], x, "")
+		w := lipgloss.Width(truncated)
+		padded := truncated + strings.Repeat(" ", x-w)
+		rest := ansi.TruncateLeft(bodyLines[row], menuRight, "")
+		bodyLines[row] = padded + menuLine + rest
 	}
 }
 
