@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/cockroachdb/errors"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/bluegreenhq/tnotes/internal/note"
 	"github.com/bluegreenhq/tnotes/internal/utils"
@@ -173,7 +172,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cmd) { //nolint:cyclop // キーバインド分岐
 	switch {
 	case msg.Code == tea.KeyTab:
-		return true, editorCmd(EditorBlur)
+		return true, EditorBlur.Cmd()
 	case msg.Code == tea.KeyEscape:
 		if e.HasSelection() {
 			e.ClearSelection()
@@ -181,9 +180,9 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 			return true, nil
 		}
 
-		return true, editorCmd(EditorBlur)
+		return true, EditorBlur.Cmd()
 	case msg.Code == 's' && msg.Mod == tea.ModCtrl:
-		return true, editorCmd(EditorSave)
+		return true, EditorSave.Cmd()
 	case msg.Code == 'z' && msg.Mod == tea.ModCtrl:
 		e.Undo()
 	case msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift):
@@ -208,7 +207,7 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 		_ = e.PasteFromClipboard()
 	case msg.Code == 'o' && msg.Mod == tea.ModCtrl:
 		if u := e.urlAtCursor(); u != "" {
-			return true, func() tea.Msg { return editorOpenURLMsg{URL: u} }
+			return true, editorOpenURLMsg{URL: u}.Cmd()
 		}
 
 		return true, nil
@@ -217,10 +216,6 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 	}
 
 	return true, nil
-}
-
-func editorCmd(msg EditorMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
 }
 
 func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
@@ -397,13 +392,7 @@ func (e *Editor) DeleteSelection() {
 	e.textarea.SetValue(strings.Join(result, "\n"))
 
 	// カーソルを選択開始位置に移動
-	e.textarea.MoveToBegin()
-
-	for range start.Line {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(start.Column)
+	e.textarea.MoveTo(start.Line, start.Column)
 
 	e.ClearSelection()
 }
@@ -434,48 +423,13 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 	cellCol := max(x-1, 0) // padding分を差し引き
 	visualRow := y + e.textarea.ScrollYOffset()
 
-	totalVisual := e.textarea.layout.totalVisualLines()
-	if totalVisual == 0 {
-		return SelectionAnchor{Line: 0, Column: 0}
-	}
-
-	if visualRow >= totalVisual {
-		visualRow = totalVisual - 1
-	}
-
-	logLine, runeCol := e.textarea.layout.viewCellToLogical(visualRow, cellCol)
+	logLine, runeCol := e.textarea.positionFromCell(visualRow, cellCol)
 
 	return SelectionAnchor{Line: logLine, Column: runeCol}
 }
 
 func (e *Editor) moveCursorTo(pos SelectionAnchor) {
-	e.textarea.MoveToBegin()
-
-	for range pos.Line {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(pos.Column)
-}
-
-// cellToRuneIndex はセル幅の位置をルーンインデックスに変換する。
-// 全角文字（幅2セル）を考慮して正確なルーン位置を返す。
-func cellToRuneIndex(runes []rune, cellCol int) int {
-	w := 0
-
-	for i, r := range runes {
-		rw := runewidth.RuneWidth(r)
-		if w+rw > cellCol {
-			return i
-		}
-
-		w += rw
-		if w >= cellCol {
-			return i + 1
-		}
-	}
-
-	return len(runes)
+	e.textarea.MoveTo(pos.Line, pos.Column)
 }
 
 // --- クリック・ホバー ---
@@ -643,12 +597,6 @@ func (e *Editor) urlAtCursor() string {
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {
 	e.textarea.SetValue(snap.Text)
-	e.textarea.MoveToBegin()
-
-	for range snap.CursorLine {
-		e.textarea.CursorDown()
-	}
-
-	e.textarea.SetCursorColumn(snap.CursorCol)
+	e.textarea.MoveTo(snap.CursorLine, snap.CursorCol)
 	e.ClearSelection()
 }

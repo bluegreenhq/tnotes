@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/mattn/go-runewidth"
+import (
+	"github.com/mattn/go-runewidth"
+
+	"github.com/bluegreenhq/tnotes/internal/utils"
+)
 
 // softWrapLayout は幅で論理行を文字単位で分割する。
 type softWrapLayout struct {
@@ -224,7 +228,7 @@ func (l *softWrapLayout) viewCellToLogical(visualRow, cellCol int) (int, int) {
 	end := min(startRune+vl.length, len(l.lines[logLine]))
 	visibleRunes := l.lines[logLine][startRune:end]
 
-	return logLine, startRune + cellToRuneIndex(visibleRunes, cellCol)
+	return logLine, startRune + utils.CellToRuneIndex(visibleRunes, cellCol)
 }
 
 // getVisualLine は指定された視覚行インデックスの visualLine を返す。

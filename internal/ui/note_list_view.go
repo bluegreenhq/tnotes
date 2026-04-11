@@ -79,6 +79,7 @@ func (s *NoteList) writeHeader(b *strings.Builder, contentWidth int, folderVisib
 	}
 
 	count := fmt.Sprintf("%d ", len(s.notes))
+	titleName = truncateForCount(titleName, count, contentWidth)
 	padding := max(contentWidth-lipgloss.Width(titleName)-lipgloss.Width(count), 0)
 
 	titleStr := lipgloss.NewStyle().Bold(true).Render(titleName) +

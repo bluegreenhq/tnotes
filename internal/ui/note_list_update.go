@@ -173,15 +173,15 @@ func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList,
 func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'n':
-		return *s, noteListCmd(NoteListCreate)
+		return *s, NoteListCreate.Cmd()
 	case 'd', tea.KeyDelete, tea.KeyBackspace:
-		return *s, noteListCmd(NoteListTrash)
+		return *s, NoteListTrash.Cmd()
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
 		return s.moveDownCmd(now)
 	case tea.KeyEnter:
-		return *s, noteListCmd(NoteListEdit)
+		return *s, NoteListEdit.Cmd()
 	}
 
 	return *s, nil
@@ -190,7 +190,7 @@ func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList
 func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'r':
-		return *s, noteListCmd(NoteListRestore)
+		return *s, NoteListRestore.Cmd()
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
@@ -204,12 +204,12 @@ func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, 
 	switch msg.Code {
 	case 'z':
 		if msg.Mod&tea.ModShift != 0 {
-			return *s, noteListCmd(NoteListRedo)
+			return *s, NoteListRedo.Cmd()
 		}
 
-		return *s, noteListCmd(NoteListUndo)
+		return *s, NoteListUndo.Cmd()
 	case 'c':
-		return *s, noteListCmd(NoteListCopy)
+		return *s, NoteListCopy.Cmd()
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':
@@ -224,7 +224,7 @@ func (s *NoteList) moveUpCmd(now time.Time) (NoteList, tea.Cmd) {
 	s.MoveUp(now)
 
 	if s.selected != prev {
-		return *s, noteListCmd(NoteListSelect)
+		return *s, NoteListSelect.Cmd()
 	}
 
 	return *s, nil
@@ -235,12 +235,8 @@ func (s *NoteList) moveDownCmd(now time.Time) (NoteList, tea.Cmd) {
 	s.MoveDown(now)
 
 	if s.selected != prev {
-		return *s, noteListCmd(NoteListSelect)
+		return *s, NoteListSelect.Cmd()
 	}
 
 	return *s, nil
-}
-
-func noteListCmd(msg NoteListMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
 }

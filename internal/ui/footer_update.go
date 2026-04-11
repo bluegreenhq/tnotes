@@ -72,11 +72,11 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 
 	switch target {
 	case HoverQuit:
-		return footerCmd(FooterQuit)
+		return FooterQuit.Cmd()
 	case HoverCopy:
-		return footerCmd(FooterCopy)
+		return FooterCopy.Cmd()
 	case HoverCut:
-		return footerCmd(FooterCut)
+		return FooterCut.Cmd()
 	case HoverNone, HoverMore:
 		return nil
 	}
@@ -94,15 +94,11 @@ func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
 		return nil
 	}
 
-	return footerCmd(f.menuMsgs[idx])
+	return f.menuMsgs[idx].Cmd()
 }
 
 // SetMenuHover はメニュー領域のホバーを更新する。
 // x, y はメニュー左上を原点とする相対座標。
 func (f *Footer) SetMenuHover(x, y int) {
 	f.PopupMenu.SetHoverByPos(x, y)
-}
-
-func footerCmd(msg FooterMsg) tea.Cmd {
-	return func() tea.Msg { return msg }
 }
