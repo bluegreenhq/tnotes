@@ -56,6 +56,10 @@ type editorOpenURLMsg struct {
 	URL string
 }
 
+func (m editorOpenURLMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
 // FolderListMsg はフォルダ一覧からモデルへの通知メッセージ。
 type FolderListMsg int
 
@@ -76,15 +80,27 @@ type folderCreateMsg struct {
 	Name string
 }
 
+func (m folderCreateMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
 // folderDeleteMsg はフォルダ削除を運ぶメッセージ。
 type folderDeleteMsg struct {
 	Name string
+}
+
+func (m folderDeleteMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
 }
 
 // folderRenameMsg はフォルダリネームを運ぶメッセージ。
 type folderRenameMsg struct {
 	OldName string
 	NewName string
+}
+
+func (m folderRenameMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
 }
 
 // FooterMsg はフッターからモデルへの通知メッセージ。
@@ -134,4 +150,8 @@ const (
 // noteMoveMsg はノートを別フォルダに移動するメッセージ。
 type noteMoveMsg struct {
 	DestFolder string
+}
+
+func (m noteMoveMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
 }

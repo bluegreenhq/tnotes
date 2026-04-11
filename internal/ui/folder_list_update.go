@@ -163,9 +163,7 @@ func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 			fl.renameName = ""
 			fl.inputValue = ""
 
-			return *fl, func() tea.Msg {
-				return folderRenameMsg{OldName: oldName, NewName: newName}
-			}
+			return *fl, folderRenameMsg{OldName: oldName, NewName: newName}.Cmd()
 		}
 
 		fl.CancelRename()
@@ -199,9 +197,7 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) 
 			name := fl.inputValue
 			fl.inputValue = ""
 
-			return *fl, func() tea.Msg {
-				return folderCreateMsg{Name: name}
-			}
+			return *fl, folderCreateMsg{Name: name}.Cmd()
 		}
 
 		return *fl, nil

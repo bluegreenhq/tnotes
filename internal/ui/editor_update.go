@@ -207,7 +207,7 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 		_ = e.PasteFromClipboard()
 	case msg.Code == 'o' && msg.Mod == tea.ModCtrl:
 		if u := e.urlAtCursor(); u != "" {
-			return true, func() tea.Msg { return editorOpenURLMsg{URL: u} }
+			return true, editorOpenURLMsg{URL: u}.Cmd()
 		}
 
 		return true, nil

@@ -162,9 +162,7 @@ func (h *EditorHeader) HandleMoveMenuClick(x, y int) tea.Cmd {
 
 	dest := h.moveFolders[idx]
 
-	return func() tea.Msg {
-		return noteMoveMsg{DestFolder: dest}
-	}
+	return noteMoveMsg{DestFolder: dest}.Cmd()
 }
 
 // MoveMenuHeight は移動先メニューの高さを返す。

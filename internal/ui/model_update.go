@@ -1216,9 +1216,7 @@ func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
 	case menuDelete:
 		name := m.FolderList.SelectedName()
 
-		return func() tea.Msg {
-			return folderDeleteMsg{Name: name}
-		}
+		return folderDeleteMsg{Name: name}.Cmd()
 	}
 
 	return nil
