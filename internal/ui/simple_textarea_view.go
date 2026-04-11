@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/mattn/go-runewidth"
+
+	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
 // View はテキストエリアの描画内容をプレーンテキストで返す。
@@ -48,7 +50,7 @@ func truncateLineWithScroll(line []rune, scrollX, width int) string {
 		return string(line)
 	}
 
-	startRune := cellToRuneIndex(line, scrollX)
+	startRune := utils.CellToRuneIndex(line, scrollX)
 	remaining := line[startRune:]
 
 	cellWidth := 0

@@ -31,6 +31,26 @@ func Truncate(s string, maxWidth int) string {
 	return s
 }
 
+// CellToRuneIndex はセル幅の位置をルーンインデックスに変換する。
+// 全角文字（幅2セル）を考慮して正確なルーン位置を返す。
+func CellToRuneIndex(runes []rune, cellCol int) int {
+	w := 0
+
+	for i, r := range runes {
+		rw := runewidth.RuneWidth(r)
+		if w+rw > cellCol {
+			return i
+		}
+
+		w += rw
+		if w >= cellCol {
+			return i + 1
+		}
+	}
+
+	return len(runes)
+}
+
 // ClampInt は値を [lo, hi] の範囲に制限する。
 func ClampInt(v, lo, hi int) int {
 	if v < lo {

@@ -7,7 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
 	"github.com/cockroachdb/errors"
-	"github.com/mattn/go-runewidth"
 
 	"github.com/bluegreenhq/tnotes/internal/note"
 	"github.com/bluegreenhq/tnotes/internal/utils"
@@ -435,26 +434,6 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 
 func (e *Editor) moveCursorTo(pos SelectionAnchor) {
 	e.textarea.MoveTo(pos.Line, pos.Column)
-}
-
-// cellToRuneIndex はセル幅の位置をルーンインデックスに変換する。
-// 全角文字（幅2セル）を考慮して正確なルーン位置を返す。
-func cellToRuneIndex(runes []rune, cellCol int) int {
-	w := 0
-
-	for i, r := range runes {
-		rw := runewidth.RuneWidth(r)
-		if w+rw > cellCol {
-			return i
-		}
-
-		w += rw
-		if w >= cellCol {
-			return i + 1
-		}
-	}
-
-	return len(runes)
 }
 
 // --- クリック・ホバー ---

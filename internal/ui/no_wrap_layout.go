@@ -1,6 +1,10 @@
 package ui
 
-import "github.com/mattn/go-runewidth"
+import (
+	"github.com/mattn/go-runewidth"
+
+	"github.com/bluegreenhq/tnotes/internal/utils"
+)
 
 // noWrapLayout は折り返しなしの1:1マッピングを提供する。
 type noWrapLayout struct {
@@ -112,7 +116,7 @@ func (l *noWrapLayout) viewLineStartRune(visualRow, scrollX int) (int, int) {
 		return 0, 0
 	}
 
-	startRuneOff := cellToRuneIndex(l.lines[line], scrollX)
+	startRuneOff := utils.CellToRuneIndex(l.lines[line], scrollX)
 
 	return line, startRuneOff
 }
@@ -127,7 +131,7 @@ func (l *noWrapLayout) viewCellToLogical(visualRow, cellCol int) (int, int) {
 		line = len(l.lines) - 1
 	}
 
-	col := cellToRuneIndex(l.lines[line], cellCol)
+	col := utils.CellToRuneIndex(l.lines[line], cellCol)
 
 	return line, col
 }
