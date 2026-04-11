@@ -10,11 +10,21 @@ func (fl *FolderList) StartInput() tea.Cmd {
 	return fl.blink.Reset()
 }
 
-// CancelInput はインライン入力をキャンセルする。
+// CommitInput はインライン入力を確定する。値が空なら破棄する。
+func (fl *FolderList) CommitInput() tea.Cmd {
+	val := fl.lineInput.Value()
+	fl.clearInput()
+
+	if val != "" {
+		return folderCreateMsg{Name: val}.Cmd()
+	}
+
+	return nil
+}
+
+// CancelInput はインライン入力を破棄する（Esc用）。
 func (fl *FolderList) CancelInput() {
-	fl.inputMode = false
-	fl.lineInput.Reset()
-	fl.blink.Stop()
+	fl.clearInput()
 }
 
 // StartRename はリネーム入力モードを開始する。
@@ -27,8 +37,31 @@ func (fl *FolderList) StartRename() tea.Cmd {
 	return fl.blink.Reset()
 }
 
-// CancelRename はリネーム入力をキャンセルする。
+// CommitRename はリネーム入力を確定する。値が空または変更なしなら破棄する。
+func (fl *FolderList) CommitRename() tea.Cmd {
+	val := fl.lineInput.Value()
+	oldName := fl.renameName
+	fl.clearRename()
+
+	if val != "" && val != oldName {
+		return folderRenameMsg{OldName: oldName, NewName: val}.Cmd()
+	}
+
+	return nil
+}
+
+// CancelRename はリネーム入力を破棄する（Esc用）。
 func (fl *FolderList) CancelRename() {
+	fl.clearRename()
+}
+
+func (fl *FolderList) clearInput() {
+	fl.inputMode = false
+	fl.lineInput.Reset()
+	fl.blink.Stop()
+}
+
+func (fl *FolderList) clearRename() {
 	fl.renameMode = false
 	fl.renameName = ""
 	fl.lineInput.Reset()
@@ -166,20 +199,7 @@ func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 	case lineInputNone:
 		// blink reset は model_update 側で行う
 	case lineInputSubmit:
-		val := fl.lineInput.Value()
-		if val != "" && val != fl.renameName {
-			oldName := fl.renameName
-			fl.renameMode = false
-			fl.renameName = ""
-			fl.lineInput.Reset()
-			fl.blink.Stop()
-
-			return *fl, folderRenameMsg{OldName: oldName, NewName: val}.Cmd()
-		}
-
-		fl.CancelRename()
-
-		return *fl, nil
+		return *fl, fl.CommitRename()
 	case lineInputCancel:
 		fl.CancelRename()
 
@@ -196,20 +216,9 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) 
 	case lineInputNone:
 		// blink reset は model_update 側で行う
 	case lineInputSubmit:
-		val := fl.lineInput.Value()
-		if val != "" {
-			fl.inputMode = false
-			fl.lineInput.Reset()
-			fl.blink.Stop()
-
-			return *fl, folderCreateMsg{Name: val}.Cmd()
-		}
-
-		return *fl, nil
+		return *fl, fl.CommitInput()
 	case lineInputCancel:
-		fl.inputMode = false
-		fl.lineInput.Reset()
-		fl.blink.Stop()
+		fl.CancelInput()
 
 		return *fl, nil
 	}

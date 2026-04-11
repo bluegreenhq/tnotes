@@ -191,13 +191,33 @@ func (m *Model) handleDefault(msg tea.Msg, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // mouse dispatch
+func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
 
 	if msg.Button != tea.MouseLeft {
 		return nil
 	}
 
+	// インライン入力中はクリックで確定
+	commitCmd := m.commitFolderLineInput()
+	clickCmd := m.handleClickInner(msg, now)
+
+	return tea.Batch(commitCmd, clickCmd)
+}
+
+func (m *Model) commitFolderLineInput() tea.Cmd {
+	if m.FolderList.InputMode() {
+		return m.FolderList.CommitInput()
+	}
+
+	if m.FolderList.RenameMode() {
+		return m.FolderList.CommitRename()
+	}
+
+	return nil
+}
+
+func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop // mouse dispatch
 	// 確認ダイアログ表示中
 	if m.confirmDialog != nil {
 		return m.handleConfirmDialogClick(msg)
@@ -381,9 +401,6 @@ func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.
 
 	idx := m.FolderList.HitTest(msg.X, msg.Y)
 	if idx >= 0 {
-		m.FolderList.CancelInput()
-		m.FolderList.CancelRename()
-
 		cmd := m.FolderList.SelectIndex(idx)
 		m.Focus = FocusFolderList
 
