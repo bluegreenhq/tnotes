@@ -434,16 +434,7 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 	cellCol := max(x-1, 0) // padding分を差し引き
 	visualRow := y + e.textarea.ScrollYOffset()
 
-	totalVisual := e.textarea.layout.totalVisualLines()
-	if totalVisual == 0 {
-		return SelectionAnchor{Line: 0, Column: 0}
-	}
-
-	if visualRow >= totalVisual {
-		visualRow = totalVisual - 1
-	}
-
-	logLine, runeCol := e.textarea.layout.viewCellToLogical(visualRow, cellCol)
+	logLine, runeCol := e.textarea.positionFromCell(visualRow, cellCol)
 
 	return SelectionAnchor{Line: logLine, Column: runeCol}
 }

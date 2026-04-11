@@ -30,6 +30,18 @@ func (t *simpleTextArea) View() string {
 	return b.String()
 }
 
+// visualLineLength は指定視覚行のルーン数を返す。
+func (t *simpleTextArea) visualLineLength(visualRow int) int {
+	logLine, startRune := t.layout.visualToLogical(visualRow)
+	for _, v := range t.layout.visualLinesFor(logLine) {
+		if v.startRune == startRune {
+			return v.length
+		}
+	}
+
+	return 0
+}
+
 // truncateLineWithScroll は水平スクロール位置から幅分のテキストを返す。
 func truncateLineWithScroll(line []rune, scrollX, width int) string {
 	if width <= 0 {

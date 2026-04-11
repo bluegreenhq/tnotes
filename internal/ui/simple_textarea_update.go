@@ -268,3 +268,18 @@ func (t *simpleTextArea) cursorRight() {
 		t.ensureVisible()
 	}
 }
+
+// positionFromCell は視覚行・セル列から論理行・ルーン列を返す。
+// 視覚行が範囲外の場合はクランプする。
+func (t *simpleTextArea) positionFromCell(visualRow, cellCol int) (int, int) {
+	total := t.layout.totalVisualLines()
+	if total == 0 {
+		return 0, 0
+	}
+
+	if visualRow >= total {
+		visualRow = total - 1
+	}
+
+	return t.layout.viewCellToLogical(visualRow, cellCol)
+}

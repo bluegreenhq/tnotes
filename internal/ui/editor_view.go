@@ -106,7 +106,7 @@ func (e *Editor) applyURLStyle(raw string) string {
 			continue
 		}
 
-		visLen := findVisualLineLength(e.textarea.layout.visualLinesFor(logLine), startRuneOff)
+		visLen := e.textarea.visualLineLength(visualRow)
 		styled := styleURLsInLine([]rune(line), logicalText, locs, startRuneOff, visLen)
 
 		if styled != "" {
@@ -115,16 +115,6 @@ func (e *Editor) applyURLStyle(raw string) string {
 	}
 
 	return strings.Join(viewLines, "\n")
-}
-
-func findVisualLineLength(vLines []visualLine, startRuneOff int) int {
-	for _, v := range vLines {
-		if v.startRune == startRuneOff {
-			return v.length
-		}
-	}
-
-	return 0
 }
 
 func styleURLsInLine(runes []rune, logicalText string, locs [][]int, startRuneOff, visLen int) string {
