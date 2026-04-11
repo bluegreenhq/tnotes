@@ -9,7 +9,6 @@ import (
 const (
 	confirmDialogPaddingH = 2
 	confirmDialogWidth    = 40
-	confirmButtonGap      = "  "
 )
 
 // View はダイアログの描画内容を返す。
@@ -18,18 +17,25 @@ func (d *ConfirmDialog) View() string {
 
 	titleStyle := lipgloss.NewStyle().Bold(true)
 	b.WriteString(titleStyle.Render(d.Title))
-	b.WriteString("\n")
+	b.WriteString("\n\n")
 	b.WriteString(d.Detail)
 	b.WriteString("\n\n")
 
-	yesBtn := d.renderButton(d.confirmBtn, d.hoverYes)
-	noBtn := d.renderButton(d.cancelBtn, d.hoverNo)
-	b.WriteString(yesBtn + confirmButtonGap + noBtn)
+	gap := strings.Repeat(" ", confirmButtonGapCols)
+	pad := strings.Repeat(" ", d.buttonPadLeft())
+	b.WriteString(pad + d.yesBtn.ViewTop() + gap + d.noBtn.ViewTop())
+	b.WriteString("\n")
+	b.WriteString(pad + d.yesBtn.ViewMiddle() + gap + d.noBtn.ViewMiddle())
+	b.WriteString("\n")
+	b.WriteString(pad + d.yesBtn.ViewBottom() + gap + d.noBtn.ViewBottom())
 
 	style := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("9")).
-		Padding(1, confirmDialogPaddingH).
+		PaddingTop(1).
+		PaddingBottom(0).
+		PaddingLeft(confirmDialogPaddingH).
+		PaddingRight(confirmDialogPaddingH).
 		Width(confirmDialogWidth)
 
 	return style.Render(b.String())
@@ -39,12 +45,4 @@ func (d *ConfirmDialog) View() string {
 func (d *ConfirmDialog) DialogLines() int {
 	// padding上1 + border上1 + content + padding下1 + border下1
 	return d.contentLines() + confirmBorderPad
-}
-
-func (d *ConfirmDialog) renderButton(label string, hovered bool) string {
-	if hovered {
-		return buttonHoverStyle.Render(label)
-	}
-
-	return buttonStyle.Render(label)
 }

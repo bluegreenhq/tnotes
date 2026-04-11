@@ -22,35 +22,49 @@ func (d *ConfirmDialog) Update(msg tea.Msg) ConfirmResult {
 // HandleClick は相対座標でのクリックを処理する。
 // relY はダイアログコンテンツ内の行番号。
 func (d *ConfirmDialog) HandleClick(relX, relY int) ConfirmResult {
-	if relY != d.contentLines()-1 {
+	buttonTop := d.contentLines() - confirmButtonRows // ボタン3行の先頭行
+
+	if relY < buttonTop || relY > buttonTop+2 {
 		return ConfirmContinue
 	}
 
-	if relX < len(d.confirmBtn) {
+	padLeft := d.buttonPadLeft()
+	noStartX := padLeft + d.yesBtn.DisplayWidth() + confirmButtonGapCols
+
+	if d.yesBtn.HitTest(relX, padLeft) {
 		return ConfirmYes
 	}
 
-	return ConfirmNo
+	if d.noBtn.HitTest(relX, noStartX) {
+		return ConfirmNo
+	}
+
+	return ConfirmContinue
 }
 
 // HandleMotion は相対座標でのマウスホバーを処理する。
 func (d *ConfirmDialog) HandleMotion(relX, relY int) {
-	d.hoverYes = false
-	d.hoverNo = false
+	d.yesBtn.SetHovered(false)
+	d.noBtn.SetHovered(false)
 
-	if relY != d.contentLines()-1 {
+	buttonTop := d.contentLines() - confirmButtonRows
+
+	if relY < buttonTop || relY > buttonTop+2 {
 		return
 	}
 
-	if relX < len(d.confirmBtn) {
-		d.hoverYes = true
-	} else {
-		d.hoverNo = true
+	padLeft := d.buttonPadLeft()
+	noStartX := padLeft + d.yesBtn.DisplayWidth() + confirmButtonGapCols
+
+	if d.yesBtn.HitTest(relX, padLeft) {
+		d.yesBtn.SetHovered(true)
+	} else if d.noBtn.HitTest(relX, noStartX) {
+		d.noBtn.SetHovered(true)
 	}
 }
 
 // ClearHover はホバー状態をリセットする。
 func (d *ConfirmDialog) ClearHover() {
-	d.hoverYes = false
-	d.hoverNo = false
+	d.yesBtn.SetHovered(false)
+	d.noBtn.SetHovered(false)
 }
