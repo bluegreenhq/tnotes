@@ -120,6 +120,8 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 
 	startY := folderListHeaderLines // ヘッダー直下
 
+	menuRight := menuX + menuWidth
+
 	for i, menuLine := range menuLines {
 		y := startY + i
 		if y >= len(bodyLines) {
@@ -129,7 +131,8 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)
-		bodyLines[y] = padded + menuLine
+		rest := ansi.TruncateLeft(bodyLines[y], menuRight, "")
+		bodyLines[y] = padded + menuLine + rest
 	}
 }
 
