@@ -21,19 +21,20 @@ func selBefore(a, b SelectionAnchor) bool {
 
 // Editor はテキスト編集ペインの状態を表す。
 type Editor struct {
-	Header       *EditorHeader
-	textarea     simpleTextArea
-	noteID       note.NoteID
-	original     string
-	width        int
-	height       int
-	readOnly     bool
-	selecting    bool // ドラッグ中か
-	selStart     *SelectionAnchor
-	selEnd       *SelectionAnchor
-	UndoMgr      *EditorUndoManager
-	blinkVisible bool // カーソルが表示状態か
-	blinkTag     int  // blink メッセージの世代タグ
+	Header          *EditorHeader
+	textarea        simpleTextArea
+	noteID          note.NoteID
+	original        string
+	width           int
+	height          int
+	readOnly        bool
+	selecting       bool // ドラッグ中か
+	selStart        *SelectionAnchor
+	selEnd          *SelectionAnchor
+	UndoMgr         *EditorUndoManager
+	blink           cursorBlink
+	contextMenuOpen bool       // コンテキストメニュー表示中
+	ContextMenu     *PopupMenu // コンテキストメニュー
 }
 
 // NewEditor は新しい Editor を生成する。
@@ -43,19 +44,20 @@ func NewEditor(width, height int, noWrap bool) Editor {
 	ta.SetHeight(height - editorHeaderHeight)
 
 	return Editor{
-		Header:       NewEditorHeader(width),
-		textarea:     ta,
-		noteID:       "",
-		original:     "",
-		width:        width,
-		height:       height,
-		readOnly:     false,
-		selecting:    false,
-		selStart:     nil,
-		selEnd:       nil,
-		UndoMgr:      NewEditorUndoManager(),
-		blinkVisible: true,
-		blinkTag:     0,
+		Header:          NewEditorHeader(width),
+		textarea:        ta,
+		noteID:          "",
+		original:        "",
+		width:           width,
+		height:          height,
+		readOnly:        false,
+		selecting:       false,
+		selStart:        nil,
+		selEnd:          nil,
+		UndoMgr:         NewEditorUndoManager(),
+		blink:           newCursorBlink(blinkOwnerEditor),
+		contextMenuOpen: false,
+		ContextMenu:     NewPopupMenu(nil),
 	}
 }
 
@@ -83,4 +85,4 @@ func (e *Editor) HasSelection() bool {
 func (e *Editor) Selecting() bool { return e.selecting }
 
 // BlinkVisible はカーソルの表示状態を返す。
-func (e *Editor) BlinkVisible() bool { return e.blinkVisible }
+func (e *Editor) BlinkVisible() bool { return e.blink.Visible() }

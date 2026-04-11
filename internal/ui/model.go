@@ -38,6 +38,12 @@ type clearInfoMsg struct {
 	id int
 }
 
+// menuAnchor は右クリック時のメニュー表示位置を表す。
+type menuAnchor struct {
+	x int // 画面絶対座標
+	y int
+}
+
 // Model はUIの状態を表す。
 type Model struct {
 	App                 *app.App
@@ -60,6 +66,7 @@ type Model struct {
 	indexModTime        time.Time
 	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
 	confirmDeleteFolder string         // 削除確認中のフォルダ名
+	menuAnchor          *menuAnchor    // 右クリック時のメニュー表示位置（nil = デフォルト位置）
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -87,6 +94,7 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		indexModTime:        time.Time{},
 		confirmDialog:       nil,
 		confirmDeleteFolder: "",
+		menuAnchor:          nil,
 	}
 
 	return m

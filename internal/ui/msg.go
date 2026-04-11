@@ -31,11 +31,6 @@ const (
 	NoteListQuit
 )
 
-// cursorBlinkMsg はカーソルの点滅状態を切り替えるメッセージ。
-type cursorBlinkMsg struct {
-	tag int
-}
-
 // EditorMsg はエディタからモデルへの通知メッセージ。
 type EditorMsg int
 
@@ -49,6 +44,15 @@ const (
 	EditorBlur EditorMsg = iota
 	// EditorSave はノート保存を要求する。
 	EditorSave
+)
+
+// editorContextMsg はエディタコンテキストメニューのアクション。
+type editorContextMsg int
+
+const (
+	editorContextCopy editorContextMsg = iota
+	editorContextCut
+	editorContextPaste
 )
 
 // editorOpenURLMsg はカーソル位置のURLをブラウザで開くことを要求するメッセージ。

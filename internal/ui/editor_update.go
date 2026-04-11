@@ -12,32 +12,14 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
-const blinkInterval = 500 * time.Millisecond
-
 // resetBlink はカーソルを表示状態にリセットし、新しい blink タイマーを開始する。
 func (e *Editor) resetBlink() tea.Cmd {
-	e.blinkVisible = true
-	e.blinkTag++
-	tag := e.blinkTag
-
-	return tea.Tick(blinkInterval, func(_ time.Time) tea.Msg {
-		return cursorBlinkMsg{tag: tag}
-	})
+	return e.blink.Reset()
 }
 
 // HandleBlinkMsg は cursorBlinkMsg を処理して blink 状態を切り替える。
-// tag が一致しない場合は無視して nil を返す。
 func (e *Editor) HandleBlinkMsg(msg cursorBlinkMsg) tea.Cmd {
-	if msg.tag != e.blinkTag {
-		return nil
-	}
-
-	e.blinkVisible = !e.blinkVisible
-	tag := e.blinkTag
-
-	return tea.Tick(blinkInterval, func(_ time.Time) tea.Msg {
-		return cursorBlinkMsg{tag: tag}
-	})
+	return e.blink.HandleMsg(msg)
 }
 
 // LoadNote はノートをエディタに読み込む。
@@ -62,7 +44,7 @@ func (e *Editor) MarkClean() { e.original = e.textarea.Value() }
 // Focus はエディタにフォーカスを当て、blink タイマーを開始する。
 func (e *Editor) Focus() tea.Cmd {
 	focusCmd := e.textarea.Focus()
-	blinkCmd := e.resetBlink()
+	blinkCmd := e.blink.Reset()
 
 	return tea.Batch(focusCmd, blinkCmd)
 }
@@ -70,8 +52,7 @@ func (e *Editor) Focus() tea.Cmd {
 // Blur はエディタのフォーカスを外し、blink を停止する。
 func (e *Editor) Blur() {
 	e.textarea.Blur()
-	e.blinkVisible = true
-	e.blinkTag++
+	e.blink.Stop()
 }
 
 // SetSize はサイズを更新する。
@@ -593,6 +574,47 @@ func (e *Editor) urlAtCursor() string {
 	}
 
 	return ""
+}
+
+// OpenContextMenu はエディタのコンテキストメニューを開く。
+func (e *Editor) OpenContextMenu() {
+	hasSel := e.HasSelection()
+	items := []MenuItem{
+		{Label: "Copy", Disabled: !hasSel},
+		{Label: "Cut", Disabled: !hasSel || e.readOnly},
+		{Label: "Paste", Disabled: e.readOnly},
+	}
+	e.ContextMenu = NewPopupMenu(items)
+	e.contextMenuOpen = true
+}
+
+// CloseContextMenu はエディタのコンテキストメニューを閉じる。
+func (e *Editor) CloseContextMenu() {
+	e.contextMenuOpen = false
+	e.ContextMenu.hover = -1
+}
+
+// IsContextMenuOpen はコンテキストメニューが開いているかを返す。
+func (e *Editor) IsContextMenuOpen() bool { return e.contextMenuOpen }
+
+// HandleContextMenuClick はコンテキストメニューのクリックを処理する。
+// x, y はメニュー左上を原点とする相対座標。
+func (e *Editor) HandleContextMenuClick(x, y int) {
+	idx, hit := e.ContextMenu.HandleClick(x, y)
+	e.CloseContextMenu()
+
+	if !hit {
+		return
+	}
+
+	switch editorContextMsg(idx) {
+	case editorContextCopy:
+		_ = e.CopySelection()
+	case editorContextCut:
+		_ = e.CutSelection()
+	case editorContextPaste:
+		_ = e.PasteFromClipboard()
+	}
 }
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {

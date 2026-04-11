@@ -27,8 +27,7 @@ func (fl *FolderList) View(focused bool, hoverSeparator bool) string {
 	// フォルダ一覧
 	for i, folder := range fl.folders {
 		if fl.renameMode && i == fl.selected {
-			inputStr := " " + fl.inputValue + "█"
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(inputStr))
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(fl.lineInput.View(fl.blink.Visible())))
 		} else {
 			fl.renderFolder(&b, folder, i == fl.selected, contentWidth)
 		}
@@ -38,8 +37,7 @@ func (fl *FolderList) View(focused bool, hoverSeparator bool) string {
 
 	// インライン入力
 	if fl.inputMode {
-		inputStr := " " + fl.inputValue + "█"
-		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(inputStr))
+		b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render(fl.lineInput.View(fl.blink.Visible())))
 		b.WriteString("\n\n")
 	}
 

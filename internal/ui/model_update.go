@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/atotto/clipboard"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
@@ -62,9 +63,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 
 		return m, nil
 	case cursorBlinkMsg:
-		cmd := m.Editor.HandleBlinkMsg(msg)
+		switch msg.owner {
+		case blinkOwnerEditor:
+			return m, m.Editor.HandleBlinkMsg(msg)
+		case blinkOwnerFolderList:
+			return m, m.FolderList.blink.HandleMsg(msg)
+		}
 
-		return m, cmd
+		return m, nil
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
@@ -73,6 +79,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 }
 
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // key dispatch
+	// 右クリックメニューが開いている場合
+	if m.menuAnchor != nil {
+		m.closeMenusAndAnchor()
+
+		return nil
+	}
+
 	// 確認ダイアログ表示中
 	if m.confirmDialog != nil {
 		return m.handleConfirmDialogKey(msg)
@@ -103,15 +116,15 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		m.Focus = FocusFolderList
 
 		return nil
-	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0 && m.Focus != FocusEditor:
+	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0 &&
+		m.Focus != FocusEditor &&
+		!m.FolderList.InputMode() && !m.FolderList.RenameMode():
 		return m.toggleFolderList(now)
 	}
 
 	switch m.Focus {
 	case FocusFolderList:
-		_, cmd := m.FolderList.Update(msg)
-
-		return m.processFolderListCmd(cmd, now)
+		return m.handleFolderListKey(msg, now)
 	case FocusNoteList:
 		_, cmd := m.NoteList.Update(msg, now, m.App.TrashMode)
 
@@ -186,11 +199,150 @@ func (m *Model) handleDefault(msg tea.Msg, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // mouse dispatch
+func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
+
+	if msg.Button == tea.MouseRight {
+		return m.handleRightClick(msg, now)
+	}
 
 	if msg.Button != tea.MouseLeft {
 		return nil
+	}
+
+	// インライン入力中はクリックで確定
+	commitCmd := m.commitFolderLineInput()
+	clickCmd := m.handleClickInner(msg, now)
+
+	return tea.Batch(commitCmd, clickCmd)
+}
+
+func (m *Model) commitFolderLineInput() tea.Cmd {
+	if m.FolderList.InputMode() {
+		return m.FolderList.CommitInput()
+	}
+
+	if m.FolderList.RenameMode() {
+		return m.FolderList.CommitRename()
+	}
+
+	return nil
+}
+
+func (m *Model) handleRightClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	// 既存メニューをすべて閉じる
+	m.closeMenusAndAnchor()
+
+	switch {
+	case m.FolderList.Visible() && msg.X < m.folderListWidth:
+		return m.rightClickFolderList(msg)
+	case msg.X < m.noteListOffset()+m.noteListWidth:
+		return m.rightClickNoteList(msg, now)
+	default:
+		return m.rightClickEditor(msg)
+	}
+}
+
+func (m *Model) rightClickNoteList(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	// クリック位置のノートを選択
+	relX := msg.X - m.noteListOffset()
+	idx := m.NoteList.HitTest(relX, msg.Y, now)
+
+	if idx < 0 {
+		return nil
+	}
+
+	if !m.App.TrashMode {
+		m.syncEditorToNote(now)
+	}
+
+	m.NoteList.SelectIndex(idx, now)
+	m.loadSelectedNote()
+
+	// 既存の EditorHeader メニューをそのまま開く
+	m.Editor.Header.OpenMenu()
+	m.menuAnchor = &menuAnchor{x: msg.X, y: msg.Y}
+
+	return nil
+}
+
+func (m *Model) rightClickFolderList(msg tea.MouseClickMsg) tea.Cmd {
+	// クリック位置のフォルダを選択
+	idx := m.FolderList.HitTest(msg.X, msg.Y)
+	if idx >= 0 {
+		m.FolderList.SelectIndex(idx)
+	}
+
+	if !m.FolderList.IsUserFolder() {
+		return nil
+	}
+
+	// 既存の FolderList メニューをそのまま開く
+	m.FolderList.OpenMenu()
+	m.menuAnchor = &menuAnchor{x: msg.X, y: msg.Y}
+
+	return nil
+}
+
+func (m *Model) rightClickEditor(msg tea.MouseClickMsg) tea.Cmd {
+	if m.Editor.ReadOnly() {
+		return nil
+	}
+
+	m.Editor.OpenContextMenu()
+	m.menuAnchor = &menuAnchor{x: msg.X, y: msg.Y}
+
+	return nil
+}
+
+// closeMenusAndAnchor は全てのメニューとアンカーを閉じる。
+func (m *Model) closeMenusAndAnchor() {
+	m.menuAnchor = nil
+	m.Editor.Header.CloseMenu()
+	m.Editor.Header.CloseMoveMenu()
+	m.Editor.CloseContextMenu()
+	m.FolderList.CloseMenu()
+	m.Footer.CloseMenu()
+}
+
+func (m *Model) handleAnchoredMenuClick(msg tea.MouseClickMsg) tea.Cmd {
+	menu := m.anchoredMenu()
+	if menu == nil {
+		m.menuAnchor = nil
+
+		return nil
+	}
+
+	x, y := m.anchoredMenuOrigin(menu)
+	relX := msg.X - x
+	relY := msg.Y - y
+
+	var cmd tea.Cmd
+
+	switch {
+	case m.Editor.IsContextMenuOpen():
+		m.Editor.HandleContextMenuClick(relX, relY)
+	case m.Editor.Header.MenuOpen():
+		cmd = m.Editor.Header.HandleMenuClick(relX, relY)
+		cmd = m.processEditorHeaderCmd(cmd, time.Now())
+	case m.FolderList.MenuOpen():
+		idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
+		m.FolderList.CloseMenu()
+
+		if hit {
+			cmd = m.handleFolderMenuAction(idx)
+		}
+	}
+
+	m.menuAnchor = nil
+
+	return cmd
+}
+
+func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop // mouse dispatch
+	// 右クリックメニュー（アンカー付き）が開いている場合
+	if m.menuAnchor != nil {
+		return m.handleAnchoredMenuClick(msg)
 	}
 
 	// 確認ダイアログ表示中
@@ -350,6 +502,19 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
+func (m *Model) handleFolderListKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+	_, cmd := m.FolderList.Update(msg)
+	folderCmd := m.processFolderListCmd(cmd, now)
+
+	if m.FolderList.InputMode() || m.FolderList.RenameMode() {
+		blinkCmd := m.FolderList.blink.Reset()
+
+		return tea.Batch(folderCmd, blinkCmd)
+	}
+
+	return folderCmd
+}
+
 func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	// moreメニューが開いている場合
 	if m.FolderList.MenuOpen() {
@@ -406,10 +571,10 @@ func (m *Model) handleFolderHeaderClick(msg tea.MouseClickMsg, now time.Time) te
 	case headerHitClose:
 		return m.toggleFolderList(now)
 	case headerHitAdd:
-		m.FolderList.StartInput()
+		blinkCmd := m.FolderList.StartInput()
 		m.Focus = FocusFolderList
 
-		return nil
+		return blinkCmd
 	case headerHitMore:
 		if m.FolderList.IsUserFolder() {
 			if m.FolderList.MenuOpen() {
@@ -491,13 +656,82 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
+	if m.menuAnchor != nil {
+		m.updateAnchoredMenuHover(mouse)
+	} else {
+		m.updateFolderListHeaderHover(mouse)
+		m.updateEditorHeaderHover(mouse)
+	}
+
 	m.updateConfirmDialogHover(mouse)
 	m.updateNoteListFolderBtnHover(mouse)
-	m.updateFolderListHeaderHover(mouse)
-	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
 	return nil
+}
+
+func (m *Model) updateAnchoredMenuHover(mouse tea.Mouse) {
+	if m.menuAnchor == nil {
+		return
+	}
+
+	menu := m.anchoredMenu()
+	if menu == nil {
+		return
+	}
+
+	x, y := m.anchoredMenuOrigin(menu)
+	menu.SetHoverByPos(mouse.X-x, mouse.Y-y)
+}
+
+// anchoredMenu は現在アンカー付きで開いているメニューを返す。
+func (m *Model) anchoredMenu() *PopupMenu {
+	switch {
+	case m.Editor.IsContextMenuOpen():
+		return m.Editor.ContextMenu
+	case m.Editor.Header.MenuOpen():
+		return m.Editor.Header.PopupMenu
+	case m.FolderList.MenuOpen():
+		return m.FolderList.PopupMenu
+	default:
+		return nil
+	}
+}
+
+// anchoredMenuOrigin はアンカー付きメニューのクランプ済み描画左上座標を返す。
+func (m *Model) anchoredMenuOrigin(menu *PopupMenu) (int, int) {
+	menuLines := menu.View()
+	if len(menuLines) == 0 {
+		return m.menuAnchor.x, m.menuAnchor.y
+	}
+
+	return m.clampAnchor(m.menuAnchor, lipgloss.Width(menuLines[0]), len(menuLines))
+}
+
+// clampAnchor はアンカー座標を画面内にクランプする。overlayAtAnchor と同じロジック。
+func (m *Model) clampAnchor(anchor *menuAnchor, menuWidth, menuHeight int) (int, int) {
+	bodyHeight := m.height - footerLineCount
+
+	x := anchor.x
+	y := anchor.y
+
+	if x+menuWidth > m.width {
+		x = m.width - menuWidth
+	}
+
+	if x < 0 {
+		x = 0
+	}
+
+	if y+menuHeight > bodyHeight {
+		y = bodyHeight - menuHeight
+	}
+
+	if y < 0 {
+		y = 0
+	}
+
+	return x, y
 }
 
 func (m *Model) updateConfirmDialogHover(mouse tea.Mouse) {
@@ -547,8 +781,14 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.hoverFolderSep = m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X)
+
+	if m.menuAnchor != nil {
+		m.updateAnchoredMenuHover(mouse)
+	} else {
+		m.updateEditorHeaderHover(mouse)
+	}
+
 	m.updateConfirmDialogHover(mouse)
-	m.updateEditorHeaderHover(mouse)
 	m.updateFooterHover(mouse)
 
 	return nil
@@ -1214,9 +1454,7 @@ func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
 
 	switch idx {
 	case menuRename:
-		m.FolderList.StartRename()
-
-		return nil
+		return m.FolderList.StartRename()
 	case menuDelete:
 		name := m.FolderList.SelectedName()
 
