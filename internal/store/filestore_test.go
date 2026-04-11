@@ -829,3 +829,38 @@ func TestFileStore_MoveNote_ToNotes(t *testing.T) {
 	require.Len(t, metas, 1)
 	assert.Equal(t, "Notes/20260404/move2.md", metas[0].Path)
 }
+
+func TestFileStore_Delete(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC)
+	n := note.Note{
+		Metadata: note.Metadata{
+			ID:        "del1",
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+		Body: "",
+	}
+	require.NoError(t, s.Save(n))
+
+	// Delete
+	err = s.Delete("del1")
+	require.NoError(t, err)
+
+	// ファイルが消えていること
+	_, err = os.Stat(filepath.Join(dir, "Notes", "20260411", "del1.md"))
+	assert.True(t, os.IsNotExist(err))
+
+	// インデックスから消えていること
+	list, err := s.List()
+	require.NoError(t, err)
+	assert.Empty(t, list)
+
+	// 存在しないIDのDeleteはエラー
+	err = s.Delete("nonexistent")
+	assert.Error(t, err)
+}

@@ -162,6 +162,38 @@ func (fs *FileStore) Save(n note.Note) error {
 	return nil
 }
 
+// Delete はノートを完全に削除する（ゴミ箱には移動しない）。
+func (fs *FileStore) Delete(id note.NoteID) error {
+	unlock, err := fs.lockAndReload()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	meta, ok := fs.index[id]
+	if !ok {
+		return errors.WithDetail(ErrNoteNotFound, string(id))
+	}
+
+	absPath := filepath.Join(fs.dir, meta.Path)
+
+	err = os.Remove(absPath)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.WithStack(err)
+	}
+
+	delete(fs.index, id)
+
+	err = fs.saveIndex()
+	if err != nil {
+		fs.index[id] = meta
+
+		return err
+	}
+
+	return nil
+}
+
 // Trash はノートをゴミ箱に移動する。
 func (fs *FileStore) Trash(id note.NoteID) error {
 	unlock, err := fs.lockAndReload()

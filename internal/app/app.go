@@ -309,6 +309,36 @@ func (a *App) SaveNote(id note.NoteID, body string, now time.Time) (int, error) 
 	return 0, nil
 }
 
+// DiscardIfEmpty は Body が空のノートを完全削除する。
+// 削除した場合は true を返す。undo には積まない。
+func (a *App) DiscardIfEmpty(id note.NoteID) bool {
+	idx := -1
+
+	for i := range a.Notes {
+		if a.Notes[i].ID == id {
+			idx = i
+
+			break
+		}
+	}
+
+	if idx == -1 {
+		return false
+	}
+
+	if a.Notes[idx].Body != "" {
+		return false
+	}
+
+	if a.store != nil {
+		_ = a.store.Delete(id)
+	}
+
+	a.Notes = slices.Delete(a.Notes, idx, idx+1)
+
+	return true
+}
+
 // PinNote は指定IDのノートをピン留めする。
 func (a *App) PinNote(id note.NoteID) error {
 	return a.setPinned(id, true)

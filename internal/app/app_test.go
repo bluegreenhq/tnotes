@@ -377,3 +377,68 @@ func TestPurgeTrash_Empty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
+
+func TestDiscardIfEmpty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC)
+
+	// 空ノートを作成
+	result, err := a.CreateNote(now, "")
+	require.NoError(t, err)
+
+	id := result.Note.ID
+
+	// 空なので破棄される
+	discarded := a.DiscardIfEmpty(id)
+	assert.True(t, discarded)
+	assert.Empty(t, a.Notes)
+
+	// ストアからも消えている
+	list, err := s.List()
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}
+
+func TestDiscardIfEmpty_NonEmpty(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 11, 10, 0, 0, 0, time.UTC)
+
+	result, err := a.CreateNote(now, "")
+	require.NoError(t, err)
+
+	id := result.Note.ID
+
+	// 本文を書き込む
+	_, err = a.SaveNote(id, "hello", now)
+	require.NoError(t, err)
+
+	// 空でないので破棄されない
+	discarded := a.DiscardIfEmpty(id)
+	assert.False(t, discarded)
+	assert.Len(t, a.Notes, 1)
+}
+
+func TestDiscardIfEmpty_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a, err := app.New(nil)
+	require.NoError(t, err)
+
+	// 存在しないIDは何もしない
+	discarded := a.DiscardIfEmpty("nonexistent")
+	assert.False(t, discarded)
+}

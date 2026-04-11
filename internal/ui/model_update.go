@@ -1418,17 +1418,28 @@ func (m *Model) currentFolderNotes() []note.Note {
 }
 
 func (m *Model) syncEditorToNote(now time.Time) {
-	if !m.Editor.Dirty() {
+	saved := false
+
+	if m.Editor.Dirty() {
+		_, err := m.App.SaveNote(m.Editor.NoteID(), m.Editor.Value(), now)
+		if err != nil {
+			m.errMsg = err.Error()
+		}
+
+		m.Editor.MarkClean()
+
+		saved = true
+	}
+
+	if m.App.DiscardIfEmpty(m.Editor.NoteID()) {
+		m.refreshNoteListKeepSelection(now)
+
 		return
 	}
 
-	_, err := m.App.SaveNote(m.Editor.NoteID(), m.Editor.Value(), now)
-	if err != nil {
-		m.errMsg = err.Error()
+	if saved {
+		m.refreshNoteListKeepSelection(now)
 	}
-
-	m.Editor.MarkClean()
-	m.refreshNoteListKeepSelection(now)
 }
 
 // applyNoteResult は NoteResult をUI状態に反映する。

@@ -29,6 +29,22 @@ func sized(t *testing.T, m *ui.Model) *ui.Model {
 	return mustModel(t, ret)
 }
 
+// createNoteWithText は 'n' でノートを作成し、テキストを入力してから Escape する。
+// 空ノート破棄を回避するためにテキスト入力が必要。
+func createNoteWithText(t *testing.T, m tea.Model, text string) tea.Model {
+	t.Helper()
+
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+
+	for _, ch := range text {
+		ret, _ = ret.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+	}
+
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	return ret
+}
+
 func newTestModel() *ui.Model {
 	a, _ := app.New(nil)
 
@@ -74,10 +90,8 @@ func TestNoteListNavigation(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	// 2つノートを作成
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
+	ret = createNoteWithText(t, ret, "note2")
 	model := mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 2)
 
@@ -100,10 +114,8 @@ func TestDeleteNote(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	// 2つノートを作成
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
+	ret = createNoteWithText(t, ret, "note2")
 	model := mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 2)
 
@@ -118,8 +130,7 @@ func TestDeleteNote(t *testing.T) {
 func TestDeleteLastNote(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 1)
 
@@ -133,10 +144,8 @@ func TestDeleteNoteFromEnd(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 	// 2つノートを作成
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
+	ret = createNoteWithText(t, ret, "note2")
 	// 末尾に移動
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
 	model := mustModel(t, ret)
@@ -242,8 +251,7 @@ func TestSelectionClearedOnNoteSwitch(t *testing.T) {
 func TestNoteUndoAfterTrash(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 1)
 
@@ -263,8 +271,7 @@ func TestNoteUndoAfterTrash(t *testing.T) {
 func TestNoteRedoAfterUndo(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl})
 	model := mustModel(t, ret)
@@ -279,8 +286,7 @@ func TestNoteRedoAfterUndo(t *testing.T) {
 func TestNoteUndoAfterCreate(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
 	assert.Len(t, model.App.Notes, 1)
 
@@ -331,10 +337,8 @@ func TestEditorRedoViaCtrlShiftZ(t *testing.T) {
 func TestInfoMsgClearedOnArrowKey(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
+	ret = createNoteWithText(t, ret, "note2")
 	model := mustModel(t, ret)
 
 	// 削除
@@ -355,8 +359,7 @@ func TestNoteListResizeDrag(t *testing.T) {
 	m := sized(t, newTestModel())
 
 	// ノート作成（サイドバーに内容がある状態）
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
 
 	// 境界付近（X=32付近）でマウスクリック
@@ -574,8 +577,7 @@ func TestRestoreNoteViaFolder(t *testing.T) {
 	m := sized(t, newTestModel())
 
 	// ノート作成して削除
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	ret := createNoteWithText(t, m, "note1")
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
 	model := mustModel(t, ret)
 
