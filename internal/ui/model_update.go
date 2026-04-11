@@ -49,6 +49,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		return m, m.processNoteListMsg(msg, now)
 	case EditorMsg:
 		return m, m.processEditorMsg(msg, now)
+	case editorOpenURLMsg:
+		return m, openURLInBrowser(msg.URL)
 	case EditorHeaderMsg:
 		return m, m.processEditorHeaderMsg(msg, now)
 	case FooterMsg:

@@ -206,6 +206,12 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 		prevCol := e.textarea.Column()
 		e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
 		_ = e.PasteFromClipboard()
+	case msg.Code == 'o' && msg.Mod == tea.ModCtrl:
+		if u := e.urlAtCursor(); u != "" {
+			return true, func() tea.Msg { return editorOpenURLMsg{URL: u} }
+		}
+
+		return true, nil
 	default:
 		return false, nil
 	}
@@ -614,6 +620,25 @@ func (e *Editor) saveSnapshotBefore(prevText string, prevLine, prevCol int, forc
 	} else {
 		e.UndoMgr.MaybeSave(snap, now)
 	}
+}
+
+// urlAtCursor はカーソル位置にある URL を返す。URL 上にない場合は空文字列を返す。
+func (e *Editor) urlAtCursor() string {
+	line := e.textarea.Line()
+	if line >= len(e.textarea.lines) {
+		return ""
+	}
+
+	logicalText := string(e.textarea.lines[line])
+	cursorByte := len(string([]rune(logicalText)[:e.textarea.Column()]))
+
+	for _, loc := range urlPattern.FindAllStringIndex(logicalText, -1) {
+		if loc[0] <= cursorByte && cursorByte <= loc[1] {
+			return logicalText[loc[0]:loc[1]]
+		}
+	}
+
+	return ""
 }
 
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {

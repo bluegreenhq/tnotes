@@ -39,6 +39,11 @@ const (
 	EditorSave
 )
 
+// editorOpenURLMsg はカーソル位置のURLをブラウザで開くことを要求するメッセージ。
+type editorOpenURLMsg struct {
+	URL string
+}
+
 // FolderListMsg はフォルダ一覧からモデルへの通知メッセージ。
 type FolderListMsg int
 
