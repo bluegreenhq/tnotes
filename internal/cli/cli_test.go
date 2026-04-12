@@ -848,6 +848,11 @@ func TestRun_Search_JSON(t *testing.T) {
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &notes))
 	assert.Len(t, notes, 1)
 	assert.Equal(t, string(result.Note.ID), notes[0]["id"])
+
+	snippets, ok := notes[0]["snippets"].([]any)
+	require.True(t, ok)
+	assert.NotEmpty(t, snippets)
+	assert.Contains(t, snippets[0], "JSON")
 }
 
 func TestRun_Search_BodyMatch(t *testing.T) {
@@ -856,7 +861,7 @@ func TestRun_Search_BodyMatch(t *testing.T) {
 	a := newTestApp(t)
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
-	_, _ = a.SaveNote(result.Note.ID, "Title only\nSecret body keyword", now)
+	_, _ = a.SaveNote(result.Note.ID, "Title only\nSecret body keyword here", now)
 
 	var buf bytes.Buffer
 
@@ -864,6 +869,9 @@ func TestRun_Search_BodyMatch(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
+	// スニペットにマッチ箇所の前後が含まれる
+	assert.Contains(t, buf.String(), "keyword")
+	assert.Contains(t, buf.String(), "Secret body")
 }
 
 func TestRun_Search_CaseInsensitive(t *testing.T) {
@@ -901,6 +909,43 @@ func TestRun_Search_WithFolder(t *testing.T) {
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(r1.Note.ID))
 	assert.NotContains(t, buf.String(), string(r2.Note.ID))
+}
+
+func TestRun_Search_Context(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "AAAA target BBBB", now)
+
+	var buf bytes.Buffer
+
+	// context=2 で前後2文字のみ
+	got, err := cli.Run([]string{"tnotes", "search", "target", "--context", "2"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	// "...A target BB..." のようなスニ���ット
+	assert.Contains(t, buf.String(), "target")
+	assert.Contains(t, buf.String(), "...")
+}
+
+func TestRun_Search_Snippet_NoEllipsis(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "short match", now)
+
+	var buf bytes.Buffer
+
+	// context が十分大きければ ... がつかない
+	got, err := cli.Run([]string{"tnotes", "search", "short", "--context", "100"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "short match")
+	assert.NotContains(t, buf.String(), "...")
 }
 
 func TestRun_Search_MissingQuery(t *testing.T) {

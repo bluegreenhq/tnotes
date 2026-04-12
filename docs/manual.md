@@ -17,7 +17,7 @@ tnotes --no-wrap    # TUIモードで起動（水平スクロールモード）
 tnotes list [--json]  # ノート一覧を表示
 tnotes list --trash   # ゴミ箱のノート一覧を表示
 tnotes list --folder <name> # 指定フォルダのノート一覧を表示
-tnotes search <query> [--folder <name>] [--json] # 全文検索
+tnotes search <query> [--folder <name>] [--context <n>] [--json] # 全文検索
 tnotes get <id> [--json] # 指定IDのノートを表示（ゴミ箱含む）
 tnotes create [file] [--folder <name>] # ファイルまたは標準入力からノートを作成
 tnotes update <id> [file] # ノートの本文を上書き更新
@@ -136,12 +136,13 @@ $ tnotes list --json
 
 ### search
 
-タイトルと本文を対象にキーワード検索します。大文字小文字を区別しません。
+タイトルと本文を対象にキーワード検索します。大文字小文字を区別しません。マッチ箇所の前後をスニペットとして表示します。
 
 ```
 $ tnotes search meeting
 ID                TITLE          UPDATED
 8a2816cfb412cd21  Meeting Notes  2026-04-04 11:33
+    Meeting Notes Discuss project plan for Q2
 ```
 
 `--folder <name>` フラグで検索対象のフォルダを絞り込めます。
@@ -150,7 +151,13 @@ ID                TITLE          UPDATED
 $ tnotes search meeting --folder Work
 ```
 
-`--json` フラグを指定すると、マッチしたノートのメタデータを JSON 配列で出力します（本文は含みません）。
+`--context <n>` フラグでスニペットの前後文字数を指定できます（デフォルト: 40）。
+
+```
+$ tnotes search meeting --context 10
+```
+
+`--json` フラグを指定すると、マッチしたノートのメタデータとスニペットを JSON 配列で出力します。
 
 ```
 $ tnotes search meeting --json
@@ -161,7 +168,10 @@ $ tnotes search meeting --json
     "folder": "Notes",
     "pinned": false,
     "created_at": "2026-04-04T11:30:00+09:00",
-    "updated_at": "2026-04-04T11:33:00+09:00"
+    "updated_at": "2026-04-04T11:33:00+09:00",
+    "snippets": [
+      "Meeting Notes Discuss project plan for Q2"
+    ]
   }
 ]
 ```

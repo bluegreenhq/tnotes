@@ -71,7 +71,7 @@ func printUsage(w io.Writer) {
 		{"list [--json]", "ノート一覧を表示"},
 		{"list --trash", "ゴミ箱のノート一覧を表示"},
 		{"list --folder <name>", "指定フォルダのノート一覧を表示"},
-		{"search <query> [--folder <name>] [--json]", "全文検索"},
+		{"search <query> [--folder <name>] [--context <n>] [--json]", "全文検索"},
 		{"get <id> [--json]", "指定IDのノートを表示（ゴミ箱含む）"},
 		{"create [file] [--folder <name>]", "ファイルまたは標準入力からノートを作成"},
 		{"update <id> [file]", "ノートの本文を上書き更新"},
@@ -104,7 +104,7 @@ func usageLine(cmd, desc string) string {
 
 	const minPadding = 2
 
-	maxLen := len(cmdName) + 1 + len("search <query> [--folder <name>] [--json]")
+	maxLen := len(cmdName) + 1 + len("search <query> [--folder <name>] [--context <n>] [--json]")
 	pad := max(maxLen-len(full)+minPadding, minPadding)
 
 	return full + strings.Repeat(" ", pad) + desc
