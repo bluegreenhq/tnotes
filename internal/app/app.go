@@ -90,7 +90,7 @@ func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 		folder = DefaultFolder
 	}
 
-	n.Path = filepath.Join(folder, now.Format("20060102"), string(n.ID)+".md")
+	n.Path = store.NotePath(folder, now, n.ID)
 
 	a.Notes = append([]note.Note{n}, a.Notes...)
 
@@ -107,6 +107,38 @@ func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 		Note:      n,
 		Notes:     a.Notes,
 		SelectIdx: 0,
+		InfoHint:  "Undo: Ctrl+Z",
+	}, nil
+}
+
+// DuplicateNote は指定されたノート一覧内のインデックスのノートを複製する。
+// notes は ListNotes() や ListByFolder() で得た一覧を渡す。
+// 複製されたノートはコピー元の直下に挿入される。
+// undo記録も内部で行う。
+func (a *App) DuplicateNote(notes []note.Note, idx int) (NoteResult, error) {
+	if idx < 0 || idx >= len(notes) {
+		return NoteResult{Notes: a.Notes, SelectIdx: -1}, nil //nolint:exhaustruct // 範囲外は操作なし
+	}
+
+	src := notes[idx]
+
+	dup, err := a.store.Duplicate(src.ID)
+	if err != nil {
+		return NoteResult{}, err
+	}
+
+	// コピー元の直下に挿入
+	srcIdx := max(a.findNoteIndex(src.ID), 0)
+
+	insertIdx := srcIdx + 1
+	a.Notes = slices.Insert(a.Notes, insertIdx, dup)
+
+	a.NoteUndo.Push(&DuplicateAction{NoteID: dup.ID, note: dup})
+
+	return NoteResult{
+		Note:      dup,
+		Notes:     a.Notes,
+		SelectIdx: insertIdx,
 		InfoHint:  "Undo: Ctrl+Z",
 	}, nil
 }

@@ -210,6 +210,8 @@ func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, 
 		return *s, NoteListUndo.Cmd()
 	case 'c':
 		return *s, NoteListCopy.Cmd()
+	case 'd':
+		return *s, NoteListDuplicate.Cmd()
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':

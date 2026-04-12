@@ -442,3 +442,83 @@ func TestDiscardIfEmpty_NotFound(t *testing.T) {
 	discarded := a.DiscardIfEmpty("nonexistent")
 	assert.False(t, discarded)
 }
+
+func TestDuplicateNote(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 12, 10, 0, 0, 0, time.UTC)
+	result, err := a.CreateNote(now, "")
+	require.NoError(t, err)
+
+	_, err = a.SaveNote(result.Note.ID, "hello\nworld", now)
+	require.NoError(t, err)
+
+	require.NoError(t, a.PinNote(result.Note.ID))
+
+	notes := a.ListNotes()
+	dupResult, err := a.DuplicateNote(notes, 0)
+	require.NoError(t, err)
+
+	// 新しいIDが生成される
+	assert.NotEqual(t, result.Note.ID, dupResult.Note.ID)
+	// 本文がコピーされる
+	assert.Equal(t, "hello\nworld", dupResult.Note.Body)
+	// Pinnedがコピーされる
+	assert.True(t, dupResult.Note.Pinned)
+	// CreatedAt/UpdatedAtがコピーされる
+	assert.Equal(t, result.Note.CreatedAt, dupResult.Note.CreatedAt)
+	assert.Equal(t, result.Note.UpdatedAt, dupResult.Note.UpdatedAt)
+	// 同じフォルダ
+	assert.Equal(t, result.Note.Folder(), dupResult.Note.Folder())
+	// ノートが2件になる
+	assert.Len(t, a.ListNotes(), 2)
+	// コピー元の直下に挿入される（SelectIdxが1）
+	assert.Equal(t, 1, dupResult.SelectIdx)
+	// InfoHint
+	assert.Equal(t, "Undo: Ctrl+Z", dupResult.InfoHint)
+}
+
+func TestDuplicateNote_InFolder(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	require.NoError(t, a.CreateFolder("Work"))
+
+	now := time.Date(2026, 4, 12, 10, 0, 0, 0, time.UTC)
+	result, err := a.CreateNote(now, "Work")
+	require.NoError(t, err)
+
+	_, err = a.SaveNote(result.Note.ID, "work note", now)
+	require.NoError(t, err)
+
+	notes := a.ListByFolder("Work")
+	dupResult, err := a.DuplicateNote(notes, 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, "Work", dupResult.Note.Folder())
+	assert.Equal(t, "work note", dupResult.Note.Body)
+}
+
+func TestDuplicateNote_OutOfRange(t *testing.T) {
+	t.Parallel()
+
+	a, err := app.New(nil)
+	require.NoError(t, err)
+
+	result, err := a.DuplicateNote(nil, 0)
+	require.NoError(t, err)
+	assert.Equal(t, -1, result.SelectIdx)
+}

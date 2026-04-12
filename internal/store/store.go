@@ -46,4 +46,6 @@ type Store interface { //nolint:interfacebloat // import/exportの責務もStore
 	RenameFolder(oldName, newName string) error
 	// MoveNote はノートを別のフォルダに移動する。
 	MoveNote(id note.NoteID, destFolder string) error
+	// Duplicate はノートを複製する。新しいIDで同じフォルダに保存し、複製されたNoteを返す。
+	Duplicate(id note.NoteID) (note.Note, error)
 }

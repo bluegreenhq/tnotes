@@ -1,6 +1,8 @@
 package app
 
 import (
+	"slices"
+
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
@@ -148,4 +150,42 @@ func (ta *TrashAction) TargetNoteID() note.NoteID { return ta.NoteID }
 // Redo はノートをゴミ箱に移動する（削除のやり直し）。
 func (ta *TrashAction) Redo(a *App) error {
 	return a.trashNoteInternal(ta.NoteID)
+}
+
+// DuplicateAction はノート複製操作を表す。
+type DuplicateAction struct {
+	NoteID note.NoteID
+	note   note.Note // Redo用にノートデータを保持
+}
+
+// Undo は複製ノートを完全削除する（ゴミ箱に残さない）。
+func (d *DuplicateAction) Undo(a *App) error {
+	if a.store != nil {
+		err := a.store.Delete(d.NoteID)
+		if err != nil {
+			return err
+		}
+	}
+
+	idx := a.findNoteIndex(d.NoteID)
+	if idx >= 0 {
+		a.Notes = slices.Delete(a.Notes, idx, idx+1)
+	}
+
+	return nil
+}
+
+// TargetNoteID は対象ノートのIDを返す。
+func (d *DuplicateAction) TargetNoteID() note.NoteID { return d.NoteID }
+
+// Redo は複製ノートを再作成する。
+func (d *DuplicateAction) Redo(a *App) error {
+	a.Notes = append(a.Notes, d.note)
+	note.SortByUpdatedDesc(a.Notes)
+
+	if a.store != nil {
+		return a.store.Save(d.note)
+	}
+
+	return nil
 }

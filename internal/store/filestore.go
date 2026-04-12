@@ -111,8 +111,7 @@ func (fs *FileStore) Save(n note.Note) error {
 		relPath = n.Path
 	} else {
 		// フォールバック
-		dateDir := n.CreatedAt.Format("20060102")
-		relPath = filepath.Join(notesDir, dateDir, string(n.ID)+".md")
+		relPath = NotePath(notesDir, n.CreatedAt, n.ID)
 	}
 
 	absPath := filepath.Join(fs.dir, relPath)
@@ -564,6 +563,42 @@ func (fs *FileStore) MoveNote(id note.NoteID, destFolder string) error {
 	return nil
 }
 
+// Duplicate はノートを複製する。新しいIDで同じフォルダに保存し、複製されたNoteを返す。
+// Body、Pinned、CreatedAt、UpdatedAt をコピー元からコピーする。
+func (fs *FileStore) Duplicate(id note.NoteID) (note.Note, error) {
+	meta, ok := fs.index[id]
+	if !ok {
+		return note.Note{}, errors.WithDetail(ErrNoteNotFound, string(id))
+	}
+
+	src, err := fs.Load(id)
+	if err != nil {
+		return note.Note{}, err
+	}
+
+	src.Path = meta.Path
+
+	dup, err := note.New(src.CreatedAt)
+	if err != nil {
+		return note.Note{}, err
+	}
+
+	dup.Body = src.Body
+	dup.Pinned = src.Pinned
+	dup.Metadata.Title = src.Metadata.Title
+	dup.Metadata.Preview = src.Metadata.Preview
+	dup.CreatedAt = src.CreatedAt
+	dup.UpdatedAt = src.UpdatedAt
+	dup.Path = NotePath(src.Folder(), src.CreatedAt, dup.ID)
+
+	err = fs.Save(dup)
+	if err != nil {
+		return note.Note{}, err
+	}
+
+	return dup, nil
+}
+
 func (fs *FileStore) validateRename(oldName, newName string) (string, string, error) {
 	if fs.isSystemDir(oldName) {
 		return "", "", errors.WithDetail(ErrSystemFolder, oldName)
@@ -620,6 +655,11 @@ func removeEmptyDirs(dir string) error {
 
 func (fs *FileStore) isSystemDir(name string) bool {
 	return name == notesDir || strings.HasPrefix(name, ".")
+}
+
+// NotePath はフォルダ名、作成日時、IDからノートの相対パスを生成する。
+func NotePath(folder string, createdAt time.Time, id note.NoteID) string {
+	return filepath.Join(folder, createdAt.Format("20060102"), string(id)+".md")
 }
 
 // lockAndReload はロックを取得し、indexを再読み込みする。
