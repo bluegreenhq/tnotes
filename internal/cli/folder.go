@@ -53,7 +53,7 @@ func runFolder(args []string, a *app.App, r io.Reader, w io.Writer) error {
 
 	switch args[2] {
 	case "list":
-		return runFolderList(a, w)
+		return runFolderList(args, a, w)
 	case "create":
 		return runFolderCreate(args, a, w)
 	case "delete":
@@ -67,10 +67,18 @@ func runFolder(args []string, a *app.App, r io.Reader, w io.Writer) error {
 	}
 }
 
-func runFolderList(a *app.App, w io.Writer) error {
+func runFolderList(args []string, a *app.App, w io.Writer) error {
 	folders, err := a.ListFolders()
 	if err != nil {
 		return err
+	}
+
+	if hasJSONFlag(args) {
+		all := make([]string, 0, 1+len(folders))
+		all = append(all, app.DefaultFolder)
+		all = append(all, folders...)
+
+		return writeJSON(w, all)
 	}
 
 	noteCount := len(a.ListByFolder(app.DefaultFolder))

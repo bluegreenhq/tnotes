@@ -3,6 +3,7 @@ package cli_test
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -274,7 +275,7 @@ func TestRun_Export_WithTrash(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Trash test\nBody", now)
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 
 	outPath := filepath.Join(t.TempDir(), "backup.zip")
 
@@ -403,7 +404,7 @@ func TestRun_Purge_Force(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Purge test\nBody", now)
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 
 	var buf bytes.Buffer
 
@@ -433,7 +434,7 @@ func TestRun_Purge_ConfirmYes(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Confirm test\nBody", now)
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 
 	var buf bytes.Buffer
 
@@ -450,7 +451,7 @@ func TestRun_Purge_ConfirmNo(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Cancel test\nBody", now)
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 
 	var buf bytes.Buffer
 
@@ -471,7 +472,7 @@ func TestRun_Purge_ConfirmEmpty(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Default no\nBody", now)
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 
 	var buf bytes.Buffer
 
@@ -719,4 +720,373 @@ func TestRun_Version_PrintsVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "tnotes version ")
+}
+
+func TestRun_List_JSON(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "JSON test\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "list", "--json"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	var notes []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &notes))
+	assert.Len(t, notes, 1)
+	assert.Equal(t, string(result.Note.ID), notes[0]["id"])
+	assert.Equal(t, "JSON test", notes[0]["title"])
+}
+
+func TestRun_List_JSON_Empty(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "list", "--json"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	var notes []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &notes))
+	assert.Empty(t, notes)
+}
+
+func TestRun_Get_JSON(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Get JSON\nBody content", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "get", string(result.Note.ID), "--json"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	var note map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &note))
+	assert.Equal(t, string(result.Note.ID), note["id"])
+	assert.Equal(t, "Get JSON", note["title"])
+	assert.Contains(t, note["body"], "Body content")
+}
+
+func TestRun_Folder_List_JSON(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "folder", "list", "--json"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	var folders []string
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &folders))
+	assert.Contains(t, folders, "Notes")
+	assert.Contains(t, folders, "Work")
+}
+
+func TestRun_Search_Found(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Meeting notes\nDiscuss project plan", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "meeting"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), string(result.Note.ID))
+}
+
+func TestRun_Search_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Meeting notes\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "nonexistent"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "No matches")
+}
+
+func TestRun_Search_JSON(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Search JSON test\nBody content", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "json", "--json"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+
+	var notes []map[string]any
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &notes))
+	assert.Len(t, notes, 1)
+	assert.Equal(t, string(result.Note.ID), notes[0]["id"])
+
+	snippets, ok := notes[0]["snippets"].([]any)
+	require.True(t, ok)
+	assert.NotEmpty(t, snippets)
+	assert.Contains(t, snippets[0], "JSON")
+}
+
+func TestRun_Search_BodyMatch(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Title only\nSecret body keyword here", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "keyword"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), string(result.Note.ID))
+	// スニペットにマッチ箇所の前後が含まれる
+	assert.Contains(t, buf.String(), "keyword")
+	assert.Contains(t, buf.String(), "Secret body")
+}
+
+func TestRun_Search_CaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "UPPERCASE Title\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "uppercase"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), string(result.Note.ID))
+}
+
+func TestRun_Search_WithFolder(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	require.NoError(t, a.CreateFolder("Work"))
+
+	now := time.Now()
+	r1, _ := a.CreateNote(now, "Work")
+	_, _ = a.SaveNote(r1.Note.ID, "Work note\nBody", now)
+	r2, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(r2.Note.ID, "Default note\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search", "note", "--folder", "Work"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), string(r1.Note.ID))
+	assert.NotContains(t, buf.String(), string(r2.Note.ID))
+}
+
+func TestRun_Search_Context(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "AAAA target BBBB", now)
+
+	var buf bytes.Buffer
+
+	// context=2 で前後2文字のみ
+	got, err := cli.Run([]string{"tnotes", "search", "target", "--context", "2"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	// "...A target BB..." のようなスニ���ット
+	assert.Contains(t, buf.String(), "target")
+	assert.Contains(t, buf.String(), "...")
+}
+
+func TestRun_Search_Snippet_NoEllipsis(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "short match", now)
+
+	var buf bytes.Buffer
+
+	// context が十分大きければ ... がつかない
+	got, err := cli.Run([]string{"tnotes", "search", "short", "--context", "100"}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "short match")
+	assert.NotContains(t, buf.String(), "...")
+}
+
+func TestRun_Search_MissingQuery(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "search"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Update_Success(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Old title\nOld body", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "update", string(result.Note.ID)}, a, strings.NewReader("New title\nNew body"), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), string(result.Note.ID))
+
+	// 更新された内容を確認
+	var getBuf bytes.Buffer
+
+	_, _ = cli.Run([]string{"tnotes", "get", string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
+	assert.Contains(t, getBuf.String(), "New title")
+	assert.Contains(t, getBuf.String(), "New body")
+}
+
+func TestRun_Update_FromFile(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Old content", now)
+
+	tmpFile := filepath.Join(t.TempDir(), "update.md")
+	err := os.WriteFile(tmpFile, []byte("Updated from file\nNew body"), 0o600)
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+
+	got, runErr := cli.Run([]string{"tnotes", "update", string(result.Note.ID), tmpFile}, a, strings.NewReader(""), &buf)
+	require.NoError(t, runErr)
+	assert.True(t, got)
+
+	var getBuf bytes.Buffer
+
+	_, _ = cli.Run([]string{"tnotes", "get", string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
+	assert.Contains(t, getBuf.String(), "Updated from file")
+}
+
+func TestRun_Update_MissingID(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "update"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Update_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "update", "nonexistent"}, a, strings.NewReader("new body"), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Update_EmptyInput(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Existing", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "update", string(result.Note.ID)}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Delete_Success(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "Delete me\nBody", now)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "delete", string(result.Note.ID)}, a, strings.NewReader(""), &buf)
+	require.NoError(t, err)
+	assert.True(t, got)
+	assert.Contains(t, buf.String(), "Deleted")
+
+	// ゴミ箱に移動されたことを確認
+	require.NoError(t, a.RefreshTrashNotes())
+	assert.Len(t, a.ListTrashNotes(), 1)
+	assert.Empty(t, a.ListNotes())
+}
+
+func TestRun_Delete_MissingID(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "delete"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
+}
+
+func TestRun_Delete_NotFound(t *testing.T) {
+	t.Parallel()
+
+	a := newTestApp(t)
+
+	var buf bytes.Buffer
+
+	got, err := cli.Run([]string{"tnotes", "delete", "nonexistent"}, a, strings.NewReader(""), &buf)
+	assert.True(t, got)
+	require.Error(t, err)
 }

@@ -16,7 +16,7 @@ const minArgsForGet = 3
 
 func runGet(args []string, a *app.App, w io.Writer) error {
 	if len(args) < minArgsForGet {
-		_, _ = fmt.Fprintf(w, "Usage: %s get <id>\n", cmdName)
+		_, _ = fmt.Fprintf(w, "Usage: %s get <id> [--json]\n", cmdName)
 
 		return ErrMissingNoteID
 	}
@@ -26,6 +26,10 @@ func runGet(args []string, a *app.App, w io.Writer) error {
 	n, err := a.GetNote(id)
 	if err != nil {
 		return err
+	}
+
+	if hasJSONFlag(args) {
+		return writeJSON(w, toNoteDetailJSON(n))
 	}
 
 	_, _ = fmt.Fprint(w, n.Body)

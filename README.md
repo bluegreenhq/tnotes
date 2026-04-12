@@ -21,6 +21,12 @@ tnotes help             # ヘルプを表示
 
 操作方法の詳細は [docs/manual.md](docs/manual.md) を参照してください。
 
+## AI連携
+
+Claude Code、Codex、Gemini CLI などの AI コーディングアシスタントから tnotes のノートデータにアクセスできるプラグインがあります。
+
+[bluegreenhq/tnotes-ai-plugin](https://github.com/bluegreenhq/tnotes-ai-plugin)
+
 ## コントリビューター向け
 
 ### セットアップ

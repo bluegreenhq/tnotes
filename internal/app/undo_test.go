@@ -124,8 +124,8 @@ func TestTrashActionUndo(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 
-	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	action := &app.TrashAction{NoteID: result.Note.ID, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(result.Note.ID)
 	assert.Empty(t, a.ListNotes())
 
 	err := action.Undo(a)
@@ -138,10 +138,10 @@ func TestTrashActionRedo(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now, "")
+	result, _ := a.CreateNote(now, "")
 
-	action := &app.TrashAction{NoteID: a.ListNotes()[0].ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	action := &app.TrashAction{NoteID: result.Note.ID, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(result.Note.ID)
 	_ = action.Undo(a)
 	assert.Len(t, a.ListNotes(), 1)
 
@@ -164,8 +164,7 @@ func TestDuplicateActionUndo(t *testing.T) {
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "hello", now)
 
-	notes := a.ListNotes()
-	_, _ = a.DuplicateNote(notes, 0)
+	_, _ = a.DuplicateNote(result.Note.ID)
 	assert.Len(t, a.ListNotes(), 2)
 
 	// Undo — 完全削除（ゴミ箱に残らない）
@@ -190,8 +189,7 @@ func TestDuplicateActionRedo(t *testing.T) {
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "hello", now)
 
-	notes := a.ListNotes()
-	_, _ = a.DuplicateNote(notes, 0)
+	_, _ = a.DuplicateNote(result.Note.ID)
 
 	// Undo then Redo
 	_, _ = a.UndoNote()
@@ -209,7 +207,7 @@ func TestMoveNoteFromTrash(t *testing.T) {
 	a, _ := app.New(nil)
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(result.Note.ID)
 	assert.Empty(t, a.ListNotes())
 	assert.Len(t, a.ListTrashNotes(), 1)
 
@@ -227,8 +225,8 @@ func TestTrashActionUndoRestoresToOriginalFolder(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 
-	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	action := &app.TrashAction{NoteID: result.Note.ID, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(result.Note.ID)
 	assert.Empty(t, a.ListNotes())
 
 	// Undo すると元のフォルダに戻る
@@ -243,10 +241,10 @@ func TestAppUndoNote(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now, "")
+	createResult, _ := a.CreateNote(now, "")
 	assert.Len(t, a.ListNotes(), 1)
 
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	_, _ = a.TrashNote(createResult.Note.ID)
 	assert.Empty(t, a.ListNotes())
 
 	result, err := a.UndoNote()
@@ -260,8 +258,8 @@ func TestAppRedoNote(t *testing.T) {
 
 	a, _ := app.New(nil)
 	now := time.Now()
-	_, _ = a.CreateNote(now, "")
-	_, _ = a.TrashNote(a.ListNotes(), 0)
+	createResult, _ := a.CreateNote(now, "")
+	_, _ = a.TrashNote(createResult.Note.ID)
 	_, _ = a.UndoNote()
 
 	result, err := a.RedoNote()

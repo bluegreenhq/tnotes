@@ -25,10 +25,20 @@ const (
 
 func runList(args []string, a *app.App, w io.Writer) error {
 	trash, folderName := parseListFlags(args)
+	jsonOut := hasJSONFlag(args)
 
 	notes, err := fetchNotes(a, trash, folderName)
 	if err != nil {
 		return err
+	}
+
+	if jsonOut {
+		items := make([]noteJSON, 0, len(notes))
+		for _, n := range notes {
+			items = append(items, toNoteJSON(n))
+		}
+
+		return writeJSON(w, items)
 	}
 
 	if len(notes) == 0 {
@@ -57,7 +67,7 @@ func parseListFlags(args []string) (bool, string) {
 		switch args[i] {
 		case "--trash":
 			trash = true
-		case "--folder":
+		case folderFlag:
 			if i+1 < len(args) {
 				folderName = args[i+1]
 				i++

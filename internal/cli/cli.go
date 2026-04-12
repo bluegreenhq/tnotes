@@ -40,6 +40,12 @@ func Run(args []string, a *app.App, r io.Reader, w io.Writer) (bool, error) { //
 		return true, runGet(args, a, w)
 	case "create":
 		return true, runCreate(args, a, r, w)
+	case "update":
+		return true, runUpdate(args, a, r, w)
+	case "delete":
+		return true, runDelete(args, a, w)
+	case "search":
+		return true, runSearch(args, a, w)
 	case "export":
 		return true, runExport(args, a, w)
 	case "import":
@@ -62,18 +68,21 @@ func printUsage(w io.Writer) {
 	commands := []struct{ cmd, desc string }{
 		{"", "TUIモードで起動"},
 		{"--no-wrap", "TUIモードで起動（水平スクロールモード）"},
-		{"list", "ノート一覧を表示"},
+		{"list [--json]", "ノート一覧を表示"},
 		{"list --trash", "ゴミ箱のノート一覧を表示"},
 		{"list --folder <name>", "指定フォルダのノート一覧を表示"},
+		{"search <query> [--folder <name>] [--context <n>] [--json]", "全文検索"},
+		{"get <id> [--json]", "指定IDのノートを表示（ゴミ箱含む）"},
+		{"create [file] [--folder <name>]", "ファイルまたは標準入力からノートを作成"},
+		{"update <id> [file]", "ノートの本文を上書き更新"},
+		{"delete <id>", "ノートをゴミ箱に移動"},
+		{"move <id> <folder>", "ノートを指定フォルダに移動"},
 		{"purge", "ゴミ箱を空にする（確認あり）"},
 		{"purge --force", "ゴミ箱を空にする（確認なし）"},
-		{"get <id>", "指定IDのノートを表示（ゴミ箱含む）"},
-		{"move <id> <folder>", "ノートを指定フォルダに移動"},
-		{"create [file] [--folder <name>]", "ファイルまたは標準入力からノートを作成"},
 		{"export <file>", "データ一式をzipにエクスポート"},
 		{"import <file>", "zipからデータをインポート"},
 		{"version", "バージョンを表示"},
-		{"folder list", "フォルダ一覧を表示"},
+		{"folder list [--json]", "フォルダ一覧を表示"},
 		{"folder create <name>", "フォルダを作成"},
 		{"folder rename <old> <new>", "フォルダをリネーム"},
 		{"folder delete <name>", "フォルダを削除"},
@@ -95,7 +104,7 @@ func usageLine(cmd, desc string) string {
 
 	const minPadding = 2
 
-	maxLen := len(cmdName) + 1 + len("create [file] [--folder <name>]")
+	maxLen := len(cmdName) + 1 + len("search <query> [--folder <name>] [--context <n>] [--json]")
 	pad := max(maxLen-len(full)+minPadding, minPadding)
 
 	return full + strings.Repeat(" ", pad) + desc
