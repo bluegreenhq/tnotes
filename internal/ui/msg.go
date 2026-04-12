@@ -124,6 +124,8 @@ const (
 	FooterQuit FooterMsg = iota
 	// FooterMore はMoreボタンがクリックされたことを通知する。
 	FooterMore
+	// FooterHelp はショートカットヘルプ表示を通知する。
+	FooterHelp
 )
 
 // EditorHeaderMsg はエディタヘッダーからモデルへの通知メッセージ。

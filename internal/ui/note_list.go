@@ -22,6 +22,7 @@ type NoteList struct {
 	title          string
 	sectioned      bool
 	hoverFolderBtn bool
+	dirtyNoteID    note.NoteID
 }
 
 // NewNoteList は新しい NoteList を生成する。
@@ -35,6 +36,7 @@ func NewNoteList(notes []note.Note, width, height int) NoteList {
 		title:          "Notes",
 		sectioned:      true,
 		hoverFolderBtn: false,
+		dirtyNoteID:    "",
 	}
 }
 
@@ -73,6 +75,9 @@ func (s *NoteList) SelectedY(now time.Time) int {
 
 	return y
 }
+
+// SetDirtyNoteID は未保存状態のノートIDを設定する。未保存がなければ空文字。
+func (s *NoteList) SetDirtyNoteID(id note.NoteID) { s.dirtyNoteID = id }
 
 // SetHoverFolderBtn はフォルダボタンのホバー状態を設定する。
 func (s *NoteList) SetHoverFolderBtn(v bool) { s.hoverFolderBtn = v }

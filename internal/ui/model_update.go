@@ -78,7 +78,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 	}
 }
 
-func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // key dispatch
+func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop,gocyclo,funlen // key dispatch
 	// メニューが開いている場合（右クリック or キーボード起動）
 	if menu, kind := m.activePopupMenu(); menu != nil {
 		return m.handleMenuKey(msg, menu, kind, now)
@@ -87,6 +87,22 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	// 確認ダイアログ表示中
 	if m.confirmDialog != nil {
 		return m.handleConfirmDialogKey(msg)
+	}
+
+	// ヘルプオーバーレイ表示中
+	if m.helpOverlay != nil {
+		if msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0 {
+			m.helpOverlay = nil
+			m.syncEditorToNote(now)
+
+			return tea.Quit
+		}
+
+		if m.helpOverlay.Update(msg) == HelpClose {
+			m.helpOverlay = nil
+		}
+
+		return nil
 	}
 
 	m.errMsg = ""
@@ -118,6 +134,14 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		m.Focus != FocusEditor &&
 		!m.FolderList.InputMode() && !m.FolderList.RenameMode():
 		return m.toggleFolderList(now)
+	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
+		m.helpOverlay = NewHelpOverlay(m.Focus)
+
+		return nil
+	case msg.Code == '?' && msg.Mod == 0 && m.Focus != FocusEditor:
+		m.helpOverlay = NewHelpOverlay(m.Focus)
+
+		return nil
 	}
 
 	switch m.Focus {
@@ -441,10 +465,19 @@ func (m *Model) handleAnchoredMenuClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
-func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop // mouse dispatch
+func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // mouse dispatch
 	// 右クリックメニュー（アンカー付き）が開いている場合
 	if m.menuAnchor != nil {
 		return m.handleAnchoredMenuClick(msg)
+	}
+
+	// ヘルプオーバーレイ表示中（✕ボタンのみで閉じる）
+	if m.helpOverlay != nil {
+		if m.helpCloseButtonHit(msg.X, msg.Y) {
+			m.helpOverlay = nil
+		}
+
+		return nil
 	}
 
 	// 確認ダイアログ表示中
@@ -719,6 +752,12 @@ func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd {
 func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
+	if m.helpOverlay != nil {
+		m.helpOverlay.SetCloseHover(m.helpCloseButtonHit(mouse.X, mouse.Y))
+
+		return nil
+	}
+
 	m.hoverSeparator = m.resizing || m.isOnSeparator(mouse.X)
 	m.hoverFolderSep = m.resizingFolder || (m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X))
 
@@ -873,6 +912,12 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.isOnSeparator(mouse.X)
 	m.hoverFolderSep = m.FolderList.Visible() && m.isOnFolderSeparator(mouse.X)
+
+	if m.helpOverlay != nil {
+		m.helpOverlay.SetCloseHover(m.helpCloseButtonHit(mouse.X, mouse.Y))
+
+		return nil
+	}
 
 	if m.menuAnchor != nil {
 		m.updateAnchoredMenuHover(mouse)
@@ -1109,6 +1154,10 @@ func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 
 		return tea.Quit
 	case FooterMore:
+		return nil
+	case FooterHelp:
+		m.helpOverlay = NewHelpOverlay(m.Focus)
+
 		return nil
 	}
 
@@ -1725,10 +1774,6 @@ func (m *Model) refreshNoteListKeepSelection(now time.Time) {
 
 // currentFolderNotes は現在のフォルダビューに応じたノート一覧を返す。
 func (m *Model) currentFolderNotes() []note.Note {
-	if !m.FolderList.Visible() {
-		return m.App.ListNotes()
-	}
-
 	switch m.FolderList.SelectedKind() {
 	case FolderNotes:
 		return m.App.ListByFolder(app.DefaultFolder)
@@ -1738,7 +1783,7 @@ func (m *Model) currentFolderNotes() []note.Note {
 		return m.App.ListTrashNotes()
 	}
 
-	return m.App.ListNotes()
+	return m.App.ListByFolder(app.DefaultFolder)
 }
 
 func (m *Model) syncEditorToNote(now time.Time) {

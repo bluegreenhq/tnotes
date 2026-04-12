@@ -30,6 +30,13 @@ func (m *Model) renderView(now time.Time) string {
 	// フォルダの件数を更新
 	m.updateFolderCounts()
 
+	// エディタの未保存状態をノートリストに反映
+	if m.Editor.Dirty() {
+		m.NoteList.SetDirtyNoteID(m.Editor.NoteID())
+	} else {
+		m.NoteList.SetDirtyNoteID("")
+	}
+
 	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now, m.FolderList.Visible())
 
 	var body string
@@ -80,7 +87,7 @@ func (m *Model) updateFolderCounts() {
 	}
 }
 
-func (m *Model) applyOverlays(bodyLines []string) {
+func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay dispatch
 	if m.FolderList.MenuOpen() {
 		menuLines := m.FolderList.PopupMenu.View()
 		if m.menuAnchor != nil {
@@ -117,6 +124,61 @@ func (m *Model) applyOverlays(bodyLines []string) {
 	if m.confirmDialog != nil {
 		m.overlayConfirmDialog(bodyLines)
 	}
+
+	if m.helpOverlay != nil {
+		m.overlayHelpOverlay(bodyLines)
+	}
+}
+
+// overlayHelpOverlay はショートカットヘルプをオーバーレイする。
+func (m *Model) overlayHelpOverlay(bodyLines []string) {
+	rendered := m.helpOverlay.View()
+	dialogLines := strings.Split(rendered, "\n")
+
+	startX, startY := m.helpOverlayOrigin(dialogLines)
+
+	for i, dLine := range dialogLines {
+		y := startY + i
+		if y >= len(bodyLines) {
+			break
+		}
+
+		truncated := ansi.Truncate(bodyLines[y], startX, "")
+		w := lipgloss.Width(truncated)
+		padded := truncated + strings.Repeat(" ", startX-w)
+		bodyLines[y] = padded + dLine
+	}
+}
+
+// helpOverlayOrigin はヘルプオーバーレイの画面左上座標を返す。
+func (m *Model) helpOverlayOrigin(dialogLines []string) (int, int) {
+	const centerDivisor = 2
+
+	bodyHeight := m.height - footerLineCount
+	startY := max((bodyHeight-len(dialogLines))/centerDivisor, 0)
+	startX := max((m.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
+
+	return startX, startY
+}
+
+// helpCloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
+// ✕はタイトル行の右端に1文字で配置される。
+func (m *Model) helpCloseButtonHit(x, y int) bool {
+	rendered := m.helpOverlay.View()
+	dialogLines := strings.Split(rendered, "\n")
+	startX, startY := m.helpOverlayOrigin(dialogLines)
+
+	if len(dialogLines) == 0 {
+		return false
+	}
+
+	dialogWidth := lipgloss.Width(dialogLines[0])
+
+	// ✕ は paddingTop行（行1）、border右の直前（dialogWidth - 2）に配置
+	btnY := startY + helpCloseBtnRow
+	btnX := startX + dialogWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
+
+	return x == btnX && y == btnY
 }
 
 // overlayAtAnchor はメニューを指定座標にオーバーレイする。

@@ -544,6 +544,77 @@ func TestTrashModeViaFolder(t *testing.T) {
 	assert.False(t, model.Editor.Header.TrashMode())
 }
 
+func TestHelpOverlayOpenClose(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート一覧で ? → ヘルプ表示
+	ret, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	model := mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+
+	// Escape で閉じる
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model = mustModel(t, ret)
+	assert.False(t, model.HelpVisible())
+}
+
+func TestHelpOverlayCloseWithQuestion(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ヘルプ表示
+	ret, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	model := mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+
+	// ? で閉じる
+	ret, _ = model.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	model = mustModel(t, ret)
+	assert.False(t, model.HelpVisible())
+}
+
+func TestHelpOverlayCtrlSlash(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ノート作成してエディタにフォーカス
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'x', Text: "x"})
+	model := mustModel(t, ret)
+	assert.Equal(t, ui.FocusEditor, model.Focus)
+
+	// Ctrl+/ でヘルプ表示
+	ret, _ = model.Update(tea.KeyPressMsg{Code: '/', Mod: tea.ModCtrl | tea.ModShift})
+	model = mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+
+	// Ctrl+/ で閉じる
+	ret, _ = model.Update(tea.KeyPressMsg{Code: '/', Mod: tea.ModCtrl | tea.ModShift})
+	model = mustModel(t, ret)
+	assert.False(t, model.HelpVisible())
+}
+
+func TestHelpOverlayIgnoresOtherKeys(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// ヘルプ表示
+	ret, _ := m.Update(tea.KeyPressMsg{Code: '?', Text: "?"})
+	model := mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+
+	// j を押してもヘルプは閉じない
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'j'})
+	model = mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+
+	// q を押してもヘルプは閉じない（終了しない）
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'q'})
+	model = mustModel(t, ret)
+	assert.True(t, model.HelpVisible())
+}
+
 func TestTrashModeAndExitViaFolder(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())

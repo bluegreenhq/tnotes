@@ -12,7 +12,7 @@ func TestFooterClickMore(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	// [More] は x=1 から "[More]" の6文字
 	cmd := f.HandleClick(1)
@@ -24,7 +24,7 @@ func TestFooterClickMoreToggle(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	f.HandleClick(1) // open
 	assert.True(t, f.MenuOpen())
@@ -37,14 +37,29 @@ func TestFooterClickMenuItem(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 	f.OpenMenu()
 
-	// メニュー内相対座標 y=1 = "Quit"
-	cmd := f.HandleMenuClick(2, 1)
+	// メニュー内相対座標 y=3 = "Quit" (y=1=Shortcuts, y=2=空行, y=3=Quit)
+	cmd := f.HandleMenuClick(2, 3)
 	assert.NotNil(t, cmd)
 	msg := cmd()
 	assert.Equal(t, ui.FooterQuit, msg)
+	assert.False(t, f.MenuOpen())
+}
+
+func TestFooterClickMenuItemShortcuts(t *testing.T) {
+	t.Parallel()
+
+	f := ui.NewFooter()
+	f.RebuildButtons()
+	f.OpenMenu()
+
+	// メニュー内相対座標 y=1 = "Shortcuts"
+	cmd := f.HandleMenuClick(2, 1)
+	assert.NotNil(t, cmd)
+	msg := cmd()
+	assert.Equal(t, ui.FooterHelp, msg)
 	assert.False(t, f.MenuOpen())
 }
 
@@ -52,11 +67,11 @@ func TestFooterClickMenuItemTrash(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{EditorDirty: false})
+	f.RebuildButtons()
 	f.OpenMenu()
 
-	// y=1 = "Quit"
-	cmd := f.HandleMenuClick(2, 1)
+	// y=3 = "Quit"
+	cmd := f.HandleMenuClick(2, 3)
 	assert.NotNil(t, cmd)
 	msg := cmd()
 	assert.Equal(t, ui.FooterQuit, msg)
@@ -66,7 +81,7 @@ func TestFooterViewClosed(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	view, lines := f.View("", "", 80)
 	assert.Equal(t, 3, lines)
@@ -79,7 +94,7 @@ func TestFooterViewAlways3Lines(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 	f.OpenMenu()
 
 	// メニューはオーバーレイなので Footer.View は常に3行

@@ -7,9 +7,8 @@ import (
 )
 
 var (
-	dirtyMarkStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	errorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	infoStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	errorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	infoStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 )
 
 const footerLineCount = 3
@@ -24,32 +23,24 @@ func (f *Footer) View(errMsg, infoMsg string, width int) (string, int) {
 		return renderErrorLines(errMsg, width), errorLineCount(errMsg, width)
 	}
 
-	btns, dirtyMark := f.collectBoxButtons()
+	btns := f.collectBoxButtons()
 	topLine := renderFooterTopLine(btns)
-	midLine := renderFooterMidLine(btns, dirtyMark, infoMsg)
+	midLine := renderFooterMidLine(btns, infoMsg)
 	botLine := renderFooterBotLine(btns)
 
 	return topLine + "\n" + midLine + "\n" + botLine, footerLineCount
 }
 
-func (f *Footer) collectBoxButtons() ([]BoxButton, string) {
-	var btns []BoxButton
-
-	var dirtyMark string
+func (f *Footer) collectBoxButtons() []BoxButton {
+	btns := make([]BoxButton, 0, len(f.buttons))
 
 	for _, btn := range f.buttons {
-		if btn.Target == HoverNone && btn.Disabled {
-			dirtyMark = btn.Label
-
-			continue
-		}
-
 		bb := NewBoxButton(btn.Label)
 		bb.SetHovered(f.hover == btn.Target)
 		btns = append(btns, bb)
 	}
 
-	return btns, dirtyMark
+	return btns
 }
 
 func renderFooterTopLine(btns []BoxButton) string {
@@ -68,7 +59,7 @@ func renderFooterTopLine(btns []BoxButton) string {
 	return buf.String()
 }
 
-func renderFooterMidLine(btns []BoxButton, dirtyMark, infoMsg string) string {
+func renderFooterMidLine(btns []BoxButton, infoMsg string) string {
 	var buf strings.Builder
 
 	buf.WriteString(" ")
@@ -79,11 +70,6 @@ func renderFooterMidLine(btns []BoxButton, dirtyMark, infoMsg string) string {
 		}
 
 		buf.WriteString(btns[i].ViewMiddle())
-	}
-
-	if dirtyMark != "" {
-		buf.WriteString("  ")
-		buf.WriteString(dirtyMarkStyle.Render(dirtyMark))
 	}
 
 	if infoMsg != "" {

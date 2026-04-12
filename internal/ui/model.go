@@ -67,6 +67,7 @@ type Model struct {
 	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
 	confirmDeleteFolder string         // 削除確認中のフォルダ名
 	menuAnchor          *menuAnchor    // 右クリック時のメニュー表示位置（nil = デフォルト位置）
+	helpOverlay         *HelpOverlay   // ショートカットヘルプ（nil = 非表示）
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -75,7 +76,7 @@ var _ tea.Model = (*Model)(nil)
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
 		App:                 a,
-		NoteList:            NewNoteList(a.ListNotes(), defaultNoteListW, defaultHeight),
+		NoteList:            NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
 		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
 		Footer:              NewFooter(),
 		Focus:               FocusNoteList,
@@ -95,6 +96,7 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		confirmDialog:       nil,
 		confirmDeleteFolder: "",
 		menuAnchor:          nil,
+		helpOverlay:         nil,
 	}
 
 	return m
@@ -109,7 +111,7 @@ func (m *Model) Init() tea.Cmd {
 		m.indexModTime = mt
 	}
 
-	if len(m.App.ListNotes()) > 0 {
+	if len(m.App.ListByFolder(app.DefaultFolder)) > 0 {
 		m.loadSelectedNote()
 	}
 
@@ -118,6 +120,9 @@ func (m *Model) Init() tea.Cmd {
 
 // NoteListWidth は現在のノート一覧幅を返す。
 func (m *Model) NoteListWidth() int { return m.noteListWidth }
+
+// HelpVisible はヘルプオーバーレイが表示中かを返す。
+func (m *Model) HelpVisible() bool { return m.helpOverlay != nil }
 
 func (m *Model) maxNoteListWidth() int {
 	pctLimit := m.width * maxNoteListPct / percentDivisor
@@ -156,9 +161,7 @@ func (m *Model) confirmDialogOrigin() (int, int) {
 }
 
 func (m *Model) rebuildFooterButtons() {
-	m.Footer.RebuildButtons(FooterState{
-		EditorDirty: m.Editor.Dirty(),
-	})
+	m.Footer.RebuildButtons()
 }
 
 // isTrashFolder は現在 Trash フォルダを表示しているかを返す。
