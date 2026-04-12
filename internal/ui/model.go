@@ -75,7 +75,7 @@ var _ tea.Model = (*Model)(nil)
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
 		App:                 a,
-		NoteList:            NewNoteList(a.ListNotes(), defaultNoteListW, defaultHeight),
+		NoteList:            NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
 		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
 		Footer:              NewFooter(),
 		Focus:               FocusNoteList,
@@ -109,7 +109,7 @@ func (m *Model) Init() tea.Cmd {
 		m.indexModTime = mt
 	}
 
-	if len(m.App.ListNotes()) > 0 {
+	if len(m.App.ListByFolder(app.DefaultFolder)) > 0 {
 		m.loadSelectedNote()
 	}
 
