@@ -55,10 +55,11 @@ func (f *Footer) RebuildButtons() {
 
 	// メニュー項目を構築
 	var menuItems = []MenuItem{
+		{Label: "Shortcuts", Disabled: false},
 		{Label: "Quit", Disabled: false},
 	}
 
-	f.menuMsgs = []FooterMsg{FooterQuit}
+	f.menuMsgs = []FooterMsg{FooterHelp, FooterQuit}
 
 	prevHover := f.PopupMenu.hover
 	f.PopupMenu = NewPopupMenu(menuItems)
