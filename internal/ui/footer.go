@@ -49,7 +49,6 @@ func (f *Footer) MenuOpen() bool { return f.menuOpen }
 
 // FooterState はフッターのボタン構築に必要な状態。
 type FooterState struct {
-	TrashMode   bool
 	EditorDirty bool
 }
 
@@ -59,7 +58,7 @@ func (f *Footer) RebuildButtons(s FooterState) {
 		NewFooterButton("Menu", HoverMore),
 	}
 
-	if !s.TrashMode && s.EditorDirty {
+	if s.EditorDirty {
 		f.buttons = append(f.buttons,
 			FooterButton{Label: "● Modified", Target: HoverNone, Disabled: true},
 		)

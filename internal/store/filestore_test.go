@@ -230,7 +230,7 @@ func TestFileStore_Trash(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
-func TestFileStore_Restore(t *testing.T) {
+func TestFileStore_MoveFromTrash(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	s, err := store.NewFileStore(dir)
@@ -248,7 +248,8 @@ func TestFileStore_Restore(t *testing.T) {
 	require.NoError(t, s.Save(n))
 	require.NoError(t, s.Trash("restore1"))
 
-	err = s.Restore("restore1")
+	// MoveNote でゴミ箱から Notes に移動
+	err = s.MoveNote("restore1", "Notes")
 	require.NoError(t, err)
 
 	metas, err := s.List()
@@ -278,13 +279,13 @@ func TestFileStore_TrashNotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestFileStore_RestoreNotFound(t *testing.T) {
+func TestFileStore_MoveFromTrash_NotFound(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	err = s.Restore("nonexistent")
+	err = s.MoveNote("nonexistent", "Notes")
 	assert.Error(t, err)
 }
 

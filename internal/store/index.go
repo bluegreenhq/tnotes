@@ -24,28 +24,9 @@ type indexEntry struct {
 	Path      string `json:"path"`
 }
 
-// trashIndexEntry はゴミ箱ノートの各エントリを表す。
-type trashIndexEntry struct {
-	Title        string `json:"title"`
-	Preview      string `json:"preview,omitempty"`
-	Pinned       bool   `json:"pinned,omitempty"`
-	CreatedAt    string `json:"created_at"`
-	UpdatedAt    string `json:"updated_at"`
-	Path         string `json:"path"`
-	OriginalPath string `json:"original_path"`
-}
-
 // indexData はindex.jsonの全体構造を表す。
 type indexData struct {
-	Notes map[string]indexEntry      `json:"notes"`
-	Trash map[string]trashIndexEntry `json:"trash"`
-}
-
-// trashMetadata はゴミ箱ノートのメタデータ。
-type trashMetadata struct {
-	note.Metadata
-
-	OriginalPath string
+	Notes map[string]indexEntry `json:"notes"`
 }
 
 func parseTime(s string) (time.Time, error) {
@@ -55,4 +36,20 @@ func parseTime(s string) (time.Time, error) {
 	}
 
 	return t, nil
+}
+
+func metadataFromEntry(id string, entry indexEntry) note.Metadata {
+	nid := note.NoteID(id)
+	createdAt, _ := parseTime(entry.CreatedAt)
+	updatedAt, _ := parseTime(entry.UpdatedAt)
+
+	return note.Metadata{
+		ID:        nid,
+		Title:     entry.Title,
+		Preview:   entry.Preview,
+		Pinned:    entry.Pinned,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Path:      entry.Path,
+	}
 }

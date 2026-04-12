@@ -142,11 +142,11 @@ func TestEditorHeaderMenuTrashMode(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	// メニュー内: y=1 = "Restore"
+	// メニュー内: y=1 = "Move to…"
 	cmd := h.HandleMenuClick(2, 1)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderRestore, msg)
+	assert.Equal(t, ui.EditorHeaderMove, msg)
 }
 
 func TestEditorHeaderMenuNoCopyWhenEmpty(t *testing.T) {

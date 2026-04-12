@@ -75,7 +75,7 @@ var _ tea.Model = (*Model)(nil)
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
 		App:                 a,
-		NoteList:            NewNoteList(a.Notes, defaultNoteListW, defaultHeight),
+		NoteList:            NewNoteList(a.ListNotes(), defaultNoteListW, defaultHeight),
 		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
 		Footer:              NewFooter(),
 		Focus:               FocusNoteList,
@@ -109,7 +109,7 @@ func (m *Model) Init() tea.Cmd {
 		m.indexModTime = mt
 	}
 
-	if len(m.App.Notes) > 0 {
+	if len(m.App.ListNotes()) > 0 {
 		m.loadSelectedNote()
 	}
 
@@ -157,7 +157,11 @@ func (m *Model) confirmDialogOrigin() (int, int) {
 
 func (m *Model) rebuildFooterButtons() {
 	m.Footer.RebuildButtons(FooterState{
-		TrashMode:   m.App.TrashMode,
 		EditorDirty: m.Editor.Dirty(),
 	})
+}
+
+// isTrashFolder は現在 Trash フォルダを表示しているかを返す。
+func (m *Model) isTrashFolder() bool {
+	return m.FolderList.SelectedKind() == FolderTrash
 }

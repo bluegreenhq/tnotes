@@ -52,7 +52,7 @@ func TestFooterClickMenuItemTrash(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{TrashMode: true})
+	f.RebuildButtons(ui.FooterState{EditorDirty: false})
 	f.OpenMenu()
 
 	// y=1 = "Quit"

@@ -9,6 +9,7 @@ import (
 	"github.com/cockroachdb/errors"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 var (
@@ -24,7 +25,13 @@ const (
 	minArgsForFolderRename = 5
 )
 
+var ErrTrashFolderNotAllowed = errors.New("cannot move to Trash folder directly; use 'trash' command instead")
+
 func validateFolder(a *app.App, name string) error {
+	if name == note.TrashDir {
+		return ErrTrashFolderNotAllowed
+	}
+
 	exists, err := a.FolderExists(name)
 	if err != nil {
 		return err

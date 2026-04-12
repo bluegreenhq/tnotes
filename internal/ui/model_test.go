@@ -63,7 +63,7 @@ func TestCreateNote(t *testing.T) {
 	m := sized(t, newTestModel())
 	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 	assert.Equal(t, ui.FocusEditor, model.Focus)
 }
 
@@ -93,7 +93,7 @@ func TestNoteListNavigation(t *testing.T) {
 	ret := createNoteWithText(t, m, "note1")
 	ret = createNoteWithText(t, ret, "note2")
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 2)
+	assert.Len(t, model.App.ListNotes(), 2)
 
 	// j で下に移動
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'j'})
@@ -117,12 +117,12 @@ func TestDeleteNote(t *testing.T) {
 	ret := createNoteWithText(t, m, "note1")
 	ret = createNoteWithText(t, ret, "note2")
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 2)
+	assert.Len(t, model.App.ListNotes(), 2)
 
 	// d で先頭のノートを削除
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 	assert.Equal(t, ui.FocusNoteList, model.Focus)
 }
@@ -132,12 +132,12 @@ func TestDeleteLastNote(t *testing.T) {
 	m := sized(t, newTestModel())
 	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 
 	// 最後の1件を削除 → エディタクリア
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
+	assert.Empty(t, model.App.ListNotes())
 }
 
 func TestDeleteNoteFromEnd(t *testing.T) {
@@ -154,7 +154,7 @@ func TestDeleteNoteFromEnd(t *testing.T) {
 	// 末尾のノートを削除 → 選択は1つ上に
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 	assert.Equal(t, 0, model.NoteList.SelectedIndex())
 }
 
@@ -225,16 +225,16 @@ func TestNoteUndoAfterTrash(t *testing.T) {
 	m := sized(t, newTestModel())
 	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'd'})
 	model = mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
+	assert.Empty(t, model.App.ListNotes())
 
 	// サイドバーフォーカスでCtrl+Z → undo
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl})
 	model = mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 	// フッターにredo案内が表示される
 	view := model.View()
 	assert.Contains(t, view.Content, "Redo: Ctrl+Shift+Z")
@@ -247,12 +247,12 @@ func TestNoteRedoAfterUndo(t *testing.T) {
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl})
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 
 	// Ctrl+Shift+Z → redo
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl | tea.ModShift})
 	model = mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
+	assert.Empty(t, model.App.ListNotes())
 }
 
 func TestNoteUndoAfterCreate(t *testing.T) {
@@ -260,12 +260,12 @@ func TestNoteUndoAfterCreate(t *testing.T) {
 	m := sized(t, newTestModel())
 	ret := createNoteWithText(t, m, "note1")
 	model := mustModel(t, ret)
-	assert.Len(t, model.App.Notes, 1)
+	assert.Len(t, model.App.ListNotes(), 1)
 
 	// サイドバーでCtrl+Z → 作成の取り消し
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'z', Mod: tea.ModCtrl})
 	model = mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
+	assert.Empty(t, model.App.ListNotes())
 }
 
 func TestEditorUndoViaCtrlZ(t *testing.T) {
@@ -459,12 +459,12 @@ func TestFolderListSelectTrash(t *testing.T) {
 	// j で Trash を選択
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'j'})
 	model = mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
+	assert.True(t, model.Editor.Header.TrashMode())
 
 	// k で Notes に戻る
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'k'})
 	model = mustModel(t, ret)
-	assert.False(t, model.App.TrashMode)
+	assert.False(t, model.Editor.Header.TrashMode())
 }
 
 func TestFolderListFocusTransition(t *testing.T) {
@@ -526,13 +526,13 @@ func TestTrashModeViaFolder(t *testing.T) {
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'd'})
 	model := mustModel(t, ret)
-	assert.Empty(t, model.App.Notes)
+	assert.Empty(t, model.App.ListNotes())
 
 	// フォルダ表示 → Trash 選択
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
 	model = mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
+	assert.True(t, model.Editor.Header.TrashMode())
 
 	// Trash のビュー確認
 	view := model.View()
@@ -541,10 +541,10 @@ func TestTrashModeViaFolder(t *testing.T) {
 	// Notes に戻る
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'k'})
 	model = mustModel(t, ret)
-	assert.False(t, model.App.TrashMode)
+	assert.False(t, model.Editor.Header.TrashMode())
 }
 
-func TestRestoreNoteViaFolder(t *testing.T) {
+func TestTrashModeAndExitViaFolder(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())
 
@@ -557,12 +557,11 @@ func TestRestoreNoteViaFolder(t *testing.T) {
 	ret, _ = model.Update(tea.KeyPressMsg{Code: 'b', Mod: tea.ModCtrl})
 	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'j'})
 	model = mustModel(t, ret)
-	assert.True(t, model.App.TrashMode)
+	assert.True(t, model.Editor.Header.TrashMode())
+	assert.Len(t, model.App.ListTrashNotes(), 1)
 
-	// Tab → NoteList → r で復元
-	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyTab})
-	ret, _ = ret.Update(tea.KeyPressMsg{Code: 'r'})
+	// Notes に戻る
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 'k'})
 	model = mustModel(t, ret)
-	assert.False(t, model.App.TrashMode)
-	assert.Len(t, model.App.Notes, 1)
+	assert.False(t, model.Editor.Header.TrashMode())
 }

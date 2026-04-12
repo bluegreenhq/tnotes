@@ -70,7 +70,7 @@ func (m *Model) updateFolderCounts() {
 		case FolderNotes:
 			m.FolderList.folders[i].Count = notesCount
 		case FolderTrash:
-			m.FolderList.folders[i].Count = len(m.App.TrashNotes)
+			m.FolderList.folders[i].Count = len(m.App.ListTrashNotes())
 		case FolderUser:
 			count, err := m.App.FolderNoteCount(m.FolderList.folders[i].Name)
 			if err == nil {

@@ -59,7 +59,7 @@ func TestRightClickNoteListOpensEditorHeaderMenu(t *testing.T) {
 	ret := createNoteWithText(t, m, "Hello World")
 	m = mustModel(t, ret)
 
-	assert.Len(t, m.App.Notes, 1, "should have 1 note")
+	assert.Len(t, m.App.ListNotes(), 1, "should have 1 note")
 
 	// NoteList 領域で右クリック（Y=4: NoteListヘッダー2行 + セクションヘッダー2行）
 	ret, _ = m.Update(tea.MouseClickMsg{
