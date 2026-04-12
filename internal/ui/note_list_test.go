@@ -189,7 +189,7 @@ func TestNoteListUpdateCreateMsg(t *testing.T) {
 	assert.Equal(t, ui.NoteListCreate, msg)
 }
 
-func TestNoteListUpdateTrashMode(t *testing.T) {
+func TestNoteListUpdateTrashModeMenu(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -197,10 +197,10 @@ func TestNoteListUpdateTrashMode(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 	}
 	nl := ui.NewNoteList(notes, 30, 20)
-	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'r'}, now, true)
+	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'm'}, now, true)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.NoteListRestore, msg)
+	assert.Equal(t, ui.NoteListMenu, msg)
 }
 
 func TestNoteListTrashModeNoSections(t *testing.T) {

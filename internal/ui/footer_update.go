@@ -93,6 +93,15 @@ func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
 	return f.menuMsgs[idx].Cmd()
 }
 
+// ExecuteMenuAction はインデックスに対応するメニューアクションのコマンドを返す。
+func (f *Footer) ExecuteMenuAction(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(f.menuMsgs) {
+		return nil
+	}
+
+	return f.menuMsgs[idx].Cmd()
+}
+
 // SetMenuHover はメニュー領域のホバーを更新する。
 // x, y はメニュー左上を原点とする相対座標。
 func (f *Footer) SetMenuHover(x, y int) {

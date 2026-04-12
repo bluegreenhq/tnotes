@@ -60,6 +60,20 @@ func (s *NoteList) SelectedNote() (note.Note, bool) {
 	return s.notes[s.selected], true
 }
 
+// SelectedY は選択中ノートの画面上Y座標を返す。
+// now はセクション表示の計算に必要。
+func (s *NoteList) SelectedY(now time.Time) int {
+	rows := s.buildRows(now)
+	targetRow := findSelectedRow(rows, s.selected)
+	y := noteListHeaderLines
+
+	for i := s.offset; i < len(rows) && i < targetRow; i++ {
+		y += rowHeight(rows[i])
+	}
+
+	return y
+}
+
 // SetHoverFolderBtn はフォルダボタンのホバー状態を設定する。
 func (s *NoteList) SetHoverFolderBtn(v bool) { s.hoverFolderBtn = v }
 

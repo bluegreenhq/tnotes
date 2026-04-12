@@ -79,11 +79,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 }
 
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop // key dispatch
-	// 右クリックメニューが開いている場合
-	if m.menuAnchor != nil {
-		m.closeMenusAndAnchor()
-
-		return nil
+	// メニューが開いている場合（右クリック or キーボード起動）
+	if menu, kind := m.activePopupMenu(); menu != nil {
+		return m.handleMenuKey(msg, menu, kind, now)
 	}
 
 	// 確認ダイアログ表示中
@@ -303,6 +301,110 @@ func (m *Model) closeMenusAndAnchor() {
 	m.Editor.CloseContextMenu()
 	m.FolderList.CloseMenu()
 	m.Footer.CloseMenu()
+}
+
+// menuKind は開いているメニューの種類を表す。
+type menuKind int
+
+const (
+	menuKindNone menuKind = iota
+	menuKindEditorHeader
+	menuKindMoveMenu
+	menuKindFolderList
+	menuKindEditorContext
+	menuKindFooter
+)
+
+// activePopupMenu は現在開いているポップアップメニューとその種類を返す。なければ nil。
+func (m *Model) activePopupMenu() (*PopupMenu, menuKind) {
+	switch {
+	case m.Editor.IsContextMenuOpen():
+		return m.Editor.ContextMenu, menuKindEditorContext
+	case m.Editor.Header.MoveMenuOpen():
+		return m.Editor.Header.MoveMenu, menuKindMoveMenu
+	case m.Editor.Header.MenuOpen():
+		return m.Editor.Header.PopupMenu, menuKindEditorHeader
+	case m.FolderList.MenuOpen():
+		return m.FolderList.PopupMenu, menuKindFolderList
+	case m.Footer.MenuOpen():
+		return m.Footer.PopupMenu, menuKindFooter
+	default:
+		return nil, menuKindNone
+	}
+}
+
+// handleMenuKey はメニュー表示中のキー入力を処理する。
+func (m *Model) handleMenuKey(msg tea.KeyPressMsg, menu *PopupMenu, kind menuKind, now time.Time) tea.Cmd {
+	if msg.Code == tea.KeyEscape {
+		m.closeMenusAndAnchor()
+
+		return nil
+	}
+
+	if msg.Code == tea.KeyEnter {
+		idx := menu.SelectHover()
+
+		m.closeMenusAndAnchor()
+
+		if idx < 0 {
+			return nil
+		}
+
+		return m.executeMenuAction(idx, kind, now)
+	}
+
+	menu.HandleKeyNav(msg)
+
+	return nil
+}
+
+// executeMenuAction はメニュー種別とインデックスから対応するアクションを実行する。
+func (m *Model) executeMenuAction(idx int, kind menuKind, now time.Time) tea.Cmd {
+	switch kind {
+	case menuKindEditorHeader:
+		cmd := m.Editor.Header.ExecuteMenuAction(idx)
+
+		return m.processEditorHeaderCmd(cmd, now)
+	case menuKindMoveMenu:
+		cmd := m.Editor.Header.ExecuteMoveMenuAction(idx)
+		if cmd == nil {
+			return nil
+		}
+
+		msg, ok := cmd().(noteMoveMsg)
+		if !ok {
+			return cmd
+		}
+
+		return m.handleNoteMove(msg, now)
+	case menuKindFolderList:
+		return m.handleFolderMenuAction(idx)
+	case menuKindEditorContext:
+		m.Editor.ExecuteContextMenuAction(idx)
+
+		return nil
+	case menuKindFooter:
+		return m.processFooterMenuAction(idx, now)
+	case menuKindNone:
+		return nil
+	}
+
+	return nil
+}
+
+// processFooterMenuAction はフッターメニューのインデックスからアクションを実行する。
+func (m *Model) processFooterMenuAction(idx int, now time.Time) tea.Cmd {
+	cmd := m.Footer.ExecuteMenuAction(idx)
+	if cmd == nil {
+		return nil
+	}
+
+	msg, ok := cmd().(FooterMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.processFooterMsg(msg, now)
 }
 
 func (m *Model) handleAnchoredMenuClick(msg tea.MouseClickMsg) tea.Cmd {
@@ -879,6 +981,12 @@ func (m *Model) processFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
 		m.Focus = FocusNoteList
 
 		return nil
+	case FolderListMenu:
+		if m.FolderList.IsUserFolder() {
+			m.FolderList.OpenMenu()
+		}
+
+		return nil
 	}
 
 	return nil
@@ -907,8 +1015,6 @@ func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //n
 		return m.createNote(now)
 	case NoteListTrash:
 		return m.trashNote(now)
-	case NoteListRestore:
-		return m.openMoveMenu()
 	case NoteListUndo:
 		return m.undoNote(now)
 	case NoteListRedo:
@@ -919,6 +1025,14 @@ func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //n
 		return m.duplicateNote(now)
 	case NoteListCopy:
 		return m.copyNote()
+	case NoteListMenu:
+		m.Editor.Header.OpenMenu()
+		menuW := m.Editor.Header.PopupMenu.Width()
+		x := m.noteListOffset() + m.noteListWidth - menuW
+		y := m.NoteList.SelectedY(now)
+		m.menuAnchor = &menuAnchor{x: x, y: y}
+
+		return nil
 	case NoteListQuit:
 		m.syncEditorToNote(now)
 
@@ -975,8 +1089,6 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 		return m.trashNote(now)
 	case EditorHeaderCopy:
 		return m.copyNote()
-	case EditorHeaderRestore:
-		return m.openMoveMenu()
 	case EditorHeaderPin:
 		return m.pinNote()
 	case EditorHeaderUnpin:

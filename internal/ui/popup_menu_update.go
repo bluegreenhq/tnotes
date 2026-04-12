@@ -1,5 +1,7 @@
 package ui
 
+import tea "charm.land/bubbletea/v2"
+
 // HitTest は座標からメニュー項目のインデックスを返す。
 // メニュー左上を (0,0) とする相対座標。
 // 項目間には空行があり、偶数行(1,3,5...)が項目、奇数行(2,4,...)が空行。
@@ -33,6 +35,50 @@ func (m *PopupMenu) HitTest(x, y int) int {
 	}
 
 	return idx
+}
+
+// MoveHoverDown はホバーを次の有効な項目に移動する。
+func (m *PopupMenu) MoveHoverDown() {
+	for i := m.hover + 1; i < len(m.items); i++ {
+		if !m.items[i].Disabled {
+			m.hover = i
+
+			return
+		}
+	}
+}
+
+// MoveHoverUp はホバーを前の有効な項目に移動する。
+func (m *PopupMenu) MoveHoverUp() {
+	start := m.hover - 1
+	if m.hover < 0 {
+		start = len(m.items) - 1
+	}
+
+	for i := start; i >= 0; i-- {
+		if !m.items[i].Disabled {
+			m.hover = i
+
+			return
+		}
+	}
+}
+
+// SelectHover はホバー中の項目インデックスを返す。ホバーなしなら -1。
+func (m *PopupMenu) SelectHover() int {
+	return m.hover
+}
+
+// HandleKeyNav はキー入力に応じてホバーを上下に移動する。
+func (m *PopupMenu) HandleKeyNav(msg tea.KeyPressMsg) {
+	switch {
+	case msg.Code == tea.KeyDown || msg.Code == 'j' ||
+		(msg.Code == 'n' && msg.Mod&tea.ModCtrl != 0):
+		m.MoveHoverDown()
+	case msg.Code == tea.KeyUp || msg.Code == 'k' ||
+		(msg.Code == 'p' && msg.Mod&tea.ModCtrl != 0):
+		m.MoveHoverUp()
+	}
 }
 
 // SetHoverByPos はマウス座標からホバー状態を更新する。
