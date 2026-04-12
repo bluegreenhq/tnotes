@@ -1166,17 +1166,14 @@ func (m *Model) trashNote(now time.Time) tea.Cmd {
 		return nil
 	}
 
-	_, ok := m.NoteList.SelectedNote()
+	selected, ok := m.NoteList.SelectedNote()
 	if !ok {
 		return nil
 	}
 
 	m.syncEditorToNote(now)
 
-	idx := m.NoteList.SelectedIndex()
-	currentNotes := m.currentFolderNotes()
-
-	result, err := m.App.TrashNote(currentNotes, idx)
+	result, err := m.App.TrashNote(selected.ID)
 	if err != nil {
 		m.errMsg = err.Error()
 
@@ -1191,17 +1188,14 @@ func (m *Model) duplicateNote(now time.Time) tea.Cmd {
 		return nil
 	}
 
-	_, ok := m.NoteList.SelectedNote()
+	selected, ok := m.NoteList.SelectedNote()
 	if !ok {
 		return nil
 	}
 
 	m.syncEditorToNote(now)
 
-	idx := m.NoteList.SelectedIndex()
-	currentNotes := m.currentFolderNotes()
-
-	result, err := m.App.DuplicateNote(currentNotes, idx)
+	result, err := m.App.DuplicateNote(selected.ID)
 	if err != nil {
 		m.errMsg = err.Error()
 

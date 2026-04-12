@@ -111,24 +111,19 @@ func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 	}, nil
 }
 
-// DuplicateNote は指定されたノート一覧内のインデックスのノートを複製する。
-// notes は ListNotes() や ListByFolder() で得た一覧を渡す。
+// DuplicateNote は指定IDのノートを複製する。
 // 複製されたノートはコピー元の直下に挿入される。
 // undo記録も内部で行う。
-func (a *App) DuplicateNote(notes []note.Note, idx int) (NoteResult, error) {
-	if idx < 0 || idx >= len(notes) {
-		return NoteResult{Notes: a.Notes, SelectIdx: -1}, nil //nolint:exhaustruct // 範囲外は操作なし
+func (a *App) DuplicateNote(id note.NoteID) (NoteResult, error) {
+	srcIdx := a.findNoteIndex(id)
+	if srcIdx < 0 {
+		return NoteResult{}, ErrNoteNotFound
 	}
 
-	src := notes[idx]
-
-	dup, err := a.store.Duplicate(src.ID)
+	dup, err := a.store.Duplicate(id)
 	if err != nil {
 		return NoteResult{}, err
 	}
-
-	// コピー元の直下に挿入
-	srcIdx := max(a.findNoteIndex(src.ID), 0)
 
 	insertIdx := srcIdx + 1
 	a.Notes = slices.Insert(a.Notes, insertIdx, dup)
@@ -143,23 +138,22 @@ func (a *App) DuplicateNote(notes []note.Note, idx int) (NoteResult, error) {
 	}, nil
 }
 
-// TrashNote は指定されたノート一覧内のインデックスのノートをゴミ箱に移動する。
-// notes は ListNotes() や ListByFolder() で得た一覧を渡す。
+// TrashNote は指定IDのノートをゴミ箱に移動する。
 // undo記録も内部で行う。
-func (a *App) TrashNote(notes []note.Note, idx int) (NoteResult, error) {
-	if idx < 0 || idx >= len(notes) {
-		return NoteResult{Notes: a.Notes, SelectIdx: -1}, nil //nolint:exhaustruct // 範囲外は操作なし
+func (a *App) TrashNote(id note.NoteID) (NoteResult, error) {
+	idx := a.findNoteIndex(id)
+	if idx < 0 {
+		return NoteResult{}, ErrNoteNotFound
 	}
 
-	n := notes[idx]
-	originalFolder := n.Folder()
+	originalFolder := a.Notes[idx].Folder()
 
-	err := a.trashNoteInternal(n.ID)
+	err := a.trashNoteInternal(id)
 	if err != nil {
 		return NoteResult{}, err
 	}
 
-	a.NoteUndo.Push(&TrashAction{NoteID: n.ID, OriginalIndex: idx, OriginalFolder: originalFolder})
+	a.NoteUndo.Push(&TrashAction{NoteID: id, OriginalFolder: originalFolder})
 
 	return NoteResult{Notes: a.Notes, SelectIdx: -1, InfoHint: "Undo: Ctrl+Z"}, nil //nolint:exhaustruct // Noteはゴミ箱移動で不要
 }

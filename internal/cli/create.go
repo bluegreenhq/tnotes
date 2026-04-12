@@ -51,7 +51,7 @@ func runCreate(args []string, a *app.App, r io.Reader, w io.Writer) error {
 
 func parseFolderFlag(fileArgs []string) (string, []string) {
 	for i := range fileArgs {
-		if fileArgs[i] == "--folder" && i+1 < len(fileArgs) {
+		if fileArgs[i] == folderFlag && i+1 < len(fileArgs) {
 			folder := fileArgs[i+1]
 
 			return folder, append(fileArgs[:i], fileArgs[i+2:]...)

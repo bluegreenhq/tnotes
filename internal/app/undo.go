@@ -130,7 +130,6 @@ func (c *CreateAction) Redo(a *App) error {
 // TrashAction はノート削除操作を表す。
 type TrashAction struct {
 	NoteID         note.NoteID
-	OriginalIndex  int
 	OriginalFolder string
 }
 

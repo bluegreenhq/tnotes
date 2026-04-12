@@ -31,8 +31,8 @@ func TestPurgeTrash(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	for range 3 {
-		_, err := a.TrashNote(a.ListNotes(), 0)
+	for _, n := range a.ListNotes() {
+		_, err := a.TrashNote(n.ID)
 		require.NoError(t, err)
 	}
 
@@ -462,8 +462,7 @@ func TestDuplicateNote(t *testing.T) {
 
 	require.NoError(t, a.PinNote(result.Note.ID))
 
-	notes := a.ListNotes()
-	dupResult, err := a.DuplicateNote(notes, 0)
+	dupResult, err := a.DuplicateNote(result.Note.ID)
 	require.NoError(t, err)
 
 	// 新しいIDが生成される
@@ -504,21 +503,19 @@ func TestDuplicateNote_InFolder(t *testing.T) {
 	_, err = a.SaveNote(result.Note.ID, "work note", now)
 	require.NoError(t, err)
 
-	notes := a.ListByFolder("Work")
-	dupResult, err := a.DuplicateNote(notes, 0)
+	dupResult, err := a.DuplicateNote(result.Note.ID)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Work", dupResult.Note.Folder())
 	assert.Equal(t, "work note", dupResult.Note.Body)
 }
 
-func TestDuplicateNote_OutOfRange(t *testing.T) {
+func TestDuplicateNote_NotFound(t *testing.T) {
 	t.Parallel()
 
 	a, err := app.New(nil)
 	require.NoError(t, err)
 
-	result, err := a.DuplicateNote(nil, 0)
-	require.NoError(t, err)
-	assert.Equal(t, -1, result.SelectIdx)
+	_, err = a.DuplicateNote("nonexistent")
+	assert.ErrorIs(t, err, app.ErrNoteNotFound)
 }
