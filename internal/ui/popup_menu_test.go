@@ -152,6 +152,81 @@ func TestPopupMenuView(t *testing.T) {
 	assert.Contains(t, lines[4], "└")
 }
 
+func TestPopupMenuMoveHoverDown(t *testing.T) {
+	t.Parallel()
+
+	items := []ui.MenuItem{
+		{Label: "A"},
+		{Label: "B"},
+		{Label: "C"},
+	}
+	m := ui.NewPopupMenu(items)
+
+	assert.Equal(t, -1, m.Hover())
+	m.MoveHoverDown()
+	assert.Equal(t, 0, m.Hover())
+	m.MoveHoverDown()
+	assert.Equal(t, 1, m.Hover())
+	m.MoveHoverDown()
+	assert.Equal(t, 2, m.Hover())
+	m.MoveHoverDown() // 末尾を超えない
+	assert.Equal(t, 2, m.Hover())
+}
+
+func TestPopupMenuMoveHoverUp(t *testing.T) {
+	t.Parallel()
+
+	items := []ui.MenuItem{
+		{Label: "A"},
+		{Label: "B"},
+		{Label: "C"},
+	}
+	m := ui.NewPopupMenu(items)
+
+	// hover=-1 から MoveHoverUp で末尾に移動
+	m.MoveHoverUp()
+	assert.Equal(t, 2, m.Hover())
+	m.MoveHoverUp()
+	assert.Equal(t, 1, m.Hover())
+	m.MoveHoverUp()
+	assert.Equal(t, 0, m.Hover())
+	m.MoveHoverUp() // 先頭を超えない
+	assert.Equal(t, 0, m.Hover())
+}
+
+func TestPopupMenuMoveHoverSkipsDisabled(t *testing.T) {
+	t.Parallel()
+
+	items := []ui.MenuItem{
+		{Label: "A"},
+		{Label: "B", Disabled: true},
+		{Label: "C"},
+	}
+	m := ui.NewPopupMenu(items)
+
+	m.MoveHoverDown() // → A (0)
+	assert.Equal(t, 0, m.Hover())
+	m.MoveHoverDown() // → C (2), B はスキップ
+	assert.Equal(t, 2, m.Hover())
+
+	m.MoveHoverUp() // → A (0), B はスキップ
+	assert.Equal(t, 0, m.Hover())
+}
+
+func TestPopupMenuSelectHover(t *testing.T) {
+	t.Parallel()
+
+	items := []ui.MenuItem{
+		{Label: "A"},
+		{Label: "B"},
+	}
+	m := ui.NewPopupMenu(items)
+
+	assert.Equal(t, -1, m.SelectHover())
+	m.MoveHoverDown()
+	assert.Equal(t, 0, m.SelectHover())
+}
+
 func TestPopupMenuViewDisabled(t *testing.T) {
 	t.Parallel()
 

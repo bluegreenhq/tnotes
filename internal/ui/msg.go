@@ -17,8 +17,6 @@ const (
 	NoteListCreate
 	// NoteListTrash はノートのゴミ箱移動を要求する。
 	NoteListTrash
-	// NoteListRestore はゴミ箱からのノート復元を要求する。
-	NoteListRestore
 	// NoteListUndo はundo操作を要求する。
 	NoteListUndo
 	// NoteListRedo はredo操作を要求する。
@@ -29,6 +27,8 @@ const (
 	NoteListCopy
 	// NoteListDuplicate はノート複製を要求する。
 	NoteListDuplicate
+	// NoteListMenu はコンテキストメニュー表示を要求する。
+	NoteListMenu
 	// NoteListQuit は終了を要求する。
 	NoteListQuit
 )
@@ -79,6 +79,8 @@ const (
 	FolderListSelect FolderListMsg = iota
 	// FolderListFocusNext はノート一覧へのフォーカス移動を要求する。
 	FolderListFocusNext
+	// FolderListMenu はコンテキストメニュー表示を要求する。
+	FolderListMenu
 )
 
 // folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
@@ -139,8 +141,6 @@ const (
 	EditorHeaderTrash
 	// EditorHeaderCopy はノート内容のクリップボードコピーを要求する。
 	EditorHeaderCopy
-	// EditorHeaderRestore はゴミ箱からのノート復元を要求する。
-	EditorHeaderRestore
 	// EditorHeaderPin はノートのピン留めを要求する。
 	EditorHeaderPin
 	// EditorHeaderUnpin はノートのピン留め解除を要求する。

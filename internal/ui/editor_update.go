@@ -617,6 +617,18 @@ func (e *Editor) HandleContextMenuClick(x, y int) {
 	}
 }
 
+// ExecuteContextMenuAction はインデックスに対応するコンテキストメニューアクションを実行する。
+func (e *Editor) ExecuteContextMenuAction(idx int) {
+	switch editorContextMsg(idx) {
+	case editorContextCopy:
+		_ = e.CopySelection()
+	case editorContextCut:
+		_ = e.CutSelection()
+	case editorContextPaste:
+		_ = e.PasteFromClipboard()
+	}
+}
+
 func (e *Editor) restoreSnapshot(snap *EditorSnapshot) {
 	e.textarea.SetValue(snap.Text)
 	e.textarea.MoveTo(snap.CursorLine, snap.CursorCol)

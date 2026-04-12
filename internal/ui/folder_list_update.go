@@ -141,6 +141,8 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 		return fl.moveUp()
 	case tea.KeyDown, 'j':
 		return fl.moveDown()
+	case 'm':
+		return *fl, FolderListMenu.Cmd()
 	case tea.KeyEnter, tea.KeyTab:
 		return *fl, FolderListFocusNext.Cmd()
 	}

@@ -102,6 +102,15 @@ func (h *EditorHeader) HandleMenuClick(x, y int) tea.Cmd {
 	return h.menuMsgs[idx].Cmd()
 }
 
+// ExecuteMenuAction はインデックスに対応するメニューアクションのコマンドを返す。
+func (h *EditorHeader) ExecuteMenuAction(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(h.menuMsgs) {
+		return nil
+	}
+
+	return h.menuMsgs[idx].Cmd()
+}
+
 // SetMenuHover はメニュー領域のホバーを更新する。
 func (h *EditorHeader) SetMenuHover(x, y int) {
 	h.PopupMenu.SetHoverByPos(x, y)
@@ -160,6 +169,17 @@ func (h *EditorHeader) HandleMoveMenuClick(x, y int) tea.Cmd {
 	h.CloseMoveMenu()
 
 	if !hit || idx < 0 || idx >= len(h.moveFolders) {
+		return nil
+	}
+
+	dest := h.moveFolders[idx]
+
+	return noteMoveMsg{DestFolder: dest}.Cmd()
+}
+
+// ExecuteMoveMenuAction はインデックスに対応する移動先フォルダのコマンドを返す。
+func (h *EditorHeader) ExecuteMoveMenuAction(idx int) tea.Cmd {
+	if idx < 0 || idx >= len(h.moveFolders) {
 		return nil
 	}
 
