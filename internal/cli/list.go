@@ -73,7 +73,7 @@ func fetchNotes(a *app.App, trash bool, folderName string) ([]note.Note, error) 
 		return a.ListTrash()
 	}
 
-	notes := a.List()
+	notes := a.ListNotes()
 
 	if folderName != "" {
 		err := validateFolder(a, folderName)

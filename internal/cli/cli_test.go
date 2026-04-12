@@ -274,7 +274,7 @@ func TestRun_Export_WithTrash(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Trash test\nBody", now)
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 
 	outPath := filepath.Join(t.TempDir(), "backup.zip")
 
@@ -403,7 +403,7 @@ func TestRun_Purge_Force(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Purge test\nBody", now)
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 
 	var buf bytes.Buffer
 
@@ -433,7 +433,7 @@ func TestRun_Purge_ConfirmYes(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Confirm test\nBody", now)
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 
 	var buf bytes.Buffer
 
@@ -450,7 +450,7 @@ func TestRun_Purge_ConfirmNo(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Cancel test\nBody", now)
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 
 	var buf bytes.Buffer
 
@@ -460,8 +460,8 @@ func TestRun_Purge_ConfirmNo(t *testing.T) {
 	assert.Contains(t, buf.String(), "Cancelled")
 
 	// ゴミ箱にはまだノートが残っている
-	require.NoError(t, a.EnterTrashMode())
-	assert.Len(t, a.TrashNotes, 1)
+	require.NoError(t, a.RefreshTrashNotes())
+	assert.Len(t, a.ListTrashNotes(), 1)
 }
 
 func TestRun_Purge_ConfirmEmpty(t *testing.T) {
@@ -471,7 +471,7 @@ func TestRun_Purge_ConfirmEmpty(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(result.Note.ID, "Default no\nBody", now)
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 
 	var buf bytes.Buffer
 

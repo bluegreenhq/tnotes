@@ -91,13 +91,13 @@ func TestCreateActionUndo(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 
 	action := &app.CreateAction{NoteID: result.Note.ID}
 	err := action.Undo(a)
 	require.NoError(t, err)
-	assert.Empty(t, a.Notes)
-	assert.Len(t, a.TrashNotes, 1)
+	assert.Empty(t, a.ListNotes())
+	assert.Len(t, a.ListTrashNotes(), 1)
 }
 
 func TestCreateActionRedo(t *testing.T) {
@@ -109,11 +109,11 @@ func TestCreateActionRedo(t *testing.T) {
 
 	action := &app.CreateAction{NoteID: result.Note.ID}
 	_ = action.Undo(a)
-	assert.Empty(t, a.Notes)
+	assert.Empty(t, a.ListNotes())
 
 	err := action.Redo(a)
 	require.NoError(t, err)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 }
 
 func TestTrashActionUndo(t *testing.T) {
@@ -123,13 +123,13 @@ func TestTrashActionUndo(t *testing.T) {
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
 
-	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0}
-	_, _ = a.TrashNote(0)
-	assert.Empty(t, a.Notes)
+	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(a.ListNotes(), 0)
+	assert.Empty(t, a.ListNotes())
 
 	err := action.Undo(a)
 	require.NoError(t, err)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 }
 
 func TestTrashActionRedo(t *testing.T) {
@@ -139,50 +139,49 @@ func TestTrashActionRedo(t *testing.T) {
 	now := time.Now()
 	_, _ = a.CreateNote(now, "")
 
-	action := &app.TrashAction{NoteID: a.Notes[0].ID, OriginalIndex: 0}
-	_, _ = a.TrashNote(0)
+	action := &app.TrashAction{NoteID: a.ListNotes()[0].ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 	_ = action.Undo(a)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 
 	err := action.Redo(a)
 	require.NoError(t, err)
-	assert.Empty(t, a.Notes)
+	assert.Empty(t, a.ListNotes())
 }
 
-func TestRestoreActionUndo(t *testing.T) {
+func TestMoveNoteFromTrash(t *testing.T) {
 	t.Parallel()
 
 	a, _ := app.New(nil)
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
+	assert.Empty(t, a.ListNotes())
+	assert.Len(t, a.ListTrashNotes(), 1)
 
-	action := &app.RestoreAction{NoteID: result.Note.ID}
-	_, _ = a.RestoreNote(0)
-	assert.Len(t, a.Notes, 1)
+	// MoveNoteToFolder で Trash から Notes に移動
+	err := a.MoveNoteToFolder(result.Note.ID, app.DefaultFolder)
+	require.NoError(t, err)
+	assert.Len(t, a.ListNotes(), 1)
+	assert.Empty(t, a.ListTrashNotes())
+}
 
+func TestTrashActionUndoRestoresToOriginalFolder(t *testing.T) {
+	t.Parallel()
+
+	a, _ := app.New(nil)
+	now := time.Now()
+	result, _ := a.CreateNote(now, "")
+
+	action := &app.TrashAction{NoteID: result.Note.ID, OriginalIndex: 0, OriginalFolder: app.DefaultFolder}
+	_, _ = a.TrashNote(a.ListNotes(), 0)
+	assert.Empty(t, a.ListNotes())
+
+	// Undo すると元のフォルダに戻る
 	err := action.Undo(a)
 	require.NoError(t, err)
-	assert.Empty(t, a.Notes)
-	assert.Len(t, a.TrashNotes, 1)
-}
-
-func TestRestoreActionRedo(t *testing.T) {
-	t.Parallel()
-
-	a, _ := app.New(nil)
-	now := time.Now()
-	result, _ := a.CreateNote(now, "")
-	_, _ = a.TrashNote(0)
-
-	action := &app.RestoreAction{NoteID: result.Note.ID}
-	_, _ = a.RestoreNote(0)
-	_ = action.Undo(a)
-	assert.Empty(t, a.Notes)
-
-	err := action.Redo(a)
-	require.NoError(t, err)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
+	assert.Empty(t, a.ListTrashNotes())
 }
 
 func TestAppUndoNote(t *testing.T) {
@@ -191,14 +190,14 @@ func TestAppUndoNote(t *testing.T) {
 	a, _ := app.New(nil)
 	now := time.Now()
 	_, _ = a.CreateNote(now, "")
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 
-	_, _ = a.TrashNote(0)
-	assert.Empty(t, a.Notes)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
+	assert.Empty(t, a.ListNotes())
 
 	result, err := a.UndoNote()
 	require.NoError(t, err)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 	assert.Equal(t, "Redo: Ctrl+Shift+Z", result.InfoHint)
 }
 
@@ -208,11 +207,11 @@ func TestAppRedoNote(t *testing.T) {
 	a, _ := app.New(nil)
 	now := time.Now()
 	_, _ = a.CreateNote(now, "")
-	_, _ = a.TrashNote(0)
+	_, _ = a.TrashNote(a.ListNotes(), 0)
 	_, _ = a.UndoNote()
 
 	result, err := a.RedoNote()
 	require.NoError(t, err)
-	assert.Empty(t, a.Notes)
+	assert.Empty(t, a.ListNotes())
 	assert.Equal(t, "Undo: Ctrl+Z", result.InfoHint)
 }

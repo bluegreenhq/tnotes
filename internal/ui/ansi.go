@@ -3,6 +3,9 @@ package ui
 import (
 	"strings"
 	"unicode/utf8"
+
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // visibleRuneByteRange は ANSI シーケンスをスキップして n 番目の可視ルーンのバイト範囲を返す。
@@ -97,6 +100,20 @@ func skipANSI(s string, i int) int {
 	}
 
 	return 0
+}
+
+// truncateLeftSafe は ansi.TruncateLeft のラッパー。
+// 全角文字が境界をまたぐ場合、余分なセルをスペースで置換する。
+func truncateLeftSafe(s string, n int) string {
+	rest := ansi.TruncateLeft(s, n, "")
+	origWidth := lipgloss.Width(s)
+	expected := max(origWidth-n, 0)
+
+	if lipgloss.Width(rest) > expected {
+		rest = ansi.TruncateLeft(s, n+1, " ")
+	}
+
+	return rest
 }
 
 // skipCSI は CSI シーケンス (ESC [ ... 終端) のバイト長を返す。

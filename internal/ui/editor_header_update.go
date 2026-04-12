@@ -11,9 +11,9 @@ func (h *EditorHeader) RebuildMenu() {
 
 	if h.trashMode {
 		menuItems = []MenuItem{
-			{Label: "Restore", Disabled: false},
+			{Label: "Move to…", Disabled: false},
 		}
-		h.menuMsgs = []EditorHeaderMsg{EditorHeaderRestore}
+		h.menuMsgs = []EditorHeaderMsg{EditorHeaderMove}
 	} else {
 		menuItems = []MenuItem{
 			{Label: "Delete Note", Disabled: false},

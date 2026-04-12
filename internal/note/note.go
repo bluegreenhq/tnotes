@@ -14,6 +14,11 @@ const (
 	maxTitleLen   = 50
 	maxPreviewLen = 80
 	idByteLen     = 8
+
+	// TrashDir はゴミ箱ディレクトリ名。
+	TrashDir = ".trash"
+
+	pathSplitParts = 2
 )
 
 // NoteID はノートの一意識別子を表す。
@@ -74,6 +79,21 @@ func New(now time.Time) (Note, error) {
 // FromMetadata は Metadata から Body が空の Note を生成する。
 func FromMetadata(m Metadata) Note {
 	return Note{Metadata: m, Body: ""}
+}
+
+// Folder はノートが属するフォルダ名を返す。Path の最初のセグメント。
+func (n Note) Folder() string {
+	parts := strings.SplitN(n.Path, "/", pathSplitParts)
+	if len(parts) == 0 {
+		return ""
+	}
+
+	return parts[0]
+}
+
+// IsTrash はゴミ箱内のノートかを返す。
+func (n Note) IsTrash() bool {
+	return n.Folder() == TrashDir
 }
 
 // Title はBodyの1行目を返す。Bodyが空ならMetadata.Titleを返す。それも空なら "New Note"。

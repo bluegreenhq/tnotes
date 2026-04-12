@@ -72,7 +72,7 @@ func (fl *FolderList) clearRename() {
 func (fl *FolderList) InputValue() string { return fl.lineInput.Value() }
 
 // HitTestHeader はヘッダー領域のクリック判定を行う.
-// 戻り値: headerHitClose, headerHitAdd, headerHitMore, "" (該当なし).
+// 戻り値: headerHitClose, headerHitAdd, "" (該当なし).
 func (fl *FolderList) HitTestHeader(x, y int) string {
 	if y != 0 {
 		return ""
@@ -85,16 +85,8 @@ func (fl *FolderList) HitTestHeader(x, y int) string {
 		return headerHitClose
 	}
 
-	// ボタンは右端に配置
-	if fl.IsUserFolder() {
-		if x == contentWidth-headerMoreBtnOffset {
-			return headerHitMore
-		}
-
-		if x == contentWidth-headerAddBtnOffsetMore {
-			return headerHitAdd
-		}
-	} else if x == contentWidth-headerAddBtnOffsetNoMore {
+	// + ボタン (右端)
+	if x == contentWidth-headerAddBtnOffset {
 		return headerHitAdd
 	}
 
@@ -230,7 +222,6 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) 
 func (fl *FolderList) SetHeaderHover(x, y int) {
 	fl.hoverClose = false
 	fl.hoverAdd = false
-	fl.hoverMore = false
 
 	if y != 0 {
 		return
@@ -243,8 +234,6 @@ func (fl *FolderList) SetHeaderHover(x, y int) {
 		fl.hoverClose = true
 	case headerHitAdd:
 		fl.hoverAdd = true
-	case headerHitMore:
-		fl.hoverMore = true
 	}
 }
 
@@ -252,11 +241,7 @@ func (fl *FolderList) SetHeaderHover(x, y int) {
 func (fl *FolderList) ClearHeaderHover() {
 	fl.hoverClose = false
 	fl.hoverAdd = false
-	fl.hoverMore = false
 }
 
 // HoverAdd は + ボタンがホバー中かを返す。
 func (fl *FolderList) HoverAdd() bool { return fl.hoverAdd }
-
-// HoverMore は ⋯ ボタンがホバー中かを返す。
-func (fl *FolderList) HoverMore() bool { return fl.hoverMore }

@@ -114,14 +114,7 @@ type CreateAction struct {
 
 // Undo はノートをゴミ箱に移動する（作成の取り消し）。
 func (c *CreateAction) Undo(a *App) error {
-	idx := a.findNoteIndex(c.NoteID)
-	if idx < 0 {
-		return nil
-	}
-
-	_, err := a.trashNoteInternal(idx)
-
-	return err
+	return a.trashNoteInternal(c.NoteID)
 }
 
 // TargetNoteID は対象ノートのIDを返す。
@@ -129,32 +122,24 @@ func (c *CreateAction) TargetNoteID() note.NoteID { return c.NoteID }
 
 // Redo はノートをゴミ箱から復元する（作成のやり直し）。
 func (c *CreateAction) Redo(a *App) error {
-	idx := a.findTrashNoteIndex(c.NoteID)
-	if idx < 0 {
-		return nil
-	}
-
-	_, _, err := a.restoreNoteInternal(idx)
-
-	return err
+	return a.MoveNoteToFolder(c.NoteID, DefaultFolder)
 }
 
 // TrashAction はノート削除操作を表す。
 type TrashAction struct {
-	NoteID        note.NoteID
-	OriginalIndex int
+	NoteID         note.NoteID
+	OriginalIndex  int
+	OriginalFolder string
 }
 
-// Undo はノートをゴミ箱から復元する（削除の取り消し）。
+// Undo はノートをゴミ箱から元のフォルダに復元する（削除の取り消し）。
 func (ta *TrashAction) Undo(a *App) error {
-	idx := a.findTrashNoteIndex(ta.NoteID)
-	if idx < 0 {
-		return nil
+	destFolder := ta.OriginalFolder
+	if destFolder == "" {
+		destFolder = DefaultFolder
 	}
 
-	_, _, err := a.restoreNoteInternal(idx)
-
-	return err
+	return a.MoveNoteToFolder(ta.NoteID, destFolder)
 }
 
 // TargetNoteID は対象ノートのIDを返す。
@@ -162,44 +147,5 @@ func (ta *TrashAction) TargetNoteID() note.NoteID { return ta.NoteID }
 
 // Redo はノートをゴミ箱に移動する（削除のやり直し）。
 func (ta *TrashAction) Redo(a *App) error {
-	idx := a.findNoteIndex(ta.NoteID)
-	if idx < 0 {
-		return nil
-	}
-
-	_, err := a.trashNoteInternal(idx)
-
-	return err
-}
-
-// RestoreAction はノート復元操作を表す。
-type RestoreAction struct {
-	NoteID note.NoteID
-}
-
-// Undo はノートをゴミ箱に戻す（復元の取り消し）。
-func (r *RestoreAction) Undo(a *App) error {
-	idx := a.findNoteIndex(r.NoteID)
-	if idx < 0 {
-		return nil
-	}
-
-	_, err := a.trashNoteInternal(idx)
-
-	return err
-}
-
-// TargetNoteID は対象ノートのIDを返す。
-func (r *RestoreAction) TargetNoteID() note.NoteID { return r.NoteID }
-
-// Redo はノートをゴミ箱から復元する（復元のやり直し）。
-func (r *RestoreAction) Redo(a *App) error {
-	idx := a.findTrashNoteIndex(r.NoteID)
-	if idx < 0 {
-		return nil
-	}
-
-	_, _, err := a.restoreNoteInternal(idx)
-
-	return err
+	return a.trashNoteInternal(ta.NoteID)
 }

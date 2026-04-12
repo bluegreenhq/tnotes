@@ -185,7 +185,7 @@ func TestE2E_SoftWrapDisplaysWrappedText(t *testing.T) {
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }
 
-func TestE2E_TrashAndRestoreViaFolder(t *testing.T) {
+func TestE2E_TrashViaFolder(t *testing.T) {
 	t.Parallel()
 
 	m := newTestModel()
@@ -233,14 +233,17 @@ func TestE2E_TrashAndRestoreViaFolder(t *testing.T) {
 
 	tm.Send(tea.KeyPressMsg{Code: 'j'})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Trash")
+		s := screen(bts)
+
+		return strings.Contains(s, "Trash") && strings.Contains(s, "Test")
 	}, teatest.WithDuration(3*time.Second))
 
-	// Tab → NoteList → r で復元
-	tm.Send(tea.KeyPressMsg{Code: tea.KeyTab})
-	tm.Send(tea.KeyPressMsg{Code: 'r'})
+	// k で Notes に戻る
+	tm.Send(tea.KeyPressMsg{Code: 'k'})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
-		return strings.Contains(screen(bts), "Notes")
+		s := screen(bts)
+
+		return strings.Contains(s, "Notes") && !strings.Contains(s, "Test")
 	}, teatest.WithDuration(3*time.Second))
 
 	tm.Send(tea.KeyPressMsg{Code: 'q'})

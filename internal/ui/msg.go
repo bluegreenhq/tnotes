@@ -118,10 +118,6 @@ func (m FooterMsg) Cmd() tea.Cmd {
 const (
 	// FooterQuit は終了ボタンがクリックされたことを通知する。
 	FooterQuit FooterMsg = iota
-	// FooterCopy はコピーボタンがクリックされたことを通知する。
-	FooterCopy
-	// FooterCut はカットボタンがクリックされたことを通知する。
-	FooterCut
 	// FooterMore はMoreボタンがクリックされたことを通知する。
 	FooterMore
 )

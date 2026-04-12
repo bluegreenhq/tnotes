@@ -32,14 +32,14 @@ func TestPurgeTrash(t *testing.T) {
 	}
 
 	for range 3 {
-		_, err := a.TrashNote(0)
+		_, err := a.TrashNote(a.ListNotes(), 0)
 		require.NoError(t, err)
 	}
 
 	count, err := a.PurgeTrash()
 	require.NoError(t, err)
 	assert.Equal(t, 3, count)
-	assert.Empty(t, a.TrashNotes)
+	assert.Empty(t, a.ListTrashNotes())
 }
 
 func TestPinNote(t *testing.T) {
@@ -58,11 +58,11 @@ func TestPinNote(t *testing.T) {
 
 	err = a.PinNote(result.Note.ID)
 	require.NoError(t, err)
-	assert.True(t, a.Notes[0].Pinned)
+	assert.True(t, a.ListNotes()[0].Pinned)
 
 	err = a.UnpinNote(result.Note.ID)
 	require.NoError(t, err)
-	assert.False(t, a.Notes[0].Pinned)
+	assert.False(t, a.ListNotes()[0].Pinned)
 }
 
 func TestPinNote_NotFound(t *testing.T) {
@@ -398,7 +398,7 @@ func TestDiscardIfEmpty(t *testing.T) {
 	// 空なので破棄される
 	discarded := a.DiscardIfEmpty(id)
 	assert.True(t, discarded)
-	assert.Empty(t, a.Notes)
+	assert.Empty(t, a.ListNotes())
 
 	// ストアからも消えている
 	list, err := s.List()
@@ -429,7 +429,7 @@ func TestDiscardIfEmpty_NonEmpty(t *testing.T) {
 	// 空でないので破棄されない
 	discarded := a.DiscardIfEmpty(id)
 	assert.False(t, discarded)
-	assert.Len(t, a.Notes, 1)
+	assert.Len(t, a.ListNotes(), 1)
 }
 
 func TestDiscardIfEmpty_NotFound(t *testing.T) {
