@@ -27,6 +27,8 @@ const (
 	NoteListEdit
 	// NoteListCopy はノート内容のクリップボードコピーを要求する。
 	NoteListCopy
+	// NoteListDuplicate はノート複製を要求する。
+	NoteListDuplicate
 	// NoteListQuit は終了を要求する。
 	NoteListQuit
 )
@@ -145,6 +147,8 @@ const (
 	EditorHeaderUnpin
 	// EditorHeaderMove はノートのフォルダ移動を要求する。
 	EditorHeaderMove
+	// EditorHeaderDuplicate はノート複製を要求する。
+	EditorHeaderDuplicate
 )
 
 // noteMoveMsg はノートを別フォルダに移動するメッセージ。

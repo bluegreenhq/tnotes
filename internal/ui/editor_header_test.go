@@ -126,8 +126,8 @@ func TestEditorHeaderMenuClickCopy(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	// メニュー内: y=7 = "Copy Note"（Delete Note=1, sep=2, Pin Note=3, sep=4, Move to…=5, sep=6, Copy Note=7）
-	cmd := h.HandleMenuClick(2, 7)
+	// メニュー内: y=9 = "Copy Note"（Delete Note=1, sep=2, Pin Note=3, sep=4, Move to…=5, sep=6, Duplicate=7, sep=8, Copy Note=9）
+	cmd := h.HandleMenuClick(2, 9)
 	assert.NotNil(t, cmd)
 	msg := cmd()
 	assert.Equal(t, ui.EditorHeaderCopy, msg)
@@ -157,12 +157,13 @@ func TestEditorHeaderMenuNoCopyWhenEmpty(t *testing.T) {
 	h.SetHasContent(false)
 	h.RebuildMenu()
 
-	// メニューに "Copy Note" が含まれない（項目は Delete Note + Pin Note + Move to…）
+	// メニューに "Copy Note" が含まれない（項目は Delete Note + Pin Note + Move to… + Duplicate）
 	items := h.PopupMenu.Items()
-	assert.Len(t, items, 3)
+	assert.Len(t, items, 4)
 	assert.Equal(t, "Delete Note", items[0].Label)
 	assert.Equal(t, "Pin Note", items[1].Label)
 	assert.Equal(t, "Move to…", items[2].Label)
+	assert.Equal(t, "Duplicate", items[3].Label)
 }
 
 func TestEditorHeaderMenuClickPin(t *testing.T) {

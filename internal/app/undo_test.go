@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/store"
 )
 
 func TestNoteUndoManagerPushAndUndo(t *testing.T) {
@@ -147,6 +148,59 @@ func TestTrashActionRedo(t *testing.T) {
 	err := action.Redo(a)
 	require.NoError(t, err)
 	assert.Empty(t, a.ListNotes())
+}
+
+func TestDuplicateActionUndo(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 12, 10, 0, 0, 0, time.UTC)
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "hello", now)
+
+	notes := a.ListNotes()
+	_, _ = a.DuplicateNote(notes, 0)
+	assert.Len(t, a.ListNotes(), 2)
+
+	// Undo — 完全削除（ゴミ箱に残らない）
+	undoResult, err := a.UndoNote()
+	require.NoError(t, err)
+	assert.Len(t, a.ListNotes(), 1)
+	assert.Empty(t, a.ListTrashNotes())
+	assert.Equal(t, "Redo: Ctrl+Shift+Z", undoResult.InfoHint)
+}
+
+func TestDuplicateActionRedo(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	s, err := store.NewFileStore(dir)
+	require.NoError(t, err)
+
+	a, err := app.New(s)
+	require.NoError(t, err)
+
+	now := time.Date(2026, 4, 12, 10, 0, 0, 0, time.UTC)
+	result, _ := a.CreateNote(now, "")
+	_, _ = a.SaveNote(result.Note.ID, "hello", now)
+
+	notes := a.ListNotes()
+	_, _ = a.DuplicateNote(notes, 0)
+
+	// Undo then Redo
+	_, _ = a.UndoNote()
+	assert.Len(t, a.ListNotes(), 1)
+
+	redoResult, err := a.RedoNote()
+	require.NoError(t, err)
+	assert.Len(t, a.ListNotes(), 2)
+	assert.Equal(t, "Undo: Ctrl+Z", redoResult.InfoHint)
 }
 
 func TestMoveNoteFromTrash(t *testing.T) {

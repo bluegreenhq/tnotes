@@ -897,7 +897,7 @@ func (m *Model) processNoteListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 	return m.processNoteListMsg(msg, now)
 }
 
-func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd {
+func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // メッセ���ジ振り分けのため許容
 	switch msg {
 	case NoteListSelect:
 		m.loadSelectedNote()
@@ -915,6 +915,8 @@ func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd {
 		return m.redoNote(now)
 	case NoteListEdit:
 		return m.focusEditor()
+	case NoteListDuplicate:
+		return m.duplicateNote(now)
 	case NoteListCopy:
 		return m.copyNote()
 	case NoteListQuit:
@@ -981,6 +983,8 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 		return m.unpinNote()
 	case EditorHeaderMove:
 		return m.openMoveMenu()
+	case EditorHeaderDuplicate:
+		return m.duplicateNote(now)
 	}
 
 	return nil
@@ -1061,6 +1065,31 @@ func (m *Model) trashNote(now time.Time) tea.Cmd {
 	currentNotes := m.currentFolderNotes()
 
 	result, err := m.App.TrashNote(currentNotes, idx)
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	return m.applyNoteResult(result, now)
+}
+
+func (m *Model) duplicateNote(now time.Time) tea.Cmd {
+	if len(m.currentFolderNotes()) == 0 {
+		return nil
+	}
+
+	_, ok := m.NoteList.SelectedNote()
+	if !ok {
+		return nil
+	}
+
+	m.syncEditorToNote(now)
+
+	idx := m.NoteList.SelectedIndex()
+	currentNotes := m.currentFolderNotes()
+
+	result, err := m.App.DuplicateNote(currentNotes, idx)
 	if err != nil {
 		m.errMsg = err.Error()
 
@@ -1634,19 +1663,7 @@ func (m *Model) syncEditorToNote(now time.Time) {
 // applyNoteResult は NoteResult をUI状態に反映する。
 func (m *Model) applyNoteResult(r app.NoteResult, now time.Time) tea.Cmd {
 	notes := m.currentFolderNotes()
-
-	// フィルタ後のリストでの選択インデックスを再計算
-	selectIdx := -1
-
-	if r.Note.ID != "" {
-		for i, n := range notes {
-			if n.ID == r.Note.ID {
-				selectIdx = i
-
-				break
-			}
-		}
-	}
+	selectIdx := m.resolveSelectIdx(r, notes)
 
 	m.NoteList.SetNotes(notes, now)
 
@@ -1662,6 +1679,30 @@ func (m *Model) applyNoteResult(r app.NoteResult, now time.Time) tea.Cmd {
 	}
 
 	return nil
+}
+
+// resolveSelectIdx は NoteResult からUI上の選択インデックスを決定する。
+func (m *Model) resolveSelectIdx(r app.NoteResult, notes []note.Note) int {
+	// Note.ID による検索
+	if r.Note.ID != "" {
+		for i, n := range notes {
+			if n.ID == r.Note.ID {
+				return i
+			}
+		}
+	}
+
+	// SelectIdx によるフォールバック
+	if r.SelectIdx >= 0 && r.SelectIdx < len(notes) {
+		return r.SelectIdx
+	}
+
+	// ノートが残っていれば現在の選択位置を維持
+	if len(notes) > 0 {
+		return min(m.NoteList.SelectedIndex(), len(notes)-1)
+	}
+
+	return -1
 }
 
 func (m *Model) setInfoMsg(msg string) tea.Cmd {

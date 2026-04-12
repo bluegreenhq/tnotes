@@ -31,6 +31,9 @@ func (h *EditorHeader) RebuildMenu() {
 		menuItems = append(menuItems, MenuItem{Label: "Move to…", Disabled: false})
 		h.menuMsgs = append(h.menuMsgs, EditorHeaderMove)
 
+		menuItems = append(menuItems, MenuItem{Label: "Duplicate", Disabled: false})
+		h.menuMsgs = append(h.menuMsgs, EditorHeaderDuplicate)
+
 		if h.hasContent {
 			menuItems = append(menuItems, MenuItem{Label: "Copy Note", Disabled: false})
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderCopy)
