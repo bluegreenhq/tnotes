@@ -12,7 +12,7 @@ func TestFooterClickMore(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	// [More] は x=1 から "[More]" の6文字
 	cmd := f.HandleClick(1)
@@ -24,7 +24,7 @@ func TestFooterClickMoreToggle(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	f.HandleClick(1) // open
 	assert.True(t, f.MenuOpen())
@@ -37,7 +37,7 @@ func TestFooterClickMenuItem(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 	f.OpenMenu()
 
 	// メニュー内相対座標 y=1 = "Quit"
@@ -52,7 +52,7 @@ func TestFooterClickMenuItemTrash(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{EditorDirty: false})
+	f.RebuildButtons()
 	f.OpenMenu()
 
 	// y=1 = "Quit"
@@ -66,7 +66,7 @@ func TestFooterViewClosed(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 
 	view, lines := f.View("", "", 80)
 	assert.Equal(t, 3, lines)
@@ -79,7 +79,7 @@ func TestFooterViewAlways3Lines(t *testing.T) {
 	t.Parallel()
 
 	f := ui.NewFooter()
-	f.RebuildButtons(ui.FooterState{})
+	f.RebuildButtons()
 	f.OpenMenu()
 
 	// メニューはオーバーレイなので Footer.View は常に3行

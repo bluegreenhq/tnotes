@@ -47,21 +47,10 @@ func (f *Footer) Hover() HoverTarget { return f.hover }
 // MenuOpen はメニューが開いているかを返す。
 func (f *Footer) MenuOpen() bool { return f.menuOpen }
 
-// FooterState はフッターのボタン構築に必要な状態。
-type FooterState struct {
-	EditorDirty bool
-}
-
 // RebuildButtons はフッターのボタンリストを再構築する。
-func (f *Footer) RebuildButtons(s FooterState) {
+func (f *Footer) RebuildButtons() {
 	f.buttons = []FooterButton{
 		NewFooterButton("Menu", HoverMore),
-	}
-
-	if s.EditorDirty {
-		f.buttons = append(f.buttons,
-			FooterButton{Label: "● Modified", Target: HoverNone, Disabled: true},
-		)
 	}
 
 	// メニュー項目を構築

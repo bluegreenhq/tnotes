@@ -156,9 +156,7 @@ func (m *Model) confirmDialogOrigin() (int, int) {
 }
 
 func (m *Model) rebuildFooterButtons() {
-	m.Footer.RebuildButtons(FooterState{
-		EditorDirty: m.Editor.Dirty(),
-	})
+	m.Footer.RebuildButtons()
 }
 
 // isTrashFolder は現在 Trash フォルダを表示しているかを返す。

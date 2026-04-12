@@ -1725,10 +1725,6 @@ func (m *Model) refreshNoteListKeepSelection(now time.Time) {
 
 // currentFolderNotes は現在のフォルダビューに応じたノート一覧を返す。
 func (m *Model) currentFolderNotes() []note.Note {
-	if !m.FolderList.Visible() {
-		return m.App.ListNotes()
-	}
-
 	switch m.FolderList.SelectedKind() {
 	case FolderNotes:
 		return m.App.ListByFolder(app.DefaultFolder)
@@ -1738,7 +1734,7 @@ func (m *Model) currentFolderNotes() []note.Note {
 		return m.App.ListTrashNotes()
 	}
 
-	return m.App.ListNotes()
+	return m.App.ListByFolder(app.DefaultFolder)
 }
 
 func (m *Model) syncEditorToNote(now time.Time) {

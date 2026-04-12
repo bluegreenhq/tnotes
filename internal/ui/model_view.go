@@ -30,6 +30,13 @@ func (m *Model) renderView(now time.Time) string {
 	// フォルダの件数を更新
 	m.updateFolderCounts()
 
+	// エディタの未保存状態をノートリストに反映
+	if m.Editor.Dirty() {
+		m.NoteList.SetDirtyNoteID(m.Editor.NoteID())
+	} else {
+		m.NoteList.SetDirtyNoteID("")
+	}
+
 	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now, m.FolderList.Visible())
 
 	var body string
