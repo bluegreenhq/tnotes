@@ -140,7 +140,7 @@ func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *
 		truncated := ansi.Truncate(bodyLines[row], x, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", x-w)
-		rest := ansi.TruncateLeft(bodyLines[row], menuRight, "")
+		rest := truncateLeftSafe(bodyLines[row], menuRight)
 		bodyLines[row] = padded + menuLine + rest
 	}
 }
@@ -170,7 +170,7 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)
-		rest := ansi.TruncateLeft(bodyLines[y], menuRight, "")
+		rest := truncateLeftSafe(bodyLines[y], menuRight)
 		bodyLines[y] = padded + menuLine + rest
 	}
 }

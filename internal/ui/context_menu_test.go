@@ -1,9 +1,11 @@
 package ui_test
 
 import (
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -94,6 +96,39 @@ func TestRightClickClosedByLeftClick(t *testing.T) {
 	})
 	m = mustModel(t, ret)
 	assert.False(t, m.Editor.IsContextMenuOpen())
+}
+
+func TestContextMenuOverlayWidthWithJapanese(t *testing.T) {
+	t.Parallel()
+
+	const termWidth = 100
+
+	m := sized(t, newTestModel())
+	ret := createNoteWithText(t, m, "あいうえおかきくけこさしすせそ")
+	m = mustModel(t, ret)
+
+	// エディタにフォーカスして全選択
+	ret, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+	m = mustModel(t, ret)
+	ret, _ = m.Update(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl | tea.ModShift})
+	m = mustModel(t, ret)
+
+	// エディタ領域で右クリック（日本語テキスト上）
+	ret, _ = m.Update(tea.MouseClickMsg{
+		X: 40, Y: 1, Button: tea.MouseRight,
+	})
+	m = mustModel(t, ret)
+	assert.True(t, m.Editor.IsContextMenuOpen())
+
+	// コンテキストメニュー表示時のView幅を取得
+	view := m.View()
+	lines := strings.Split(view.Content, "\n")
+
+	// メニューが重なる行の幅がターミナル幅を超えていないことを確認
+	for i, line := range lines {
+		w := lipgloss.Width(line)
+		assert.LessOrEqual(t, w, termWidth, "line %d width %d exceeds terminal width %d", i, w, termWidth)
+	}
 }
 
 func TestRightClickClosedByEscape(t *testing.T) {
