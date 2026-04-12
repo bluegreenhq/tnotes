@@ -575,16 +575,6 @@ func (m *Model) handleFolderHeaderClick(msg tea.MouseClickMsg, now time.Time) te
 		m.Focus = FocusFolderList
 
 		return blinkCmd
-	case headerHitMore:
-		if m.FolderList.IsUserFolder() {
-			if m.FolderList.MenuOpen() {
-				m.FolderList.CloseMenu()
-			} else {
-				m.FolderList.OpenMenu()
-			}
-		}
-
-		return nil
 	}
 
 	return nil
@@ -1002,10 +992,6 @@ func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 		m.syncEditorToNote(now)
 
 		return tea.Quit
-	case FooterCopy:
-		return m.copySelection()
-	case FooterCut:
-		return m.cutSelection()
 	case FooterMore:
 		return nil
 	}
@@ -1203,22 +1189,6 @@ func (m *Model) redoNote(now time.Time) tea.Cmd {
 	}
 
 	return m.applyNoteResult(result, now)
-}
-
-func (m *Model) copySelection() tea.Cmd {
-	if m.Editor.HasSelection() {
-		_ = m.Editor.CopySelection()
-	}
-
-	return nil
-}
-
-func (m *Model) cutSelection() tea.Cmd {
-	if m.Editor.HasSelection() {
-		_ = m.Editor.CutSelection()
-	}
-
-	return nil
 }
 
 func (m *Model) copyNote() tea.Cmd {

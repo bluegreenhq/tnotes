@@ -73,10 +73,6 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 	switch target {
 	case HoverQuit:
 		return FooterQuit.Cmd()
-	case HoverCopy:
-		return FooterCopy.Cmd()
-	case HoverCut:
-		return FooterCut.Cmd()
 	case HoverNone, HoverMore:
 		return nil
 	}

@@ -184,34 +184,6 @@ func TestMouseDragSelection(t *testing.T) {
 	assert.True(t, model.Editor.HasSelection())
 }
 
-func TestFooterShowsCopyCutWhenSelected(t *testing.T) {
-	t.Parallel()
-	m := sized(t, newTestModel())
-	// ノート作成してテキストを入力
-	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
-	for _, ch := range "Hello World" {
-		ret, _ = ret.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
-	}
-
-	model := mustModel(t, ret)
-
-	// 選択なし: Copy/Cut ボタンなし
-	view := model.View()
-	assert.NotContains(t, view.Content, " Copy ")
-	assert.NotContains(t, view.Content, " Cut ")
-
-	// エディタで選択をシミュレート（マウスドラッグ、Y=1 はヘッダーの下）
-	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseMotionMsg{X: 38, Y: 1, Button: tea.MouseLeft})
-	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 38, Y: 1, Button: tea.MouseLeft})
-	model = mustModel(t, ret)
-
-	// 選択あり: Copy/Cut ボタンが表示される
-	view = model.View()
-	assert.Contains(t, view.Content, " Copy ")
-	assert.Contains(t, view.Content, " Cut ")
-}
-
 func TestSelectionClearedOnNoteSwitch(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())

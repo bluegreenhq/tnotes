@@ -157,8 +157,7 @@ func (m *Model) confirmDialogOrigin() (int, int) {
 
 func (m *Model) rebuildFooterButtons() {
 	m.Footer.RebuildButtons(FooterState{
-		TrashMode:    m.App.TrashMode,
-		HasSelection: m.Editor.HasSelection(),
-		EditorDirty:  m.Editor.Dirty(),
+		TrashMode:   m.App.TrashMode,
+		EditorDirty: m.Editor.Dirty(),
 	})
 }

@@ -20,17 +20,12 @@ const (
 	minFolderListWidth    = 15
 
 	// ヘッダーボタンHitTest用定数.
-	// レイアウト（moreあり）: ... " + ⋯ "
-	//                  右端から:  4 3 2 1
-	// レイアウト（moreなし）: ... " + "
-	//                  右端から:  2 1
+	// レイアウト: ... " + "
+	//       右端から:  2 1
 	headerCloseBtnWidth      = 2
-	headerMoreBtnOffset      = 2 // contentWidth - 2 = ⋯
-	headerAddBtnOffsetNoMore = 2 // contentWidth - 2 = +（moreなし時）
-	headerAddBtnOffsetMore   = 4 // contentWidth - 4 = +（moreあり時）
+	headerAddBtnOffset       = 2 // contentWidth - 2 = +
 	headerHitClose           = "close"
 	headerHitAdd             = "add"
-	headerHitMore            = "more"
 	folderListSystemAndTrash = 2 // Notes + Trash
 )
 
@@ -57,7 +52,6 @@ type FolderList struct {
 	PopupMenu  *PopupMenu
 	hoverClose bool
 	hoverAdd   bool
-	hoverMore  bool
 }
 
 // NewFolderList は新しい FolderList を生成する。
@@ -80,7 +74,6 @@ func NewFolderList(width, height int) FolderList {
 		PopupMenu:  NewPopupMenu(nil),
 		hoverClose: false,
 		hoverAdd:   false,
-		hoverMore:  false,
 	}
 }
 

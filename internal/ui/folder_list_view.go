@@ -129,18 +129,8 @@ func (fl *FolderList) renderHeader(b *strings.Builder, contentWidth int) {
 		addBtn += buttonStyle.Render("+")
 	}
 
-	moreBtn := ""
-	if fl.IsUserFolder() {
-		moreBtn = " "
-		if fl.hoverMore {
-			moreBtn += buttonHoverStyle.Render("⋯")
-		} else {
-			moreBtn += buttonStyle.Render("⋯")
-		}
-	}
-
 	headerLeft := closeBtn + title
-	headerRight := addBtn + moreBtn + " "
+	headerRight := addBtn + " "
 	headerLeftWidth := lipgloss.Width(headerLeft)
 	headerRightWidth := lipgloss.Width(headerRight)
 	padding := max(contentWidth-headerLeftWidth-headerRightWidth, 0)
