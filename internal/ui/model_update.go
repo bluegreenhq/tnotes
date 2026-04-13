@@ -68,7 +68,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 			return m, m.Editor.HandleBlinkMsg(msg)
 		case blinkOwnerFolderList:
 			return m, m.FolderList.blink.HandleMsg(msg)
+		case blinkOwnerSearch:
+			return m, m.Editor.Header.searchBlink.HandleMsg(msg)
 		}
+
+		return m, nil
+	case searchDebounceMsg:
+		if msg.id != m.searchDebounceID {
+			return m, nil // 古いタイマーは無視
+		}
+
+		m.applySearchFilter(msg.query, now)
+
+		return m, nil
+	case searchClearedMsg:
+		m.applySearchFilter("", now)
 
 		return m, nil
 	case clearInfoMsg:
@@ -134,6 +148,11 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 		m.Focus != FocusEditor &&
 		!m.FolderList.InputMode() && !m.FolderList.RenameMode():
 		return m.toggleFolderList(now)
+	case msg.Code == 'f' && msg.Mod == (tea.ModCtrl|tea.ModShift):
+		m.Editor.Header.SetSearchFocused(true)
+		m.Focus = FocusEditor
+
+		return m.Editor.Header.searchBlink.Reset()
 	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
 		m.helpOverlay = NewHelpOverlay(m.Focus)
 
@@ -152,6 +171,24 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 
 		return m.processNoteListCmd(cmd, now)
 	case FocusEditor:
+		// 検索フィールドにフォーカスがある場合
+		if m.Editor.Header.SearchFocused() {
+			handled, _ := m.Editor.Header.HandleSearchKey(msg)
+			if handled {
+				if !m.Editor.Header.SearchFocused() {
+					// Esc で検索フォーカスを外した → ノート一覧にフォーカス
+					m.Editor.Header.searchBlink.Stop()
+					m.Focus = FocusNoteList
+
+					return nil
+				}
+
+				blinkCmd := m.Editor.Header.searchBlink.Reset()
+
+				return tea.Batch(m.scheduleSearchDebounce(), blinkCmd)
+			}
+		}
+
 		_, cmd := m.Editor.Update(msg, now)
 		editorCmd := m.processEditorCmd(cmd, now)
 		blinkCmd := m.Editor.resetBlink()
@@ -498,7 +535,7 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		menuTopY := editorHeaderMenuTopY
 		menuHeight := m.Editor.Header.MoveMenuHeight()
 		menuWidth := m.Editor.Header.MoveMenu.Width()
-		menuX := m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+		menuX := m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
 		if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
 			relX := edX - menuX
@@ -518,6 +555,16 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		cmd := m.Editor.HandleClick(edX, msg.Y)
 
 		return m.processEditorHeaderCmd(cmd, now)
+	}
+
+	// 検索フォーカス中にエディタヘッダー以外をクリックしたらフォーカス解除
+	if m.Editor.Header.SearchFocused() {
+		editorStartX := m.noteListOffset() + m.noteListWidth
+		isEditorHeader := msg.Y == 0 && msg.X >= editorStartX
+
+		if !isEditorHeader {
+			m.Editor.Header.SetSearchFocused(false)
+		}
 	}
 
 	switch {
@@ -619,6 +666,14 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 	// ヘッダー行のクリック
 	if msg.Y == 0 {
 		cmd := m.Editor.HandleClick(edX, 0)
+
+		if m.Editor.Header.SearchFocused() {
+			m.Focus = FocusEditor
+
+			blinkCmd := m.Editor.Header.searchBlink.Reset()
+
+			return tea.Batch(m.processEditorHeaderCmd(cmd, time.Now()), blinkCmd)
+		}
 
 		return m.processEditorHeaderCmd(cmd, time.Now())
 	}
@@ -969,7 +1024,7 @@ func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
 		menuTopY := editorHeaderMenuTopY
 		menuHeight := m.Editor.Header.MoveMenuHeight()
 		menuWidth := m.Editor.Header.MoveMenu.Width()
-		menuX := m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+		menuX := m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
 		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
 			m.Editor.Header.SetMoveMenuHover(edX-menuX, mouse.Y-menuTopY)
@@ -1865,4 +1920,50 @@ func (m *Model) setInfoMsg(msg string) tea.Cmd {
 	return tea.Tick(infoMsgDuration, func(_ time.Time) tea.Msg {
 		return clearInfoMsg{id: id}
 	})
+}
+
+const searchDebounceDuration = 150 * time.Millisecond
+
+func (m *Model) scheduleSearchDebounce() tea.Cmd {
+	m.searchDebounceID++
+	id := m.searchDebounceID
+	query := m.Editor.Header.SearchQuery()
+
+	return tea.Tick(searchDebounceDuration, func(_ time.Time) tea.Msg {
+		return searchDebounceMsg{id: id, query: query}
+	})
+}
+
+func (m *Model) applySearchFilter(query string, now time.Time) {
+	folderName := m.currentFolderName()
+
+	if query == "" {
+		m.NoteList.SetNotes(m.App.ListByFolder(folderName), now)
+	} else {
+		results := m.App.SearchByFolder(folderName, query)
+		m.NoteList.SetNotes(results, now)
+	}
+
+	m.NoteList.SetSearchQuery(query)
+	m.Editor.SetSearchQuery(query)
+
+	// 最初のノートを選択してエディタに読み込む
+	if _, ok := m.NoteList.SelectedNote(); ok {
+		m.loadSelectedNote()
+	} else {
+		m.Editor.Clear()
+	}
+}
+
+func (m *Model) currentFolderName() string {
+	if m.isTrashFolder() {
+		return note.TrashDir
+	}
+
+	name := m.FolderList.SelectedName()
+	if name == "" {
+		return app.DefaultFolder
+	}
+
+	return name
 }

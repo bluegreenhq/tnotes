@@ -153,6 +153,15 @@ const (
 	EditorHeaderDuplicate
 )
 
+// searchDebounceMsg はデバウンスタイマー発火を表すメッセージ。
+type searchDebounceMsg struct {
+	id    int
+	query string
+}
+
+// searchClearedMsg は検索テキストがクリアされたことを表すメッセージ。
+type searchClearedMsg struct{}
+
 // noteMoveMsg はノートを別フォルダに移動するメッセージ。
 type noteMoveMsg struct {
 	DestFolder string

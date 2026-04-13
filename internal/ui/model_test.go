@@ -636,3 +636,26 @@ func TestTrashModeAndExitViaFolder(t *testing.T) {
 	model = mustModel(t, ret)
 	assert.False(t, model.Editor.Header.TrashMode())
 }
+
+func TestSearch_FocusAndType(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	// Ctrl+Shift+F で検索フォーカス
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl | tea.ModShift})
+	model := mustModel(t, ret)
+	assert.True(t, model.Editor.Header.SearchFocused())
+	assert.Equal(t, ui.FocusEditor, model.Focus)
+
+	// 文字入力
+	ret, _ = model.Update(tea.KeyPressMsg{Code: 't', Text: "t"})
+	model = mustModel(t, ret)
+	assert.Equal(t, "t", model.Editor.Header.SearchQuery())
+
+	// Esc でフォーカス解除
+	ret, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	model = mustModel(t, ret)
+	assert.False(t, model.Editor.Header.SearchFocused())
+	assert.Equal(t, "t", model.Editor.Header.SearchQuery()) // テキストは維持
+	assert.Equal(t, ui.FocusNoteList, model.Focus)
+}

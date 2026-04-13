@@ -8,7 +8,7 @@ import (
 
 const (
 	noteListHeaderLines = 2 // タイトル + 区切り線
-	noteListBorderWidth = 2 // 左右ボーダー分
+	noteListBorderWidth = 1 // 右ボーダー分
 	sectionLinePadding  = 2 // セクション罫線の左右余白
 )
 
@@ -23,6 +23,7 @@ type NoteList struct {
 	sectioned      bool
 	hoverFolderBtn bool
 	dirtyNoteID    note.NoteID
+	searchQuery    string
 }
 
 // NewNoteList は新しい NoteList を生成する。
@@ -37,6 +38,7 @@ func NewNoteList(notes []note.Note, width, height int) NoteList {
 		sectioned:      true,
 		hoverFolderBtn: false,
 		dirtyNoteID:    "",
+		searchQuery:    "",
 	}
 }
 
@@ -81,6 +83,9 @@ func (s *NoteList) SetDirtyNoteID(id note.NoteID) { s.dirtyNoteID = id }
 
 // SetHoverFolderBtn はフォルダボタンのホバー状態を設定する。
 func (s *NoteList) SetHoverFolderBtn(v bool) { s.hoverFolderBtn = v }
+
+// SetSearchQuery は検索クエリを設定する。
+func (s *NoteList) SetSearchQuery(q string) { s.searchQuery = q }
 
 func (s *NoteList) visibleLines() int {
 	return s.height - noteListHeaderLines

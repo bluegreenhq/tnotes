@@ -31,6 +31,24 @@ var (
 	// 選択: fg/bg を設定し、解除時は fg/bg のみリセットする。
 	editorSelectionOn  = extractANSIOn(editorSelectionStyle)
 	editorSelectionOff = extractANSIOff(editorSelectionStyle)
+
+	// 検索ハイライト: ノート一覧（背景黄色 + 黒文字、エディタと統一）.
+	searchHighlightNoteListStyle = lipgloss.NewStyle().
+					Background(lipgloss.Color("3")).
+					Foreground(lipgloss.Color("0")).
+					Bold(true)
+	searchHighlightNoteListSelectedStyle = lipgloss.NewStyle().
+						Background(lipgloss.Color("3")).
+						Foreground(lipgloss.Color("0")).
+						Bold(true)
+
+	// 検索ハイライト: エディタ（背景黄色 + 黒文字）.
+	editorSearchHighlightStyle = lipgloss.NewStyle().
+					Background(lipgloss.Color("3")).
+					Foreground(lipgloss.Color("0"))
+
+	editorSearchHighlightOn  = extractANSIOn(editorSearchHighlightStyle)
+	editorSearchHighlightOff = extractANSIOff(editorSearchHighlightStyle)
 )
 
 // extractANSIOn は lipgloss Style から開始 ANSI シーケンスを抽出する。

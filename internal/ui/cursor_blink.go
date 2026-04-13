@@ -14,6 +14,7 @@ type cursorBlinkOwner int
 const (
 	blinkOwnerEditor cursorBlinkOwner = iota
 	blinkOwnerFolderList
+	blinkOwnerSearch
 )
 
 // cursorBlinkMsg はカーソルの点滅状態を切り替えるメッセージ。

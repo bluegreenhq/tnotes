@@ -75,7 +75,7 @@ func (h *EditorHeader) HandleClick(x int) tea.Cmd {
 		return EditorHeaderNew.Cmd()
 	}
 
-	// ⋯ ボタン判定
+	// ⋯ ボタン判定（検索フィールドより優先）
 	if h.hasNote && h.isMoreButtonX(x) {
 		if h.menuOpen {
 			h.CloseMenu()
@@ -83,6 +83,16 @@ func (h *EditorHeader) HandleClick(x int) tea.Cmd {
 			h.OpenMenu()
 		}
 
+		return nil
+	}
+
+	// 検索フィールド判定
+	focused, cleared := h.HandleSearchClick(x)
+	if cleared {
+		return func() tea.Msg { return searchClearedMsg{} }
+	}
+
+	if focused {
 		return nil
 	}
 
@@ -120,12 +130,14 @@ func (h *EditorHeader) SetMenuHover(x, y int) {
 func (h *EditorHeader) SetHover(x int) {
 	h.hoverNew = !h.trashMode && x == newButtonX
 	h.hoverMore = h.hasNote && h.isMoreButtonX(x)
+	h.SetSearchHover(x)
 }
 
 // ClearHover はホバーをすべて解除する。
 func (h *EditorHeader) ClearHover() {
 	h.hoverNew = false
 	h.hoverMore = false
+	h.hoverSearch = false
 }
 
 // HoverNew は + ボタンがホバー中かを返す。
@@ -138,7 +150,7 @@ func (h *EditorHeader) HoverMore() bool { return h.hoverMore }
 const moreButtonOffset = 2
 
 func (h *EditorHeader) isMoreButtonX(x int) bool {
-	moreX := h.width - moreButtonOffset
+	moreX := h.width - searchFieldWidth - moreButtonOffset
 
 	return x == moreX
 }
@@ -200,4 +212,44 @@ func (h *EditorHeader) MoveMenuHeight() int {
 // SetMoveMenuHover は移動先メニューのホバーを更新する。
 func (h *EditorHeader) SetMoveMenuHover(x, y int) {
 	h.MoveMenu.SetHoverByPos(x, y)
+}
+
+// HandleSearchKey は検索フィールドのキー入力を処理する。
+// 戻り値: (handled bool, cmd tea.Cmd).
+func (h *EditorHeader) HandleSearchKey(msg tea.KeyPressMsg) (bool, tea.Cmd) {
+	if !h.searchFocused {
+		return false, nil
+	}
+
+	switch msg.Code {
+	case tea.KeyEscape, tea.KeyEnter:
+		h.searchFocused = false
+
+		return true, nil
+	default:
+		h.searchInput.handleKey(msg)
+
+		return true, nil
+	}
+}
+
+// HandleSearchClick は検索フィールド領域のクリックを処理する。
+// x はヘッダー内の相対X座標。
+// 戻り値: focused=フォーカス取得, cleared=クリアボタン押下。
+func (h *EditorHeader) HandleSearchClick(x int) (bool, bool) {
+	searchStart := h.width - searchFieldWidth
+
+	if x < searchStart || x >= h.width {
+		return false, false
+	}
+
+	h.searchFocused = true
+
+	return true, false
+}
+
+// SetSearchHover は検索フィールド領域のホバーを更新する。
+func (h *EditorHeader) SetSearchHover(x int) {
+	searchStart := h.width - searchFieldWidth
+	h.hoverSearch = x >= searchStart && x < h.width
 }
