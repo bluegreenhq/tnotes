@@ -35,6 +35,7 @@ type Editor struct {
 	blink           cursorBlink
 	contextMenuOpen bool       // コンテキストメニュー表示中
 	ContextMenu     *PopupMenu // コンテキストメニュー
+	searchQuery     string     // 検索クエリ
 }
 
 // NewEditor は新しい Editor を生成する。
@@ -58,6 +59,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 		blink:           newCursorBlink(blinkOwnerEditor),
 		contextMenuOpen: false,
 		ContextMenu:     NewPopupMenu(nil),
+		searchQuery:     "",
 	}
 }
 
@@ -86,3 +88,6 @@ func (e *Editor) Selecting() bool { return e.selecting }
 
 // BlinkVisible はカーソルの表示状態を返す。
 func (e *Editor) BlinkVisible() bool { return e.blink.Visible() }
+
+// SetSearchQuery は検索クエリを設定する。
+func (e *Editor) SetSearchQuery(q string) { e.searchQuery = q }

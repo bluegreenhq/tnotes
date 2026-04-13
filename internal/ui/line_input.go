@@ -49,3 +49,39 @@ func (li *lineInput) View(cursorVisible bool) string {
 
 	return " " + before + "█" + after
 }
+
+// ViewWithWidth は最大表示幅を考慮した表示文字列を返す。
+// カーソル位置が常に見えるよう、左側を切り詰める。
+func (li *lineInput) ViewWithWidth(maxWidth int, cursorVisible bool) string {
+	runes := li.value
+	cursor := li.cursor
+
+	if maxWidth <= 0 || len(runes) <= maxWidth {
+		return li.viewContent(runes, cursor, cursorVisible)
+	}
+
+	// カーソルが見えるようにウィンドウをスライド
+	start := 0
+	if cursor > maxWidth-1 {
+		start = cursor - maxWidth + 1
+	}
+
+	end := min(start+maxWidth, len(runes))
+
+	return li.viewContent(runes[start:end], cursor-start, cursorVisible)
+}
+
+func (li *lineInput) viewContent(runes []rune, cursorPos int, cursorVisible bool) string {
+	if !cursorVisible {
+		return string(runes)
+	}
+
+	before := string(runes[:cursorPos])
+	if cursorPos >= len(runes) {
+		return before + "█"
+	}
+
+	after := string(runes[cursorPos+1:])
+
+	return before + "█" + after
+}

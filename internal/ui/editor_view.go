@@ -33,11 +33,12 @@ func (e *Editor) View() string {
 	raw := e.textarea.View()
 
 	raw = e.applyTitleBold(raw)
+	raw = e.applySearchHighlight(raw)
 	raw = e.applyURLStyle(raw)
 
 	if e.HasSelection() {
 		raw = e.applySelectionHighlight(raw)
-	} else if e.textarea.Focused() && e.blink.Visible() {
+	} else if e.textarea.Focused() && e.blink.Visible() && !e.Header.SearchFocused() {
 		raw = e.applyCursor(raw)
 	}
 
@@ -181,6 +182,106 @@ func (e *Editor) applyCursor(raw string) string {
 	}
 
 	return strings.Join(viewLines, "\n")
+}
+
+// applySearchHighlight は検索クエリにマッチする箇所をハイライトする。
+func (e *Editor) applySearchHighlight(raw string) string {
+	if e.searchQuery == "" {
+		return raw
+	}
+
+	lowerQuery := strings.ToLower(e.searchQuery)
+	scrollOffset := e.textarea.ScrollYOffset()
+	viewLines := strings.Split(raw, "\n")
+
+	for i, line := range viewLines {
+		visualRow := i + scrollOffset
+		logLine, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+
+		if logLine >= len(e.textarea.lines) {
+			continue
+		}
+
+		logicalText := string(e.textarea.lines[logLine])
+		visLen := e.textarea.visualLineLength(visualRow)
+
+		styled := highlightSearchInLine([]rune(line), logicalText, lowerQuery, startRuneOff, visLen)
+		if styled != "" {
+			viewLines[i] = styled
+		}
+	}
+
+	return strings.Join(viewLines, "\n")
+}
+
+type searchMatch struct{ start, end int }
+
+func findSearchMatches(logicalText, lowerQuery string) []searchMatch {
+	lowerLogical := strings.ToLower(logicalText)
+	logicalRunes := []rune(lowerLogical)
+	queryRunes := []rune(lowerQuery)
+	queryLen := len(queryRunes)
+
+	if queryLen == 0 || len(logicalRunes) < queryLen {
+		return nil
+	}
+
+	var matches []searchMatch
+
+	for i := 0; i <= len(logicalRunes)-queryLen; i++ {
+		if string(logicalRunes[i:i+queryLen]) == lowerQuery {
+			matches = append(matches, searchMatch{start: i, end: i + queryLen})
+			i += queryLen - 1
+		}
+	}
+
+	return matches
+}
+
+func highlightSearchInLine(runes []rune, logicalText, lowerQuery string, startRuneOff, visLen int) string {
+	matches := findSearchMatches(logicalText, lowerQuery)
+	if len(matches) == 0 {
+		return ""
+	}
+
+	line := string(runes)
+	lineLen := len(runes)
+
+	var result strings.Builder
+
+	pos := 0
+
+	for _, m := range matches {
+		colStart := max(m.start-startRuneOff, 0)
+		colEnd := min(m.end-startRuneOff, visLen)
+		colEnd = min(colEnd, lineLen)
+
+		if colStart >= colEnd {
+			continue
+		}
+
+		byteStart, _ := visibleRuneByteRange(line, colStart)
+		_, byteEnd := visibleRuneByteRange(line, colEnd-1)
+
+		if byteStart < 0 || byteEnd < 0 || byteStart < pos {
+			continue
+		}
+
+		result.WriteString(line[pos:byteStart])
+		result.WriteString(editorSearchHighlightOn)
+		result.WriteString(line[byteStart:byteEnd])
+		result.WriteString(editorSearchHighlightOff)
+
+		pos = byteEnd
+	}
+
+	if pos > 0 {
+		result.WriteString(line[pos:])
+
+		return result.String()
+	}
+
+	return ""
 }
 
 func (e *Editor) applySelectionHighlight(raw string) string {

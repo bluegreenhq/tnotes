@@ -246,11 +246,13 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 
 	editorStartX := m.noteListOffset() + m.noteListWidth
 	menuWidth := m.Editor.Header.PopupMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - menuWidth
+	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - menuWidth
 
 	menuX = max(menuX, editorStartX)
 
 	startY := editorHeaderMenuTopY // セパレーター行に重ねる
+
+	menuRight := menuX + menuWidth
 
 	for i, menuLine := range menuLines {
 		y := startY + i
@@ -262,7 +264,8 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)
-		bodyLines[y] = padded + menuLine
+		rest := truncateLeftSafe(bodyLines[y], menuRight)
+		bodyLines[y] = padded + menuLine + rest
 	}
 }
 
@@ -275,7 +278,7 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 
 	editorStartX := m.noteListOffset() + m.noteListWidth
 	menuWidth := m.Editor.Header.MoveMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - moreButtonOffset + 1 - menuWidth
+	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
 	menuX = max(menuX, editorStartX)
 

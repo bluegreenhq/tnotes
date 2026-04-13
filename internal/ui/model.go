@@ -68,6 +68,7 @@ type Model struct {
 	confirmDeleteFolder string         // 削除確認中のフォルダ名
 	menuAnchor          *menuAnchor    // 右クリック時のメニュー表示位置（nil = デフォルト位置）
 	helpOverlay         *HelpOverlay   // ショートカットヘルプ（nil = 非表示）
+	searchDebounceID    int            // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -97,6 +98,7 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		confirmDeleteFolder: "",
 		menuAnchor:          nil,
 		helpOverlay:         nil,
+		searchDebounceID:    0,
 	}
 
 	return m

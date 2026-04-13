@@ -42,7 +42,7 @@ func (s *NoteList) View(focused bool, hoverSeparator bool, now time.Time, folder
 		}
 
 		isDirty := s.dirtyNoteID != "" && row.note.ID == s.dirtyNoteID
-		b.WriteString(renderItem(row.note, row.noteIndex == s.selected, isDirty, contentWidth, now))
+		b.WriteString(renderItem(row.note, row.noteIndex == s.selected, isDirty, contentWidth, now, s.searchQuery))
 
 		usedLines += itemHeight
 	}

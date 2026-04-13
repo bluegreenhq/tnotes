@@ -50,7 +50,7 @@ func newNoteRow(n note.Note, idx int) noteListRow {
 }
 
 // renderItem はノートアイテム1件の描画文字列を返す。
-func renderItem(n note.Note, selected, dirty bool, width int, now time.Time) string {
+func renderItem(n note.Note, selected, dirty bool, width int, now time.Time, searchQuery string) string {
 	title := utils.Truncate(n.Title(), width-itemPadding)
 	dateStr := utils.FormatDate(n.UpdatedAt, now)
 
@@ -62,8 +62,8 @@ func renderItem(n note.Note, selected, dirty bool, width int, now time.Time) str
 		preview = utils.Truncate(n.Preview(), previewMaxWidth)
 	}
 
-	firstLine := renderItemFirstLine(title, selected, dirty)
-	secondLine := renderItemSecondLine(datePart, preview, selected)
+	firstLine := renderItemFirstLine(title, selected, dirty, searchQuery)
+	secondLine := renderItemSecondLine(datePart, preview, selected, searchQuery)
 
 	var b strings.Builder
 
@@ -83,7 +83,7 @@ func renderItem(n note.Note, selected, dirty bool, width int, now time.Time) str
 	return b.String()
 }
 
-func renderItemFirstLine(title string, selected, dirty bool) string {
+func renderItemFirstLine(title string, selected, dirty bool, searchQuery string) string {
 	if selected {
 		var dot string
 		if dirty {
@@ -92,7 +92,12 @@ func renderItemFirstLine(title string, selected, dirty bool) string {
 			dot = selectedItemStyle.Render("   ")
 		}
 
-		return dot + selectedItemStyle.Render(title)
+		styledTitle := selectedItemStyle.Render(title)
+		if searchQuery != "" {
+			styledTitle = highlightMatches(title, searchQuery, searchHighlightNoteListSelectedStyle, selectedItemStyle)
+		}
+
+		return dot + styledTitle
 	}
 
 	var dot string
@@ -102,14 +107,25 @@ func renderItemFirstLine(title string, selected, dirty bool) string {
 		dot = "   "
 	}
 
-	return dot + normalItemStyle.Render(title)
+	styledTitle := normalItemStyle.Render(title)
+	if searchQuery != "" {
+		styledTitle = highlightMatches(title, searchQuery, searchHighlightNoteListStyle, normalItemStyle)
+	}
+
+	return dot + styledTitle
 }
 
-func renderItemSecondLine(datePart, preview string, selected bool) string {
+func renderItemSecondLine(datePart, preview string, selected bool, searchQuery string) string {
 	if selected {
 		line := selectedDateStyle.Render(datePart)
 		if preview != "" {
-			line += selectedPreviewStyle.Render(" " + preview)
+			styledPreview := selectedPreviewStyle.Render(" " + preview)
+			if searchQuery != "" {
+				styledPreview = selectedPreviewStyle.Render(" ") +
+					highlightMatches(preview, searchQuery, searchHighlightNoteListSelectedStyle, selectedPreviewStyle)
+			}
+
+			line += styledPreview
 		}
 
 		return line
@@ -117,8 +133,54 @@ func renderItemSecondLine(datePart, preview string, selected bool) string {
 
 	line := dateStyle.Render(datePart)
 	if preview != "" {
-		line += previewStyle.Render(" " + preview)
+		styledPreview := previewStyle.Render(" " + preview)
+		if searchQuery != "" {
+			styledPreview = previewStyle.Render(" ") +
+				highlightMatches(preview, searchQuery, searchHighlightNoteListStyle, previewStyle)
+		}
+
+		line += styledPreview
 	}
 
 	return line
+}
+
+// highlightMatches はテキスト中のクエリマッチ箇所にスタイルを適用する。
+// baseStyle はマッチしない部分に適用されるスタイル。
+func highlightMatches(text, query string, highlightStyle, baseStyle lipgloss.Style) string {
+	if query == "" {
+		return baseStyle.Render(text)
+	}
+
+	lowerText := strings.ToLower(text)
+	lowerQuery := strings.ToLower(query)
+	textRunes := []rune(text)
+	lowerRunes := []rune(lowerText)
+	queryRunes := []rune(lowerQuery)
+	queryLen := len(queryRunes)
+
+	var result strings.Builder
+
+	i := 0
+	normalStart := 0
+
+	for i <= len(lowerRunes)-queryLen {
+		if string(lowerRunes[i:i+queryLen]) == lowerQuery {
+			if normalStart < i {
+				result.WriteString(baseStyle.Render(string(textRunes[normalStart:i])))
+			}
+
+			result.WriteString(highlightStyle.Render(string(textRunes[i : i+queryLen])))
+			i += queryLen
+			normalStart = i
+		} else {
+			i++
+		}
+	}
+
+	if normalStart < len(textRunes) {
+		result.WriteString(baseStyle.Render(string(textRunes[normalStart:])))
+	}
+
+	return result.String()
 }

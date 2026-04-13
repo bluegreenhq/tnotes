@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/cockroachdb/errors"
 	"github.com/mattn/go-runewidth"
@@ -107,7 +106,6 @@ func fetchSearchTarget(a *app.App, folderName string) ([]note.Note, error) {
 }
 
 func searchNotes(a *app.App, notes []note.Note, query string, contextSize int) []searchResult {
-	q := strings.ToLower(query)
 	results := make([]searchResult, 0)
 
 	for _, n := range notes {
@@ -116,75 +114,13 @@ func searchNotes(a *app.App, notes []note.Note, query string, contextSize int) [
 			continue
 		}
 
-		snippets := extractSnippets(loaded.Body, q, contextSize)
+		snippets := app.ExtractSnippets(loaded.Body, query, contextSize)
 		if len(snippets) > 0 {
 			results = append(results, searchResult{note: loaded, snippets: snippets})
 		}
 	}
 
 	return results
-}
-
-func extractSnippets(body string, lowerQuery string, contextSize int) []string {
-	lower := strings.ToLower(body)
-	runes := []rune(body)
-	lowerRunes := []rune(lower)
-	queryRunes := []rune(lowerQuery)
-	queryLen := len(queryRunes)
-
-	var snippets []string
-
-	for i := 0; i <= len(lowerRunes)-queryLen; i++ {
-		if string(lowerRunes[i:i+queryLen]) != lowerQuery {
-			continue
-		}
-
-		start := max(i-contextSize, 0)
-		end := min(i+queryLen+contextSize, len(runes))
-
-		var sb strings.Builder
-
-		if start > 0 {
-			sb.WriteString("...")
-		}
-
-		sb.WriteString(string(runes[start:end]))
-
-		if end < len(runes) {
-			sb.WriteString("...")
-		}
-
-		snippets = append(snippets, collapseWhitespace(sb.String()))
-
-		// マッチ位置の直後へスキップして重複を避ける
-		i += queryLen - 1
-	}
-
-	return snippets
-}
-
-func collapseWhitespace(s string) string {
-	var sb strings.Builder
-
-	prevSpace := false
-
-	for _, r := range s {
-		if r == '\n' || r == '\r' || r == '\t' {
-			if !prevSpace {
-				sb.WriteByte(' ')
-			}
-
-			prevSpace = true
-
-			continue
-		}
-
-		sb.WriteRune(r)
-
-		prevSpace = false
-	}
-
-	return sb.String()
 }
 
 type searchResultJSON struct {

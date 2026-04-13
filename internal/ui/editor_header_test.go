@@ -82,10 +82,11 @@ func TestEditorHeaderClickNew(t *testing.T) {
 func TestEditorHeaderClickMore(t *testing.T) {
 	t.Parallel()
 
-	h := ui.NewEditorHeader(20)
+	h := ui.NewEditorHeader(60)
 	h.SetHasNote(true)
-	// "⋯" は右端付近
-	cmd := h.HandleClick(h.Width() - 2)
+	// "⋯" は検索フィールドの左側: width - searchFieldWidth(20) - moreButtonOffset(2)
+	moreX := h.Width() - 22
+	cmd := h.HandleClick(moreX)
 	assert.Nil(t, cmd) // メニューを開くだけ、Cmd は返さない
 	assert.True(t, h.MenuOpen())
 }
@@ -93,11 +94,12 @@ func TestEditorHeaderClickMore(t *testing.T) {
 func TestEditorHeaderClickMoreToggle(t *testing.T) {
 	t.Parallel()
 
-	h := ui.NewEditorHeader(20)
+	h := ui.NewEditorHeader(60)
 	h.SetHasNote(true)
-	h.HandleClick(h.Width() - 2) // open
+	moreX := h.Width() - 22
+	h.HandleClick(moreX) // open
 	assert.True(t, h.MenuOpen())
-	h.HandleClick(h.Width() - 2) // close
+	h.HandleClick(moreX) // close
 	assert.False(t, h.MenuOpen())
 }
 
@@ -211,13 +213,14 @@ func TestEditorHeaderClickNewInTrashMode(t *testing.T) {
 func TestEditorHeaderHover(t *testing.T) {
 	t.Parallel()
 
-	h := ui.NewEditorHeader(20)
+	h := ui.NewEditorHeader(60)
 	h.SetHasNote(true)
 	h.SetHover(1) // + ボタン位置
 	assert.True(t, h.HoverNew())
 	assert.False(t, h.HoverMore())
 
-	h.SetHover(h.Width() - 2) // ⋯ ボタン位置
+	moreX := h.Width() - 22 // width - searchFieldWidth(20) - moreButtonOffset(2)
+	h.SetHover(moreX)       // ⋯ ボタン位置
 	assert.False(t, h.HoverNew())
 	assert.True(t, h.HoverMore())
 }
