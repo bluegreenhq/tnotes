@@ -23,7 +23,7 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) renderView(now time.Time) string {
-	if m.width < minWidth {
+	if m.layout.width < minWidth {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
@@ -49,11 +49,11 @@ func (m *Model) renderView(now time.Time) string {
 	}
 
 	m.rebuildFooterButtons()
-	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.width)
+	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.layout.width)
 
 	// bodyを正確に height-footerLines 行に切り詰め/パディング
 	bodyLines := strings.Split(body, "\n")
-	targetBodyLines := m.height - footerLines
+	targetBodyLines := m.layout.height - footerLines
 
 	targetBodyLines = max(targetBodyLines, 1)
 	if len(bodyLines) > targetBodyLines {
@@ -90,8 +90,8 @@ func (m *Model) updateFolderCounts() {
 func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay dispatch
 	if m.FolderList.MenuOpen() {
 		menuLines := m.FolderList.PopupMenu.View()
-		if m.menuAnchor != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 		} else {
 			m.overlayFolderListMenu(bodyLines, menuLines)
 		}
@@ -99,8 +99,8 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 	if m.Editor.Header.MenuOpen() {
 		menuLines := m.Editor.Header.PopupMenu.View()
-		if m.menuAnchor != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 		} else {
 			m.overlayEditorHeaderMenu(bodyLines, menuLines)
 		}
@@ -111,9 +111,9 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 		m.overlayMoveMenu(bodyLines, menuLines)
 	}
 
-	if m.Editor.IsContextMenuOpen() && m.menuAnchor != nil {
+	if m.Editor.IsContextMenuOpen() && m.popup.Anchor() != nil {
 		menuLines := m.Editor.ContextMenu.View()
-		m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 	}
 
 	if m.Footer.MenuOpen() {
@@ -154,9 +154,9 @@ func (m *Model) overlayHelpOverlay(bodyLines []string) {
 func (m *Model) helpOverlayOrigin(dialogLines []string) (int, int) {
 	const centerDivisor = 2
 
-	bodyHeight := m.height - footerLineCount
+	bodyHeight := m.layout.BodyHeight()
 	startY := max((bodyHeight-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
+	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
 
 	return startX, startY
 }
@@ -189,7 +189,7 @@ func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *
 	}
 
 	menuWidth := lipgloss.Width(menuLines[0])
-	x, y := m.clampAnchor(anchor, menuWidth, len(menuLines))
+	x, y := m.popup.ClampAnchor(anchor, menuWidth, len(menuLines))
 
 	menuRight := x + menuWidth
 
@@ -244,7 +244,7 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 		return
 	}
 
-	editorStartX := m.noteListOffset() + m.noteListWidth
+	editorStartX := m.layout.EditorStartX()
 	menuWidth := m.Editor.Header.PopupMenu.Width()
 	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - menuWidth
 
@@ -276,7 +276,7 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 		return
 	}
 
-	editorStartX := m.noteListOffset() + m.noteListWidth
+	editorStartX := m.layout.EditorStartX()
 	menuWidth := m.Editor.Header.MoveMenu.Width()
 	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
@@ -306,7 +306,7 @@ func (m *Model) overlayConfirmDialog(bodyLines []string) {
 
 	// 画面中央に配置
 	startY := max((len(bodyLines)-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
+	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
 
 	for i, dLine := range dialogLines {
 		y := startY + i

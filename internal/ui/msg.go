@@ -81,7 +81,20 @@ const (
 	FolderListFocusNext
 	// FolderListMenu はコンテキストメニュー表示を要求する。
 	FolderListMenu
+	// FolderListClose はフォルダ一覧を閉じることを要求する。
+	FolderListClose
+	// FolderListStartInput はフォルダ新規作成入力の開始を要求する。
+	FolderListStartInput
 )
+
+// folderMenuActionMsg はフォルダメニューのアクション実行を運ぶメッセージ。
+type folderMenuActionMsg struct {
+	idx int
+}
+
+func (m folderMenuActionMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
 
 // folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
 type folderCreateMsg struct {

@@ -38,12 +38,6 @@ type clearInfoMsg struct {
 	id int
 }
 
-// menuAnchor は右クリック時のメニュー表示位置を表す。
-type menuAnchor struct {
-	x int // 画面絶対座標
-	y int
-}
-
 // Model はUIの状態を表す。
 type Model struct {
 	App                 *app.App
@@ -52,12 +46,9 @@ type Model struct {
 	Footer              Footer
 	Focus               FocusArea
 	FolderList          FolderList
-	folderListWidth     int
+	layout              Layout
 	resizingFolder      bool
 	hoverFolderSep      bool
-	noteListWidth       int
-	width               int
-	height              int
 	resizing            bool
 	hoverSeparator      bool
 	errMsg              string
@@ -66,9 +57,9 @@ type Model struct {
 	indexModTime        time.Time
 	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
 	confirmDeleteFolder string         // 削除確認中のフォルダ名
-	menuAnchor          *menuAnchor    // 右クリック時のメニュー表示位置（nil = デフォルト位置）
-	helpOverlay         *HelpOverlay   // ショートカットヘルプ（nil = 非表示）
-	searchDebounceID    int            // デバウンスタイマーの世代ID
+	popup               PopupCoordinator
+	helpOverlay         *HelpOverlay // ショートカットヘルプ（nil = 非表示）
+	searchDebounceID    int          // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -76,18 +67,21 @@ var _ tea.Model = (*Model)(nil)
 // InitialModel は初期状態の Model を生成する。
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
-		App:                 a,
-		NoteList:            NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
-		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
-		Footer:              NewFooter(),
-		Focus:               FocusNoteList,
-		FolderList:          NewFolderList(defaultFolderListW, defaultHeight),
-		folderListWidth:     defaultFolderListW,
+		App:        a,
+		NoteList:   NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
+		Editor:     NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
+		Footer:     NewFooter(),
+		Focus:      FocusNoteList,
+		FolderList: NewFolderList(defaultFolderListW, defaultHeight),
+		layout: Layout{
+			folderListWidth: defaultFolderListW,
+			noteListWidth:   defaultNoteListW,
+			width:           0,
+			height:          0,
+			folderVisible:   false,
+		},
 		resizingFolder:      false,
 		hoverFolderSep:      false,
-		noteListWidth:       defaultNoteListW,
-		width:               0,
-		height:              0,
 		resizing:            false,
 		hoverSeparator:      false,
 		errMsg:              "",
@@ -96,10 +90,12 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		indexModTime:        time.Time{},
 		confirmDialog:       nil,
 		confirmDeleteFolder: "",
-		menuAnchor:          nil,
+		popup:               PopupCoordinator{anchor: nil, entries: nil, layout: nil},
 		helpOverlay:         nil,
 		searchDebounceID:    0,
 	}
+
+	m.initPopupCoordinator()
 
 	return m
 }
@@ -121,20 +117,83 @@ func (m *Model) Init() tea.Cmd {
 }
 
 // NoteListWidth は現在のノート一覧幅を返す。
-func (m *Model) NoteListWidth() int { return m.noteListWidth }
+func (m *Model) NoteListWidth() int { return m.layout.noteListWidth }
 
 // HelpVisible はヘルプオーバーレイが表示中かを返す。
 func (m *Model) HelpVisible() bool { return m.helpOverlay != nil }
 
-func (m *Model) maxNoteListWidth() int {
-	pctLimit := m.width * maxNoteListPct / percentDivisor
+func (m *Model) initPopupCoordinator() { //nolint:funlen // メニュー登録の一覧性を優先
+	m.popup = PopupCoordinator{
+		anchor: nil,
+		layout: &m.layout,
+		entries: []popupEntry{
+			{
+				kind:   menuKindEditorContext,
+				menu:   func() *PopupMenu { return m.Editor.ContextMenu },
+				isOpen: func() bool { return m.Editor.IsContextMenuOpen() },
+				close:  func() { m.Editor.CloseContextMenu() },
+				execute: func(_ int, _ time.Time) tea.Cmd {
+					return nil
+				},
+				handleAnchorClick: func(relX, relY int) tea.Cmd {
+					m.Editor.HandleContextMenuClick(relX, relY)
 
-	editorLimit := m.width - minEditorWidth
-	if m.FolderList.Visible() {
-		editorLimit -= m.folderListWidth
+					return nil
+				},
+			},
+			{
+				kind:   menuKindMoveMenu,
+				menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
+				isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
+				close:  func() { m.Editor.Header.CloseMoveMenu() },
+				execute: func(idx int, _ time.Time) tea.Cmd {
+					return m.Editor.Header.ExecuteMoveMenuAction(idx)
+				},
+				handleAnchorClick: nil,
+			},
+			{
+				kind:   menuKindEditorHeader,
+				menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
+				isOpen: func() bool { return m.Editor.Header.MenuOpen() },
+				close:  func() { m.Editor.Header.CloseMenu() },
+				execute: func(idx int, _ time.Time) tea.Cmd {
+					return m.Editor.Header.ExecuteMenuAction(idx)
+				},
+				handleAnchorClick: func(relX, relY int) tea.Cmd {
+					return m.Editor.Header.HandleMenuClick(relX, relY)
+				},
+			},
+			{
+				kind:   menuKindFolderList,
+				menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
+				isOpen: func() bool { return m.FolderList.MenuOpen() },
+				close:  func() { m.FolderList.CloseMenu() },
+				execute: func(idx int, _ time.Time) tea.Cmd {
+					return m.handleFolderMenuAction(idx)
+				},
+				handleAnchorClick: func(relX, relY int) tea.Cmd {
+					idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
+					m.FolderList.CloseMenu()
+
+					if hit {
+						return m.handleFolderMenuAction(idx)
+					}
+
+					return nil
+				},
+			},
+			{
+				kind:   menuKindFooter,
+				menu:   func() *PopupMenu { return m.Footer.PopupMenu },
+				isOpen: func() bool { return m.Footer.MenuOpen() },
+				close:  func() { m.Footer.CloseMenu() },
+				execute: func(idx int, now time.Time) tea.Cmd {
+					return m.processFooterMenuAction(idx, now)
+				},
+				handleAnchorClick: nil,
+			},
+		},
 	}
-
-	return min(pctLimit, editorLimit)
 }
 
 // confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。
@@ -153,11 +212,11 @@ func (m *Model) confirmDialogOrigin() (int, int) {
 		borderPaddingCols  = 3 // border左1 + padding左2
 	)
 
-	bodyHeight := m.height - footerLineCount
+	bodyHeight := m.layout.BodyHeight()
 	dialogWidth := lipgloss.Width(dialogLines[0])
 
 	sy := max((bodyHeight-len(dialogLines))/centerDivisor, 0) + borderPaddingLines
-	sx := max((m.width-dialogWidth)/centerDivisor, 0) + borderPaddingCols
+	sx := max((m.layout.width-dialogWidth)/centerDivisor, 0) + borderPaddingCols
 
 	return sx, sy
 }
