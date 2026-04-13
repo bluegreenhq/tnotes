@@ -684,10 +684,9 @@ func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
 
 	m.Focus = FocusEditor
 	cmd := m.Editor.Focus()
-	m.Editor.ClearSelection()
 
 	// textarea 領域はヘッダー分だけ Y を補正
-	m.Editor.StartDragSelection(edX, msg.Y-editorHeaderHeight)
+	m.Editor.HandleTextAreaClick(edX, msg.Y-editorHeaderHeight, time.Now())
 
 	return cmd
 }

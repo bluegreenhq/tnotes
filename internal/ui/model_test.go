@@ -184,6 +184,50 @@ func TestMouseDragSelection(t *testing.T) {
 	assert.True(t, model.Editor.HasSelection())
 }
 
+func TestMouseDoubleClickWordSelect(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	for _, ch := range "Hello World" {
+		ret, _ = ret.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+	}
+
+	model := mustModel(t, ret)
+
+	// 1回目クリック
+	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	// リリース
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	// 2回目クリック（ダブルクリック）
+	ret, _ = ret.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+
+	assert.True(t, model.Editor.HasSelection())
+}
+
+func TestMouseTripleClickLineSelect(t *testing.T) {
+	t.Parallel()
+	m := sized(t, newTestModel())
+
+	ret, _ := m.Update(tea.KeyPressMsg{Code: 'n'})
+	for _, ch := range "Hello World" {
+		ret, _ = ret.Update(tea.KeyPressMsg{Code: ch, Text: string(ch)})
+	}
+
+	model := mustModel(t, ret)
+
+	// 3回クリック
+	ret, _ = model.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseReleaseMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	ret, _ = ret.Update(tea.MouseClickMsg{X: 33, Y: 1, Button: tea.MouseLeft})
+	model = mustModel(t, ret)
+
+	assert.True(t, model.Editor.HasSelection())
+}
+
 func TestSelectionClearedOnNoteSwitch(t *testing.T) {
 	t.Parallel()
 	m := sized(t, newTestModel())

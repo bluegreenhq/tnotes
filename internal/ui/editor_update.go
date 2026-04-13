@@ -216,6 +216,63 @@ func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
 
 // --- 選択 ---
 
+// SelectWord はワード選択を行う。
+// line, col は論理行・列（rune 単位）。
+func (e *Editor) SelectWord(line, col int) {
+	lines := e.textarea.lines
+	if line < 0 || line >= len(lines) {
+		return
+	}
+
+	runes := lines[line]
+	if len(runes) == 0 {
+		return
+	}
+
+	// col が行末の場合は1つ前の文字を基準にする
+	idx := col
+	if idx >= len(runes) {
+		idx = len(runes) - 1
+	}
+
+	cls := classifyRune(runes[idx])
+
+	// 左に探索
+	left := idx
+	for left > 0 && classifyRune(runes[left-1]) == cls {
+		left--
+	}
+
+	// 右に探索
+	right := idx + 1
+	for right < len(runes) && classifyRune(runes[right]) == cls {
+		right++
+	}
+
+	start := SelectionAnchor{Line: line, Column: left}
+	end := SelectionAnchor{Line: line, Column: right}
+	e.SetSelection(start, end)
+	e.moveCursorTo(end)
+}
+
+// SelectLine は論理行全体を選択する。
+func (e *Editor) SelectLine(line int) {
+	lines := e.textarea.lines
+	if line < 0 || line >= len(lines) {
+		return
+	}
+
+	runes := lines[line]
+	if len(runes) == 0 {
+		return
+	}
+
+	start := SelectionAnchor{Line: line, Column: 0}
+	end := SelectionAnchor{Line: line, Column: len(runes)}
+	e.SetSelection(start, end)
+	e.moveCursorTo(end)
+}
+
 // SetSelection は選択範囲を設定する。
 func (e *Editor) SetSelection(start, end SelectionAnchor) {
 	e.selStart = &start
@@ -376,6 +433,49 @@ func (e *Editor) DeleteSelection() {
 	e.textarea.MoveTo(start.Line, start.Column)
 
 	e.ClearSelection()
+}
+
+const multiClickTimeout = 500 * time.Millisecond
+
+const (
+	clickDouble    = 2 // ダブルクリック
+	clickTriple    = 3 // トリプルクリック
+	clickResetOver = 4 // これ以上はリセット
+)
+
+// HandleTextAreaClick はエディタ textarea 領域のクリックを処理する。
+// x, y はエディタ左上（ヘッダー除く）を原点とする相対座標。
+// クリック回数に応じてシングル→ドラッグ開始、ダブル→ワード選択、トリプル→行選択を行う。
+func (e *Editor) HandleTextAreaClick(x, y int, now time.Time) {
+	pos := e.positionFromMouse(x, y)
+
+	if now.Sub(e.lastClickTime) < multiClickTimeout && pos == e.lastClickPos {
+		e.clickCount++
+	} else {
+		e.clickCount = 1
+	}
+
+	if e.clickCount >= clickResetOver {
+		e.clickCount = 1
+	}
+
+	e.lastClickTime = now
+	e.lastClickPos = pos
+
+	switch e.clickCount {
+	case clickDouble:
+		e.ClearSelection()
+		e.SelectWord(pos.Line, pos.Column)
+	case clickTriple:
+		e.ClearSelection()
+		e.SelectLine(pos.Line)
+	default:
+		e.ClearSelection()
+		e.moveCursorTo(pos)
+		e.selStart = &pos
+		e.selEnd = &pos
+		e.selecting = true
+	}
 }
 
 // StartDragSelection はドラッグ選択を開始する。
