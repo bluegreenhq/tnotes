@@ -258,6 +258,11 @@ func (m *Model) openMoveMenu() tea.Cmd {
 
 	m.Editor.Header.OpenMoveMenu(candidates)
 
+	// 右クリックメニュー経由の場合、アンカーを復元して同じ位置にサブメニューを表示
+	if a := m.popup.TakeLastAnchor(); a != nil {
+		m.popup.SetAnchor(a.x, a.y)
+	}
+
 	return nil
 }
 

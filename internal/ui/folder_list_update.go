@@ -104,8 +104,8 @@ func (fl *FolderList) HandleClickLocal(x, y int) tea.Cmd {
 func (fl *FolderList) handleMenuClick(x, y int) tea.Cmd {
 	menuTopY := folderListHeaderLines
 	menuHeight := fl.MenuHeight()
+	menuX := fl.MenuLeftX()
 	menuWidth := fl.PopupMenu.Width()
-	menuX := fl.Width() - folderListBorderWidth - menuWidth
 
 	if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
 		relX := x - menuX
@@ -137,8 +137,8 @@ func (fl *FolderList) HandleHoverLocal(x, y int) {
 	if fl.menuOpen {
 		menuTopY := folderListHeaderLines
 		menuHeight := fl.MenuHeight()
+		menuX := fl.MenuLeftX()
 		menuWidth := fl.PopupMenu.Width()
-		menuX := fl.Width() - folderListBorderWidth - menuWidth
 
 		if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
 			fl.PopupMenu.SetHoverByPos(x-menuX, y-menuTopY)

@@ -25,6 +25,10 @@ type menuAnchor struct {
 	y int
 }
 
+func newMenuAnchor(x, y int) *menuAnchor {
+	return &menuAnchor{x: x, y: y}
+}
+
 // popupEntry はコーディネータに登録された個々のメニュー情報。
 type popupEntry struct {
 	kind              menuKind
@@ -37,9 +41,20 @@ type popupEntry struct {
 
 // PopupCoordinator は複数コンポーネントに散在するポップアップメニューを一元管理する。
 type PopupCoordinator struct {
-	anchor  *menuAnchor
-	entries []popupEntry
-	layout  *Layout
+	anchor     *menuAnchor
+	lastAnchor *menuAnchor // 直前のアンカー（サブメニュー復元用）
+	entries    []popupEntry
+	layout     *Layout
+}
+
+// NewPopupCoordinator は新しい PopupCoordinator を生成する。
+func NewPopupCoordinator(layout *Layout, entries []popupEntry) PopupCoordinator {
+	return PopupCoordinator{
+		anchor:     nil,
+		lastAnchor: nil,
+		entries:    entries,
+		layout:     layout,
+	}
 }
 
 // Active は現在開いているポップアップメニューとその種類を返す。なければ nil。
@@ -110,6 +125,7 @@ func (c *PopupCoordinator) HandleAnchoredClick(msg tea.MouseClickMsg) tea.Cmd {
 		}
 	}
 
+	c.lastAnchor = c.anchor
 	c.anchor = nil
 
 	return cmd
@@ -132,7 +148,7 @@ func (c *PopupCoordinator) HandleHover(mouse tea.Mouse) {
 
 // SetAnchor はメニューのアンカー位置を設定する。
 func (c *PopupCoordinator) SetAnchor(x, y int) {
-	c.anchor = &menuAnchor{x: x, y: y}
+	c.anchor = newMenuAnchor(x, y)
 }
 
 // HasAnchor はアンカーが設定されているかを返す。
@@ -143,6 +159,14 @@ func (c *PopupCoordinator) HasAnchor() bool {
 // Anchor はアンカーを返す。
 func (c *PopupCoordinator) Anchor() *menuAnchor {
 	return c.anchor
+}
+
+// TakeLastAnchor は直前のアンカーを返し、消費する。サブメニュー復元用。
+func (c *PopupCoordinator) TakeLastAnchor() *menuAnchor {
+	a := c.lastAnchor
+	c.lastAnchor = nil
+
+	return a
 }
 
 // ClampAnchor はアンカー座標を画面内にクランプする。overlayAtAnchor と同じロジック。

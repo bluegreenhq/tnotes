@@ -108,7 +108,11 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 	if m.Editor.Header.MoveMenuOpen() {
 		menuLines := m.Editor.Header.MoveMenu.View()
-		m.overlayMoveMenu(bodyLines, menuLines)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
+		} else {
+			m.overlayMoveMenu(bodyLines, menuLines)
+		}
 	}
 
 	if m.Editor.IsContextMenuOpen() && m.popup.Anchor() != nil {
@@ -214,13 +218,13 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 		return
 	}
 
-	menuWidth := m.FolderList.PopupMenu.Width()
-	menuX := m.FolderList.Width() - folderListBorderWidth - menuWidth
+	menuX := m.FolderList.MenuLeftX()
 
 	menuX = max(menuX, 0)
 
 	startY := folderListHeaderLines // ヘッダー直下
 
+	menuWidth := m.FolderList.PopupMenu.Width()
 	menuRight := menuX + menuWidth
 
 	for i, menuLine := range menuLines {
@@ -245,10 +249,11 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 	}
 
 	editorStartX := m.layout.EditorStartX()
-	menuWidth := m.Editor.Header.PopupMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - menuWidth
+	menuX := editorStartX + m.Editor.Header.MenuLeftX()
 
 	menuX = max(menuX, editorStartX)
+
+	menuWidth := m.Editor.Header.PopupMenu.Width()
 
 	startY := editorHeaderMenuTopY // セパレーター行に重ねる
 
@@ -277,8 +282,7 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 	}
 
 	editorStartX := m.layout.EditorStartX()
-	menuWidth := m.Editor.Header.MoveMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
+	menuX := editorStartX + m.Editor.Header.MoveMenuLeftX()
 
 	menuX = max(menuX, editorStartX)
 

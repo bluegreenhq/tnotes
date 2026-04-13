@@ -67,19 +67,13 @@ var _ tea.Model = (*Model)(nil)
 // InitialModel は初期状態の Model を生成する。
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
-		App:        a,
-		NoteList:   NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
-		Editor:     NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
-		Footer:     NewFooter(),
-		Focus:      FocusNoteList,
-		FolderList: NewFolderList(defaultFolderListW, defaultHeight),
-		layout: Layout{
-			folderListWidth: defaultFolderListW,
-			noteListWidth:   defaultNoteListW,
-			width:           0,
-			height:          0,
-			folderVisible:   false,
-		},
+		App:                 a,
+		NoteList:            NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
+		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
+		Footer:              NewFooter(),
+		Focus:               FocusNoteList,
+		FolderList:          NewFolderList(defaultFolderListW, defaultHeight),
+		layout:              NewLayout(defaultFolderListW, defaultNoteListW),
 		resizingFolder:      false,
 		hoverFolderSep:      false,
 		resizing:            false,
@@ -90,12 +84,12 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		indexModTime:        time.Time{},
 		confirmDialog:       nil,
 		confirmDeleteFolder: "",
-		popup:               PopupCoordinator{anchor: nil, entries: nil, layout: nil},
+		popup:               PopupCoordinator{anchor: nil, lastAnchor: nil, entries: nil, layout: nil},
 		helpOverlay:         nil,
 		searchDebounceID:    0,
 	}
 
-	m.initPopupCoordinator()
+	m.popup = m.newPopupCoordinator()
 
 	return m
 }
@@ -122,78 +116,76 @@ func (m *Model) NoteListWidth() int { return m.layout.noteListWidth }
 // HelpVisible はヘルプオーバーレイが表示中かを返す。
 func (m *Model) HelpVisible() bool { return m.helpOverlay != nil }
 
-func (m *Model) initPopupCoordinator() { //nolint:funlen // メニュー登録の一覧性を優先
-	m.popup = PopupCoordinator{
-		anchor: nil,
-		layout: &m.layout,
-		entries: []popupEntry{
-			{
-				kind:   menuKindEditorContext,
-				menu:   func() *PopupMenu { return m.Editor.ContextMenu },
-				isOpen: func() bool { return m.Editor.IsContextMenuOpen() },
-				close:  func() { m.Editor.CloseContextMenu() },
-				execute: func(_ int, _ time.Time) tea.Cmd {
-					return nil
-				},
-				handleAnchorClick: func(relX, relY int) tea.Cmd {
-					m.Editor.HandleContextMenuClick(relX, relY)
+func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メニュー登録の一覧性を優先
+	return NewPopupCoordinator(&m.layout, []popupEntry{
+		{
+			kind:   menuKindEditorContext,
+			menu:   func() *PopupMenu { return m.Editor.ContextMenu },
+			isOpen: func() bool { return m.Editor.IsContextMenuOpen() },
+			close:  func() { m.Editor.CloseContextMenu() },
+			execute: func(_ int, _ time.Time) tea.Cmd {
+				return nil
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				m.Editor.HandleContextMenuClick(relX, relY)
 
-					return nil
-				},
-			},
-			{
-				kind:   menuKindMoveMenu,
-				menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
-				isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
-				close:  func() { m.Editor.Header.CloseMoveMenu() },
-				execute: func(idx int, _ time.Time) tea.Cmd {
-					return m.Editor.Header.ExecuteMoveMenuAction(idx)
-				},
-				handleAnchorClick: nil,
-			},
-			{
-				kind:   menuKindEditorHeader,
-				menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
-				isOpen: func() bool { return m.Editor.Header.MenuOpen() },
-				close:  func() { m.Editor.Header.CloseMenu() },
-				execute: func(idx int, _ time.Time) tea.Cmd {
-					return m.Editor.Header.ExecuteMenuAction(idx)
-				},
-				handleAnchorClick: func(relX, relY int) tea.Cmd {
-					return m.Editor.Header.HandleMenuClick(relX, relY)
-				},
-			},
-			{
-				kind:   menuKindFolderList,
-				menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
-				isOpen: func() bool { return m.FolderList.MenuOpen() },
-				close:  func() { m.FolderList.CloseMenu() },
-				execute: func(idx int, _ time.Time) tea.Cmd {
-					return m.handleFolderMenuAction(idx)
-				},
-				handleAnchorClick: func(relX, relY int) tea.Cmd {
-					idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
-					m.FolderList.CloseMenu()
-
-					if hit {
-						return m.handleFolderMenuAction(idx)
-					}
-
-					return nil
-				},
-			},
-			{
-				kind:   menuKindFooter,
-				menu:   func() *PopupMenu { return m.Footer.PopupMenu },
-				isOpen: func() bool { return m.Footer.MenuOpen() },
-				close:  func() { m.Footer.CloseMenu() },
-				execute: func(idx int, now time.Time) tea.Cmd {
-					return m.processFooterMenuAction(idx, now)
-				},
-				handleAnchorClick: nil,
+				return nil
 			},
 		},
-	}
+		{
+			kind:   menuKindMoveMenu,
+			menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
+			isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
+			close:  func() { m.Editor.Header.CloseMoveMenu() },
+			execute: func(idx int, _ time.Time) tea.Cmd {
+				return m.Editor.Header.ExecuteMoveMenuAction(idx)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				return m.Editor.Header.HandleMoveMenuClick(relX, relY)
+			},
+		},
+		{
+			kind:   menuKindEditorHeader,
+			menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
+			isOpen: func() bool { return m.Editor.Header.MenuOpen() },
+			close:  func() { m.Editor.Header.CloseMenu() },
+			execute: func(idx int, _ time.Time) tea.Cmd {
+				return m.Editor.Header.ExecuteMenuAction(idx)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				return m.Editor.Header.HandleMenuClick(relX, relY)
+			},
+		},
+		{
+			kind:   menuKindFolderList,
+			menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
+			isOpen: func() bool { return m.FolderList.MenuOpen() },
+			close:  func() { m.FolderList.CloseMenu() },
+			execute: func(idx int, _ time.Time) tea.Cmd {
+				return m.handleFolderMenuAction(idx)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
+				m.FolderList.CloseMenu()
+
+				if hit {
+					return m.handleFolderMenuAction(idx)
+				}
+
+				return nil
+			},
+		},
+		{
+			kind:   menuKindFooter,
+			menu:   func() *PopupMenu { return m.Footer.PopupMenu },
+			isOpen: func() bool { return m.Footer.MenuOpen() },
+			close:  func() { m.Footer.CloseMenu() },
+			execute: func(idx int, now time.Time) tea.Cmd {
+				return m.processFooterMenuAction(idx, now)
+			},
+			handleAnchorClick: nil,
+		},
+	})
 }
 
 // confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。

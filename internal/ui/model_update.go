@@ -394,8 +394,8 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		edX := m.layout.EditorLocalX(msg.X)
 		menuTopY := editorHeaderMenuTopY
 		menuHeight := m.Editor.Header.MoveMenuHeight()
+		menuX := m.Editor.Header.MoveMenuLeftX()
 		menuWidth := m.Editor.Header.MoveMenu.Width()
-		menuX := m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
 		if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
 			relX := edX - menuX
@@ -747,8 +747,8 @@ func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
 		edX := mouse.X - editorStartX
 		menuTopY := editorHeaderMenuTopY
 		menuHeight := m.Editor.Header.MoveMenuHeight()
+		menuX := m.Editor.Header.MoveMenuLeftX()
 		menuWidth := m.Editor.Header.MoveMenu.Width()
-		menuX := m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
 
 		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
 			m.Editor.Header.SetMoveMenuHover(edX-menuX, mouse.Y-menuTopY)

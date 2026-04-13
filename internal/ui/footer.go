@@ -54,9 +54,9 @@ func (f *Footer) RebuildButtons() {
 	}
 
 	// メニュー項目を構築
-	var menuItems = []MenuItem{
-		{Label: "Shortcuts", Disabled: false},
-		{Label: "Quit", Disabled: false},
+	menuItems := []MenuItem{
+		NewMenuItem("Shortcuts"),
+		NewMenuItem("Quit"),
 	}
 
 	f.menuMsgs = []FooterMsg{FooterHelp, FooterQuit}

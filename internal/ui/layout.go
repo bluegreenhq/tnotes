@@ -31,6 +31,17 @@ type Layout struct {
 	folderVisible   bool
 }
 
+// NewLayout は新しい Layout を生成する。
+func NewLayout(folderListWidth, noteListWidth int) Layout {
+	return Layout{
+		folderListWidth: folderListWidth,
+		noteListWidth:   noteListWidth,
+		width:           0,
+		height:          0,
+		folderVisible:   false,
+	}
+}
+
 // NoteListOffset はノート一覧の開始X座標を返す。
 func (l *Layout) NoteListOffset() int {
 	if l.folderVisible {
