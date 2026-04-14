@@ -189,19 +189,32 @@ func (c *PopupCoordinator) HandleAnchoredClick(msg tea.MouseClickMsg) tea.Cmd {
 	return cmd
 }
 
-// HandleHover はアンカー付きメニューのホバーを更新する。
-func (c *PopupCoordinator) HandleHover(mouse tea.Mouse) {
-	if c.anchor == nil {
-		return
+// HandleHover はアンカー付きまたは固定位置メニューのホバーを更新する。
+// ホバーを処理した場合は true を返す。
+func (c *PopupCoordinator) HandleHover(mouse tea.Mouse) bool {
+	if c.anchor != nil {
+		menu := c.anchoredMenu()
+		if menu != nil {
+			x, y := c.anchoredMenuOrigin(menu)
+			menu.SetHoverByPos(mouse.X-x, mouse.Y-y)
+
+			return true
+		}
 	}
 
-	menu := c.anchoredMenu()
-	if menu == nil {
-		return
+	for i := range c.entries {
+		if !c.entries[i].isOpen() || c.entries[i].origin == nil {
+			continue
+		}
+
+		menu := c.entries[i].menu()
+		ox, oy := c.entries[i].origin()
+		menu.SetHoverByPos(mouse.X-ox, mouse.Y-oy)
+
+		return true
 	}
 
-	x, y := c.anchoredMenuOrigin(menu)
-	menu.SetHoverByPos(mouse.X-x, mouse.Y-y)
+	return false
 }
 
 // SetAnchor はメニューのアンカー位置を設定する。

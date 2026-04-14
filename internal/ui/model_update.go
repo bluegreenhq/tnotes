@@ -548,9 +548,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	if m.popup.HasAnchor() {
-		m.popup.HandleHover(mouse)
-	} else {
+	if !m.popup.HandleHover(mouse) {
 		m.updateFolderListHeaderHover(mouse)
 		m.updateEditorHeaderHover(mouse)
 	}
@@ -612,9 +610,7 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 
-	if m.popup.HasAnchor() {
-		m.popup.HandleHover(mouse)
-	} else {
+	if !m.popup.HandleHover(mouse) {
 		m.updateFolderListHeaderHover(mouse)
 		m.updateEditorHeaderHover(mouse)
 	}
@@ -641,41 +637,10 @@ func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
 	} else {
 		m.Editor.Header.ClearHover()
 	}
-
-	if m.Editor.Header.MoveMenuOpen() {
-		edX := mouse.X - editorStartX
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := m.Editor.Header.MoveMenuHeight()
-		menuX := m.Editor.Header.MoveMenuLeftX()
-		menuWidth := m.Editor.Header.MoveMenu.Width()
-
-		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
-			m.Editor.Header.SetMoveMenuHover(edX-menuX, mouse.Y-menuTopY)
-		} else {
-			m.Editor.Header.SetMoveMenuHover(-1, -1)
-		}
-	}
 }
 
 func (m *Model) updateFooterHover(mouse tea.Mouse) {
-	footerLabelY := m.layout.FooterLabelY()
-
-	if m.Footer.MenuOpen() {
-		menuHeight := m.Footer.MenuHeight()
-		bodyLines := m.layout.BodyHeight()
-		menuTopY := bodyLines - menuHeight
-
-		if mouse.Y >= menuTopY && mouse.Y < menuTopY+menuHeight {
-			relX := mouse.X - 1
-			relY := mouse.Y - menuTopY
-			m.Footer.SetMenuHover(relX, relY)
-			m.Footer.SetHover(HoverNone)
-
-			return
-		}
-	}
-
-	if mouse.Y == footerLabelY {
+	if mouse.Y == m.layout.FooterLabelY() {
 		m.rebuildFooterButtons()
 		m.Footer.SetHover(m.Footer.HitTest(mouse.X))
 	} else {
