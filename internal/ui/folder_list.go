@@ -36,6 +36,11 @@ type Folder struct {
 	Count int
 }
 
+// NewFolder は新しい Folder を生成する。
+func NewFolder(name string, kind FolderKind, count int) Folder {
+	return Folder{Name: name, Kind: kind, Count: count}
+}
+
 // FolderList はフォルダ一覧の状態を表す。
 type FolderList struct {
 	folders    []Folder
@@ -58,8 +63,8 @@ type FolderList struct {
 func NewFolderList(width, height int) FolderList {
 	return FolderList{
 		folders: []Folder{
-			{Name: "Notes", Kind: FolderNotes, Count: 0},
-			{Name: "Trash", Kind: FolderTrash, Count: 0},
+			NewFolder("Notes", FolderNotes, 0),
+			NewFolder("Trash", FolderTrash, 0),
 		},
 		selected:   0,
 		width:      width,
@@ -68,7 +73,7 @@ func NewFolderList(width, height int) FolderList {
 		inputMode:  false,
 		renameMode: false,
 		renameName: "",
-		lineInput:  lineInput{value: nil, cursor: 0, killBuf: nil},
+		lineInput:  newLineInput(),
 		blink:      newCursorBlink(blinkOwnerFolderList),
 		menuOpen:   false,
 		PopupMenu:  NewPopupMenu(nil),
@@ -137,8 +142,8 @@ func (fl *FolderList) MenuOpen() bool { return fl.menuOpen }
 // OpenMenu はmoreメニューを開く。
 func (fl *FolderList) OpenMenu() {
 	fl.PopupMenu = NewPopupMenu([]MenuItem{
-		{Label: "Rename", Disabled: false},
-		{Label: "Delete", Disabled: false},
+		NewMenuItem("Rename"),
+		NewMenuItem("Delete"),
 	})
 	fl.menuOpen = true
 }
@@ -156,6 +161,11 @@ func (fl *FolderList) MenuHeight() int {
 	}
 
 	return fl.PopupMenu.Height()
+}
+
+// MenuLeftX はメニュー左端のフォルダリスト相対X座標を返す。
+func (fl *FolderList) MenuLeftX() int {
+	return fl.Width() - folderListBorderWidth - fl.PopupMenu.Width()
 }
 
 // IsUserFolder は選択中のフォルダがユーザー定義フォルダかどうかを返す。
@@ -179,13 +189,13 @@ func (fl *FolderList) SelectedName() string {
 // SetFolders はフォルダ一覧を再構成する。表示順: Notes → ユーザーフォルダ（アルファベット順）→ Trash。
 func (fl *FolderList) SetFolders(userFolders []string, notesCount, trashCount int, folderCounts map[string]int) {
 	folders := make([]Folder, 0, len(userFolders)+folderListSystemAndTrash)
-	folders = append(folders, Folder{Name: "Notes", Kind: FolderNotes, Count: notesCount})
+	folders = append(folders, NewFolder("Notes", FolderNotes, notesCount))
 
 	for _, name := range userFolders {
-		folders = append(folders, Folder{Name: name, Kind: FolderUser, Count: folderCounts[name]})
+		folders = append(folders, NewFolder(name, FolderUser, folderCounts[name]))
 	}
 
-	folders = append(folders, Folder{Name: "Trash", Kind: FolderTrash, Count: trashCount})
+	folders = append(folders, NewFolder("Trash", FolderTrash, trashCount))
 	fl.folders = folders
 
 	if fl.selected >= len(fl.folders) {

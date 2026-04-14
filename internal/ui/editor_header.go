@@ -46,7 +46,7 @@ func NewEditorHeader(width int) *EditorHeader {
 		moveMenuOpen:  false,
 		MoveMenu:      NewPopupMenu(nil),
 		moveFolders:   nil,
-		searchInput:   lineInput{value: nil, cursor: 0, killBuf: nil},
+		searchInput:   newLineInput(),
 		searchFocused: false,
 		searchBlink:   newCursorBlink(blinkOwnerSearch),
 		hoverSearch:   false,
@@ -105,3 +105,13 @@ func (h *EditorHeader) SearchBlinkVisible() bool { return h.searchBlink.Visible(
 
 // ResetSearchBlink は検索カーソルの blink をリセットする。
 func (h *EditorHeader) ResetSearchBlink() tea.Cmd { return h.searchBlink.Reset() }
+
+// MenuLeftX はメニュー左端のヘッダー相対X座標を返す。
+func (h *EditorHeader) MenuLeftX() int {
+	return h.width - searchFieldWidth - h.PopupMenu.Width()
+}
+
+// MoveMenuLeftX は移動先メニュー左端のヘッダー相対X座標を返す。
+func (h *EditorHeader) MoveMenuLeftX() int {
+	return h.width - searchFieldWidth - moreButtonOffset + 1 - h.MoveMenu.Width()
+}

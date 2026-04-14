@@ -1,11 +1,9 @@
 package ui
 
 import (
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -38,12 +36,6 @@ type clearInfoMsg struct {
 	id int
 }
 
-// menuAnchor は右クリック時のメニュー表示位置を表す。
-type menuAnchor struct {
-	x int // 画面絶対座標
-	y int
-}
-
 // Model はUIの状態を表す。
 type Model struct {
 	App                 *app.App
@@ -52,12 +44,9 @@ type Model struct {
 	Footer              Footer
 	Focus               FocusArea
 	FolderList          FolderList
-	folderListWidth     int
+	layout              Layout
 	resizingFolder      bool
 	hoverFolderSep      bool
-	noteListWidth       int
-	width               int
-	height              int
 	resizing            bool
 	hoverSeparator      bool
 	errMsg              string
@@ -66,9 +55,9 @@ type Model struct {
 	indexModTime        time.Time
 	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
 	confirmDeleteFolder string         // 削除確認中のフォルダ名
-	menuAnchor          *menuAnchor    // 右クリック時のメニュー表示位置（nil = デフォルト位置）
-	helpOverlay         *HelpOverlay   // ショートカットヘルプ（nil = 非表示）
-	searchDebounceID    int            // デバウンスタイマーの世代ID
+	popup               PopupCoordinator
+	helpOverlay         *HelpOverlay // ショートカットヘルプ（nil = 非表示）
+	searchDebounceID    int          // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -82,12 +71,9 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		Footer:              NewFooter(),
 		Focus:               FocusNoteList,
 		FolderList:          NewFolderList(defaultFolderListW, defaultHeight),
-		folderListWidth:     defaultFolderListW,
+		layout:              NewLayout(defaultFolderListW, defaultNoteListW),
 		resizingFolder:      false,
 		hoverFolderSep:      false,
-		noteListWidth:       defaultNoteListW,
-		width:               0,
-		height:              0,
 		resizing:            false,
 		hoverSeparator:      false,
 		errMsg:              "",
@@ -96,10 +82,12 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		indexModTime:        time.Time{},
 		confirmDialog:       nil,
 		confirmDeleteFolder: "",
-		menuAnchor:          nil,
+		popup:               PopupCoordinator{anchor: nil, lastAnchor: nil, entries: nil, layout: nil},
 		helpOverlay:         nil,
 		searchDebounceID:    0,
 	}
+
+	m.popup = m.newPopupCoordinator()
 
 	return m
 }
@@ -121,45 +109,120 @@ func (m *Model) Init() tea.Cmd {
 }
 
 // NoteListWidth は現在のノート一覧幅を返す。
-func (m *Model) NoteListWidth() int { return m.noteListWidth }
+func (m *Model) NoteListWidth() int { return m.layout.noteListWidth }
 
 // HelpVisible はヘルプオーバーレイが表示中かを返す。
 func (m *Model) HelpVisible() bool { return m.helpOverlay != nil }
 
-func (m *Model) maxNoteListWidth() int {
-	pctLimit := m.width * maxNoteListPct / percentDivisor
+func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メニュー登録の一覧性を優先
+	return NewPopupCoordinator(&m.layout, []popupEntry{
+		{
+			kind:   menuKindEditorContext,
+			menu:   func() *PopupMenu { return m.Editor.ContextMenu },
+			isOpen: func() bool { return m.Editor.IsContextMenuOpen() },
+			close:  func() { m.Editor.CloseContextMenu() },
+			execute: func(_ int, _ time.Time) tea.Cmd {
+				return nil
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				m.Editor.HandleContextMenuClick(relX, relY)
 
-	editorLimit := m.width - minEditorWidth
-	if m.FolderList.Visible() {
-		editorLimit -= m.folderListWidth
-	}
+				return nil
+			},
+			origin: nil,
+		},
+		{
+			kind:   menuKindMoveMenu,
+			menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
+			isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
+			close:  func() { m.Editor.Header.CloseMoveMenu() },
+			execute: func(idx int, now time.Time) tea.Cmd {
+				cmd := m.Editor.Header.ExecuteMoveMenuAction(idx)
+				if cmd == nil {
+					return nil
+				}
 
-	return min(pctLimit, editorLimit)
-}
+				msg, ok := cmd().(noteMoveMsg)
+				if !ok {
+					return cmd
+				}
 
-// confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。
-// overlayConfirmDialog と同じ起点計算を行い、border + padding 分を加算する。
-func (m *Model) confirmDialogOrigin() (int, int) {
-	if m.confirmDialog == nil {
-		return 0, 0
-	}
+				return m.handleNoteMove(msg, now)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				cmd := m.Editor.Header.HandleMoveMenuClick(relX, relY)
+				if cmd == nil {
+					return nil
+				}
 
-	rendered := m.confirmDialog.View()
-	dialogLines := strings.Split(rendered, "\n")
+				msg, ok := cmd().(noteMoveMsg)
+				if !ok {
+					return cmd
+				}
 
-	const (
-		centerDivisor      = 2
-		borderPaddingLines = 2 // border上 + padding上
-		borderPaddingCols  = 3 // border左1 + padding左2
-	)
+				return m.handleNoteMove(msg, time.Now())
+			},
+			origin: func() (int, int) {
+				return m.layout.EditorStartX() + m.Editor.Header.MoveMenuLeftX(), editorHeaderMenuTopY
+			},
+		},
+		{
+			kind:   menuKindEditorHeader,
+			menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
+			isOpen: func() bool { return m.Editor.Header.MenuOpen() },
+			close:  func() { m.Editor.Header.CloseMenu() },
+			execute: func(idx int, now time.Time) tea.Cmd {
+				cmd := m.Editor.Header.ExecuteMenuAction(idx)
 
-	bodyHeight := m.height - footerLineCount
-	dialogWidth := lipgloss.Width(dialogLines[0])
+				return m.processEditorHeaderCmd(cmd, now)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				cmd := m.Editor.Header.HandleMenuClick(relX, relY)
 
-	sy := max((bodyHeight-len(dialogLines))/centerDivisor, 0) + borderPaddingLines
-	sx := max((m.width-dialogWidth)/centerDivisor, 0) + borderPaddingCols
+				return m.processEditorHeaderCmd(cmd, time.Now())
+			},
+			origin: func() (int, int) {
+				return m.layout.EditorStartX() + m.Editor.Header.MenuLeftX(), editorHeaderMenuTopY
+			},
+		},
+		{
+			kind:   menuKindFolderList,
+			menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
+			isOpen: func() bool { return m.FolderList.MenuOpen() },
+			close:  func() { m.FolderList.CloseMenu() },
+			execute: func(idx int, now time.Time) tea.Cmd {
+				return m.handleFolderMenuAction(idx, now)
+			},
+			handleAnchorClick: func(relX, relY int) tea.Cmd {
+				idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
+				m.FolderList.CloseMenu()
 
-	return sx, sy
+				if hit {
+					return m.handleFolderMenuAction(idx, time.Now())
+				}
+
+				return nil
+			},
+			origin: func() (int, int) {
+				return m.FolderList.MenuLeftX(), folderListHeaderLines
+			},
+		},
+		{
+			kind:   menuKindFooter,
+			menu:   func() *PopupMenu { return m.Footer.PopupMenu },
+			isOpen: func() bool { return m.Footer.MenuOpen() },
+			close:  func() { m.Footer.CloseMenu() },
+			execute: func(idx int, now time.Time) tea.Cmd {
+				return m.processFooterCmd(m.Footer.ExecuteMenuAction(idx), now)
+			},
+			handleAnchorClick: nil,
+			origin: func() (int, int) {
+				menuHeight := m.Footer.MenuHeight()
+
+				return 1, m.layout.BodyHeight() - menuHeight
+			},
+		},
+	})
 }
 
 func (m *Model) rebuildFooterButtons() {
@@ -169,4 +232,10 @@ func (m *Model) rebuildFooterButtons() {
 // isTrashFolder は現在 Trash フォルダを表示しているかを返す。
 func (m *Model) isTrashFolder() bool {
 	return m.FolderList.SelectedKind() == FolderTrash
+}
+
+func (m *Model) openHelp() {
+	h := NewHelpOverlay(m.Focus)
+	h.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+	m.helpOverlay = h
 }

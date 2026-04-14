@@ -71,6 +71,83 @@ func (fl *FolderList) clearRename() {
 // InputValue は入力中のフォルダ名を返す。
 func (fl *FolderList) InputValue() string { return fl.lineInput.Value() }
 
+// HandleClickLocal はローカル座標でクリックを処理し、アクションコマンドを返す。
+func (fl *FolderList) HandleClickLocal(x, y int) tea.Cmd {
+	// moreメニューが開いている場合
+	if fl.menuOpen {
+		return fl.handleMenuClick(x, y)
+	}
+
+	// ヘッダーのボタンクリック判定
+	if y < folderListHeaderLines {
+		hit := fl.HitTestHeader(x, y)
+
+		switch hit {
+		case headerHitClose:
+			return FolderListClose.Cmd()
+		case headerHitAdd:
+			return FolderListStartInput.Cmd()
+		}
+
+		return nil
+	}
+
+	// リスト項目クリック
+	idx := fl.HitTest(x, y)
+	if idx >= 0 {
+		return fl.SelectIndex(idx)
+	}
+
+	return nil
+}
+
+func (fl *FolderList) handleMenuClick(x, y int) tea.Cmd {
+	menuTopY := folderListHeaderLines
+	menuHeight := fl.MenuHeight()
+	menuX := fl.MenuLeftX()
+	menuWidth := fl.PopupMenu.Width()
+
+	if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
+		relX := x - menuX
+		relY := y - menuTopY
+
+		idx, hit := fl.PopupMenu.HandleClick(relX, relY)
+		fl.CloseMenu()
+
+		if hit {
+			return folderMenuActionMsg{idx: idx}.Cmd()
+		}
+
+		return nil
+	}
+
+	fl.CloseMenu()
+
+	return nil
+}
+
+// HandleHoverLocal はローカル座標でホバーを処理する。
+func (fl *FolderList) HandleHoverLocal(x, y int) {
+	if x < fl.width && y == 0 {
+		fl.SetHeaderHover(x, y)
+	} else {
+		fl.ClearHeaderHover()
+	}
+
+	if fl.menuOpen {
+		menuTopY := folderListHeaderLines
+		menuHeight := fl.MenuHeight()
+		menuX := fl.MenuLeftX()
+		menuWidth := fl.PopupMenu.Width()
+
+		if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
+			fl.PopupMenu.SetHoverByPos(x-menuX, y-menuTopY)
+		} else {
+			fl.PopupMenu.SetHoverByPos(-1, -1)
+		}
+	}
+}
+
 // HitTestHeader はヘッダー領域のクリック判定を行う.
 // 戻り値: headerHitClose, headerHitAdd, "" (該当なし).
 func (fl *FolderList) HitTestHeader(x, y int) string {
@@ -126,14 +203,7 @@ func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 
 func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
 	if keyMsg.Mod&tea.ModCtrl != 0 {
-		switch keyMsg.Code {
-		case 'p':
-			return fl.moveUp()
-		case 'n':
-			return fl.moveDown()
-		}
-
-		return *fl, nil
+		return fl.handleCtrlKeyNav(keyMsg)
 	}
 
 	switch keyMsg.Code {
@@ -145,6 +215,23 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 		return *fl, FolderListMenu.Cmd()
 	case tea.KeyEnter, tea.KeyTab:
 		return *fl, FolderListFocusNext.Cmd()
+	case 'q':
+		return *fl, FolderListQuit.Cmd()
+	case '?':
+		return *fl, FolderListHelp.Cmd()
+	}
+
+	return *fl, nil
+}
+
+func (fl *FolderList) handleCtrlKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
+	switch keyMsg.Code {
+	case 'p':
+		return fl.moveUp()
+	case 'n':
+		return fl.moveDown()
+	case 'b':
+		return *fl, FolderListClose.Cmd()
 	}
 
 	return *fl, nil

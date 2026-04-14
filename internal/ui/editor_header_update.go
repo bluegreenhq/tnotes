@@ -11,31 +11,31 @@ func (h *EditorHeader) RebuildMenu() {
 
 	if h.trashMode {
 		menuItems = []MenuItem{
-			{Label: "Move to…", Disabled: false},
+			NewMenuItem("Move to…"),
 		}
 		h.menuMsgs = []EditorHeaderMsg{EditorHeaderMove}
 	} else {
 		menuItems = []MenuItem{
-			{Label: "Delete Note", Disabled: false},
+			NewMenuItem("Delete Note"),
 		}
 		h.menuMsgs = []EditorHeaderMsg{EditorHeaderTrash}
 
 		if h.pinned {
-			menuItems = append(menuItems, MenuItem{Label: "Unpin Note", Disabled: false})
+			menuItems = append(menuItems, NewMenuItem("Unpin Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderUnpin)
 		} else {
-			menuItems = append(menuItems, MenuItem{Label: "Pin Note", Disabled: false})
+			menuItems = append(menuItems, NewMenuItem("Pin Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderPin)
 		}
 
-		menuItems = append(menuItems, MenuItem{Label: "Move to…", Disabled: false})
+		menuItems = append(menuItems, NewMenuItem("Move to…"))
 		h.menuMsgs = append(h.menuMsgs, EditorHeaderMove)
 
-		menuItems = append(menuItems, MenuItem{Label: "Duplicate", Disabled: false})
+		menuItems = append(menuItems, NewMenuItem("Duplicate"))
 		h.menuMsgs = append(h.menuMsgs, EditorHeaderDuplicate)
 
 		if h.hasContent {
-			menuItems = append(menuItems, MenuItem{Label: "Copy Note", Disabled: false})
+			menuItems = append(menuItems, NewMenuItem("Copy Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderCopy)
 		}
 	}
@@ -161,7 +161,7 @@ func (h *EditorHeader) OpenMoveMenu(folders []string) {
 	items := make([]MenuItem, len(folders))
 
 	for i, name := range folders {
-		items[i] = MenuItem{Label: name, Disabled: false}
+		items[i] = NewMenuItem(name)
 	}
 
 	h.MoveMenu = NewPopupMenu(items)

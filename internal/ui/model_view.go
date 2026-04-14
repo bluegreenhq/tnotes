@@ -23,7 +23,7 @@ func (m *Model) View() tea.View {
 }
 
 func (m *Model) renderView(now time.Time) string {
-	if m.width < minWidth {
+	if m.layout.width < minWidth {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
@@ -49,11 +49,11 @@ func (m *Model) renderView(now time.Time) string {
 	}
 
 	m.rebuildFooterButtons()
-	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.width)
+	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.layout.width)
 
 	// bodyを正確に height-footerLines 行に切り詰め/パディング
 	bodyLines := strings.Split(body, "\n")
-	targetBodyLines := m.height - footerLines
+	targetBodyLines := m.layout.height - footerLines
 
 	targetBodyLines = max(targetBodyLines, 1)
 	if len(bodyLines) > targetBodyLines {
@@ -90,8 +90,8 @@ func (m *Model) updateFolderCounts() {
 func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay dispatch
 	if m.FolderList.MenuOpen() {
 		menuLines := m.FolderList.PopupMenu.View()
-		if m.menuAnchor != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 		} else {
 			m.overlayFolderListMenu(bodyLines, menuLines)
 		}
@@ -99,8 +99,8 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 	if m.Editor.Header.MenuOpen() {
 		menuLines := m.Editor.Header.PopupMenu.View()
-		if m.menuAnchor != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 		} else {
 			m.overlayEditorHeaderMenu(bodyLines, menuLines)
 		}
@@ -108,12 +108,16 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 	if m.Editor.Header.MoveMenuOpen() {
 		menuLines := m.Editor.Header.MoveMenu.View()
-		m.overlayMoveMenu(bodyLines, menuLines)
+		if m.popup.Anchor() != nil {
+			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
+		} else {
+			m.overlayMoveMenu(bodyLines, menuLines)
+		}
 	}
 
-	if m.Editor.IsContextMenuOpen() && m.menuAnchor != nil {
+	if m.Editor.IsContextMenuOpen() && m.popup.Anchor() != nil {
 		menuLines := m.Editor.ContextMenu.View()
-		m.overlayAtAnchor(bodyLines, menuLines, m.menuAnchor)
+		m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
 	}
 
 	if m.Footer.MenuOpen() {
@@ -132,10 +136,12 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 // overlayHelpOverlay はショートカットヘルプをオーバーレイする。
 func (m *Model) overlayHelpOverlay(bodyLines []string) {
+	m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+
 	rendered := m.helpOverlay.View()
 	dialogLines := strings.Split(rendered, "\n")
 
-	startX, startY := m.helpOverlayOrigin(dialogLines)
+	startX, startY := m.helpOverlay.Origin()
 
 	for i, dLine := range dialogLines {
 		y := startY + i
@@ -150,37 +156,6 @@ func (m *Model) overlayHelpOverlay(bodyLines []string) {
 	}
 }
 
-// helpOverlayOrigin はヘルプオーバーレイの画面左上座標を返す。
-func (m *Model) helpOverlayOrigin(dialogLines []string) (int, int) {
-	const centerDivisor = 2
-
-	bodyHeight := m.height - footerLineCount
-	startY := max((bodyHeight-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
-
-	return startX, startY
-}
-
-// helpCloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
-// ✕はタイトル行の右端に1文字で配置される。
-func (m *Model) helpCloseButtonHit(x, y int) bool {
-	rendered := m.helpOverlay.View()
-	dialogLines := strings.Split(rendered, "\n")
-	startX, startY := m.helpOverlayOrigin(dialogLines)
-
-	if len(dialogLines) == 0 {
-		return false
-	}
-
-	dialogWidth := lipgloss.Width(dialogLines[0])
-
-	// ✕ は paddingTop行（行1）、border右の直前（dialogWidth - 2）に配置
-	btnY := startY + helpCloseBtnRow
-	btnX := startX + dialogWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
-
-	return x == btnX && y == btnY
-}
-
 // overlayAtAnchor はメニューを指定座標にオーバーレイする。
 // 画面端でメニューがはみ出す場合は左方向・上方向にフォールバックする。
 func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *menuAnchor) {
@@ -189,7 +164,7 @@ func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *
 	}
 
 	menuWidth := lipgloss.Width(menuLines[0])
-	x, y := m.clampAnchor(anchor, menuWidth, len(menuLines))
+	x, y := m.popup.ClampAnchor(anchor, menuWidth, len(menuLines))
 
 	menuRight := x + menuWidth
 
@@ -214,13 +189,13 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 		return
 	}
 
-	menuWidth := m.FolderList.PopupMenu.Width()
-	menuX := m.FolderList.Width() - folderListBorderWidth - menuWidth
+	menuX := m.FolderList.MenuLeftX()
 
 	menuX = max(menuX, 0)
 
 	startY := folderListHeaderLines // ヘッダー直下
 
+	menuWidth := m.FolderList.PopupMenu.Width()
 	menuRight := menuX + menuWidth
 
 	for i, menuLine := range menuLines {
@@ -244,11 +219,12 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 		return
 	}
 
-	editorStartX := m.noteListOffset() + m.noteListWidth
-	menuWidth := m.Editor.Header.PopupMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - menuWidth
+	editorStartX := m.layout.EditorStartX()
+	menuX := editorStartX + m.Editor.Header.MenuLeftX()
 
 	menuX = max(menuX, editorStartX)
+
+	menuWidth := m.Editor.Header.PopupMenu.Width()
 
 	startY := editorHeaderMenuTopY // セパレーター行に重ねる
 
@@ -276,13 +252,15 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 		return
 	}
 
-	editorStartX := m.noteListOffset() + m.noteListWidth
-	menuWidth := m.Editor.Header.MoveMenu.Width()
-	menuX := editorStartX + m.Editor.Header.Width() - searchFieldWidth - moreButtonOffset + 1 - menuWidth
+	editorStartX := m.layout.EditorStartX()
+	menuX := editorStartX + m.Editor.Header.MoveMenuLeftX()
 
 	menuX = max(menuX, editorStartX)
 
+	menuWidth := m.Editor.Header.MoveMenu.Width()
+
 	startY := editorHeaderMenuTopY
+	menuRight := menuX + menuWidth
 
 	for i, menuLine := range menuLines {
 		y := startY + i
@@ -293,12 +271,15 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)
-		bodyLines[y] = padded + menuLine
+		rest := truncateLeftSafe(bodyLines[y], menuRight)
+		bodyLines[y] = padded + menuLine + rest
 	}
 }
 
 // overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
 func (m *Model) overlayConfirmDialog(bodyLines []string) {
+	m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+
 	rendered := m.confirmDialog.View()
 	dialogLines := strings.Split(rendered, "\n")
 
@@ -306,7 +287,7 @@ func (m *Model) overlayConfirmDialog(bodyLines []string) {
 
 	// 画面中央に配置
 	startY := max((len(bodyLines)-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
+	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
 
 	for i, dLine := range dialogLines {
 		y := startY + i

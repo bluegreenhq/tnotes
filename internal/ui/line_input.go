@@ -17,6 +17,10 @@ type lineInput struct {
 	killBuf []rune
 }
 
+func newLineInput() lineInput {
+	return lineInput{value: nil, cursor: 0, killBuf: nil}
+}
+
 // Value は入力中のテキストを返す。
 func (li *lineInput) Value() string { return string(li.value) }
 

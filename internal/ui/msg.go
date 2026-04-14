@@ -31,6 +31,12 @@ const (
 	NoteListMenu
 	// NoteListQuit は終了を要求する。
 	NoteListQuit
+	// NoteListFocusPrev はフォルダ一覧へのフォーカス移動を要求する。
+	NoteListFocusPrev
+	// NoteListToggleFolder はフォルダ一覧の表示切り替えを要求する。
+	NoteListToggleFolder
+	// NoteListHelp はショートカットヘルプ表示を要求する。
+	NoteListHelp
 )
 
 // EditorMsg はエディタからモデルへの通知メッセージ。
@@ -46,6 +52,10 @@ const (
 	EditorBlur EditorMsg = iota
 	// EditorSave はノート保存を要求する。
 	EditorSave
+	// EditorSearchChanged は検索テキストが変更されたことを通知する。
+	EditorSearchChanged
+	// EditorSearchBlur は検索フィールドからフォーカスが外れたことを通知する。
+	EditorSearchBlur
 )
 
 // editorContextMsg はエディタコンテキストメニューのアクション。
@@ -81,7 +91,24 @@ const (
 	FolderListFocusNext
 	// FolderListMenu はコンテキストメニュー表示を要求する。
 	FolderListMenu
+	// FolderListClose はフォルダ一覧を閉じることを要求する。
+	FolderListClose
+	// FolderListStartInput はフォルダ新規作成入力の開始を要求する。
+	FolderListStartInput
+	// FolderListQuit は終了を要求する。
+	FolderListQuit
+	// FolderListHelp はショートカットヘルプ表示を要求する。
+	FolderListHelp
 )
+
+// folderMenuActionMsg はフォルダメニューのアクション実行を運ぶメッセージ。
+type folderMenuActionMsg struct {
+	idx int
+}
+
+func (m folderMenuActionMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
 
 // folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
 type folderCreateMsg struct {
@@ -95,10 +122,6 @@ func (m folderCreateMsg) Cmd() tea.Cmd {
 // folderDeleteMsg はフォルダ削除を運ぶメッセージ。
 type folderDeleteMsg struct {
 	Name string
-}
-
-func (m folderDeleteMsg) Cmd() tea.Cmd {
-	return func() tea.Msg { return m }
 }
 
 // folderRenameMsg はフォルダリネームを運ぶメッセージ。

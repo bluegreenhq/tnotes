@@ -68,3 +68,16 @@ func (d *ConfirmDialog) ClearHover() {
 	d.yesBtn.SetHovered(false)
 	d.noBtn.SetHovered(false)
 }
+
+// HandleClickAbs は画面絶対座標でのクリックを処理する。
+func (d *ConfirmDialog) HandleClickAbs(absX, absY int) ConfirmResult {
+	originX, originY := d.Origin()
+
+	return d.HandleClick(absX-originX, absY-originY)
+}
+
+// HandleMotionAbs は画面絶対座標でのマウスホバーを処理する。
+func (d *ConfirmDialog) HandleMotionAbs(absX, absY int) {
+	originX, originY := d.Origin()
+	d.HandleMotion(absX-originX, absY-originY)
+}

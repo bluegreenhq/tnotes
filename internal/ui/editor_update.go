@@ -86,6 +86,11 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 	}
 
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
+		// 検索フィールドにフォーカスがある場合
+		if e.Header.SearchFocused() {
+			return e.handleSearchKey(msg)
+		}
+
 		return e.handleKey(msg, now)
 	}
 
@@ -101,6 +106,24 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 	}
 
 	return *e, cmd
+}
+
+func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, tea.Cmd) {
+	handled, _ := e.Header.HandleSearchKey(msg)
+	if !handled {
+		return *e, nil
+	}
+
+	if !e.Header.SearchFocused() {
+		// Esc/Enter で検索フォーカスを外した
+		e.Header.searchBlink.Stop()
+
+		return *e, EditorSearchBlur.Cmd()
+	}
+
+	blinkCmd := e.Header.searchBlink.Reset()
+
+	return *e, tea.Batch(EditorSearchChanged.Cmd(), blinkCmd)
 }
 
 func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐
@@ -201,14 +224,14 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 
 func (e *Editor) handleShiftArrow(msg tea.KeyPressMsg) tea.Cmd {
 	if !e.HasSelection() {
-		anchor := SelectionAnchor{Line: e.textarea.Line(), Column: e.textarea.Column()}
+		anchor := NewSelectionAnchor(e.textarea.Line(), e.textarea.Column())
 		e.selStart = &anchor
 	}
 
 	plainMsg := tea.KeyPressMsg{Code: msg.Code, Mod: 0}
 	cmd := e.textarea.Update(plainMsg)
 
-	newPos := SelectionAnchor{Line: e.textarea.Line(), Column: e.textarea.Column()}
+	newPos := NewSelectionAnchor(e.textarea.Line(), e.textarea.Column())
 	e.selEnd = &newPos
 
 	return cmd
@@ -249,8 +272,8 @@ func (e *Editor) SelectWord(line, col int) {
 		right++
 	}
 
-	start := SelectionAnchor{Line: line, Column: left}
-	end := SelectionAnchor{Line: line, Column: right}
+	start := NewSelectionAnchor(line, left)
+	end := NewSelectionAnchor(line, right)
 	e.SetSelection(start, end)
 	e.moveCursorTo(end)
 }
@@ -267,8 +290,8 @@ func (e *Editor) SelectLine(line int) {
 		return
 	}
 
-	start := SelectionAnchor{Line: line, Column: 0}
-	end := SelectionAnchor{Line: line, Column: len(runes)}
+	start := NewSelectionAnchor(line, 0)
+	end := NewSelectionAnchor(line, len(runes))
 	e.SetSelection(start, end)
 	e.moveCursorTo(end)
 }
@@ -294,8 +317,8 @@ func (e *Editor) SelectAll() {
 		return
 	}
 
-	start := SelectionAnchor{Line: 0, Column: 0}
-	end := SelectionAnchor{Line: lastLine, Column: len([]rune(lines[lastLine]))}
+	start := NewSelectionAnchor(0, 0)
+	end := NewSelectionAnchor(lastLine, len([]rune(lines[lastLine])))
 	e.SetSelection(start, end)
 }
 
@@ -506,7 +529,7 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 
 	logLine, runeCol := e.textarea.positionFromCell(visualRow, cellCol)
 
-	return SelectionAnchor{Line: logLine, Column: runeCol}
+	return NewSelectionAnchor(logLine, runeCol)
 }
 
 func (e *Editor) moveCursorTo(pos SelectionAnchor) {
@@ -525,7 +548,7 @@ func (e *Editor) HandleClick(x, y int) tea.Cmd {
 		menuHeight := e.Header.MenuHeight()
 
 		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.menuLeftX()
+			menuRelX := x - e.Header.MenuLeftX()
 
 			return e.Header.HandleMenuClick(menuRelX, y-menuTopY)
 		}
@@ -561,15 +584,10 @@ func (e *Editor) HandleHover(x, y int) {
 		menuHeight := e.Header.MenuHeight()
 
 		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.menuLeftX()
+			menuRelX := x - e.Header.MenuLeftX()
 			e.Header.SetMenuHover(menuRelX, y-menuTopY)
 		}
 	}
-}
-
-// menuLeftX はメニュー左端のエディタ相対X座標を返す。
-func (e *Editor) menuLeftX() int {
-	return e.Header.Width() - e.Header.PopupMenu.Width()
 }
 
 // IsHeaderMenuOpen はヘッダーメニューが開いているかを返す。
@@ -593,22 +611,12 @@ func (e *Editor) ScrollDown(n int) {
 
 // SaveSnapshot はエディタのスナップショットをデバウンス付きで保存する。
 func (e *Editor) SaveSnapshot(now time.Time) {
-	snap := EditorSnapshot{
-		Text:       e.textarea.Value(),
-		CursorLine: e.textarea.Line(),
-		CursorCol:  e.textarea.Column(),
-	}
-	e.UndoMgr.MaybeSave(snap, now)
+	e.UndoMgr.MaybeSave(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()), now)
 }
 
 // ForceSaveSnapshot はデバウンスなしでスナップショットを保存する。
 func (e *Editor) ForceSaveSnapshot(now time.Time) {
-	snap := EditorSnapshot{
-		Text:       e.textarea.Value(),
-		CursorLine: e.textarea.Line(),
-		CursorCol:  e.textarea.Column(),
-	}
-	e.UndoMgr.ForceSave(snap, now)
+	e.UndoMgr.ForceSave(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()), now)
 }
 
 // Undo はエディタの状態を1つ前に戻す。
@@ -618,12 +626,7 @@ func (e *Editor) Undo() {
 		return
 	}
 
-	current := EditorSnapshot{
-		Text:       e.textarea.Value(),
-		CursorLine: e.textarea.Line(),
-		CursorCol:  e.textarea.Column(),
-	}
-	e.UndoMgr.PushRedo(current)
+	e.UndoMgr.PushRedo(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()))
 	e.restoreSnapshot(snap)
 }
 
@@ -634,21 +637,12 @@ func (e *Editor) Redo() {
 		return
 	}
 
-	current := EditorSnapshot{
-		Text:       e.textarea.Value(),
-		CursorLine: e.textarea.Line(),
-		CursorCol:  e.textarea.Column(),
-	}
-	e.UndoMgr.PushUndo(current)
+	e.UndoMgr.PushUndo(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()))
 	e.restoreSnapshot(snap)
 }
 
 func (e *Editor) saveSnapshotBefore(prevText string, prevLine, prevCol int, force bool, now time.Time) {
-	snap := EditorSnapshot{
-		Text:       prevText,
-		CursorLine: prevLine,
-		CursorCol:  prevCol,
-	}
+	snap := NewEditorSnapshot(prevText, prevLine, prevCol)
 
 	if force {
 		e.UndoMgr.ForceSave(snap, now)
@@ -679,10 +673,19 @@ func (e *Editor) urlAtCursor() string {
 // OpenContextMenu はエディタのコンテキストメニューを開く。
 func (e *Editor) OpenContextMenu() {
 	hasSel := e.HasSelection()
+
+	newItem := func(label string, disabled bool) MenuItem {
+		if disabled {
+			return NewDisabledMenuItem(label)
+		}
+
+		return NewMenuItem(label)
+	}
+
 	items := []MenuItem{
-		{Label: "Copy", Disabled: !hasSel},
-		{Label: "Cut", Disabled: !hasSel || e.readOnly},
-		{Label: "Paste", Disabled: e.readOnly},
+		newItem("Copy", !hasSel),
+		newItem("Cut", !hasSel || e.readOnly),
+		newItem("Paste", e.readOnly),
 	}
 	e.ContextMenu = NewPopupMenu(items)
 	e.contextMenuOpen = true

@@ -15,6 +15,11 @@ type SelectionAnchor struct {
 	Column int
 }
 
+// NewSelectionAnchor は新しい SelectionAnchor を生成する。
+func NewSelectionAnchor(line, col int) SelectionAnchor {
+	return SelectionAnchor{Line: line, Column: col}
+}
+
 // selBefore は a が b より前にあるかを返す。
 func selBefore(a, b SelectionAnchor) bool {
 	if a.Line != b.Line {
@@ -69,7 +74,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 		ContextMenu:     NewPopupMenu(nil),
 		searchQuery:     "",
 		lastClickTime:   time.Time{},
-		lastClickPos:    SelectionAnchor{Line: 0, Column: 0},
+		lastClickPos:    NewSelectionAnchor(0, 0),
 		clickCount:      0,
 	}
 }

@@ -6,6 +6,16 @@ type MenuItem struct {
 	Disabled bool
 }
 
+// NewMenuItem は有効な MenuItem を生成する。
+func NewMenuItem(label string) MenuItem {
+	return MenuItem{Label: label, Disabled: false}
+}
+
+// NewDisabledMenuItem は無効な MenuItem を生成する。
+func NewDisabledMenuItem(label string) MenuItem {
+	return MenuItem{Label: label, Disabled: true}
+}
+
 // PopupMenu は汎用ポップアップメニューコンポーネント。
 type PopupMenu struct {
 	items []MenuItem

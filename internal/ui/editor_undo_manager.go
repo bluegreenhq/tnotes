@@ -11,6 +11,11 @@ type EditorSnapshot struct {
 	CursorCol  int
 }
 
+// NewEditorSnapshot は新しい EditorSnapshot を生成する。
+func NewEditorSnapshot(text string, line, col int) EditorSnapshot {
+	return EditorSnapshot{Text: text, CursorLine: line, CursorCol: col}
+}
+
 // EditorUndoManager はエディタのundo/redoスタックを管理する。
 type EditorUndoManager struct {
 	undoStack []EditorSnapshot
