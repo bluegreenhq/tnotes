@@ -37,6 +37,7 @@ type popupEntry struct {
 	close             func()
 	execute           func(idx int, now time.Time) tea.Cmd
 	handleAnchorClick func(relX, relY int) tea.Cmd // nil = アンカー非対応
+	origin            func() (x, y int)            // nil = 固定位置なし（アンカーのみ）
 }
 
 // PopupCoordinator は複数コンポーネントに散在するポップアップメニューを一元管理する。
@@ -109,6 +110,49 @@ func (c *PopupCoordinator) HandleKey(msg tea.KeyPressMsg, menu *PopupMenu, kind 
 	menu.HandleKeyNav(msg)
 
 	return nil
+}
+
+// HandleFixedClick は固定位置メニュー（origin コールバック付き）のクリックを処理する。
+// メニュー領域内ならクリックを処理し、メニュー外なら閉じる。
+// 処理した場合は (cmd, true)、開いている固定位置メニューがなければ (nil, false)。
+func (c *PopupCoordinator) HandleFixedClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd, bool) {
+	for i := range c.entries {
+		if !c.entries[i].isOpen() || c.entries[i].origin == nil {
+			continue
+		}
+
+		menu := c.entries[i].menu()
+		ox, oy := c.entries[i].origin()
+		w := menu.Width()
+		h := menu.Height()
+
+		if msg.X >= ox && msg.X < ox+w && msg.Y >= oy && msg.Y < oy+h {
+			relX := msg.X - ox
+			relY := msg.Y - oy
+			idx, hit := menu.HandleClick(relX, relY)
+
+			c.lastAnchor = c.anchor
+			c.CloseAll()
+
+			if !hit || idx < 0 {
+				c.lastAnchor = nil
+
+				return nil, true
+			}
+
+			cmd := c.executeAction(idx, c.entries[i].kind, now)
+			c.lastAnchor = nil
+
+			return cmd, true
+		}
+
+		// メニュー外クリック → 閉じる
+		c.entries[i].close()
+
+		return nil, true
+	}
+
+	return nil, false
 }
 
 // HandleAnchoredClick はアンカー付きメニューのクリックを処理する。

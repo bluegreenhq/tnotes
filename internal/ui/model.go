@@ -129,6 +129,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // ãƒ¡ã
 
 				return nil
 			},
+			origin: nil,
 		},
 		{
 			kind:   menuKindMoveMenu,
@@ -161,6 +162,9 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // ãƒ¡ã
 
 				return m.handleNoteMove(msg, time.Now())
 			},
+			origin: func() (int, int) {
+				return m.layout.EditorStartX() + m.Editor.Header.MoveMenuLeftX(), editorHeaderMenuTopY
+			},
 		},
 		{
 			kind:   menuKindEditorHeader,
@@ -176,6 +180,9 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // ãƒ¡ã
 				cmd := m.Editor.Header.HandleMenuClick(relX, relY)
 
 				return m.processEditorHeaderCmd(cmd, time.Now())
+			},
+			origin: func() (int, int) {
+				return m.layout.EditorStartX() + m.Editor.Header.MenuLeftX(), editorHeaderMenuTopY
 			},
 		},
 		{
@@ -196,6 +203,9 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // ãƒ¡ã
 
 				return nil
 			},
+			origin: func() (int, int) {
+				return m.FolderList.MenuLeftX(), folderListHeaderLines
+			},
 		},
 		{
 			kind:   menuKindFooter,
@@ -206,6 +216,11 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // ãƒ¡ã
 				return m.processFooterCmd(m.Footer.ExecuteMenuAction(idx), now)
 			},
 			handleAnchorClick: nil,
+			origin: func() (int, int) {
+				menuHeight := m.Footer.MenuHeight()
+
+				return 1, m.layout.BodyHeight() - menuHeight
+			},
 		},
 	})
 }

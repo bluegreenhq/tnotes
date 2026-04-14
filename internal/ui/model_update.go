@@ -365,53 +365,8 @@ func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd,
 		return m.handleConfirmDialogClick(msg), true
 	}
 
-	// フッターメニューが開いている場合
-	if m.Footer.MenuOpen() {
-		return m.handleClickWithMenu(msg, now), true
-	}
-
-	// 移動先メニューが開いている場合
-	if m.Editor.Header.MoveMenuOpen() {
-		return m.handleMoveMenuClick(msg, now), true
-	}
-
-	// エディタヘッダーメニューが開いている場合
-	if m.Editor.IsHeaderMenuOpen() {
-		edX := m.layout.EditorLocalX(msg.X)
-		cmd := m.Editor.HandleClick(edX, msg.Y)
-
-		return m.processEditorHeaderCmd(cmd, now), true
-	}
-
-	return nil, false
-}
-
-func (m *Model) handleMoveMenuClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	edX := m.layout.EditorLocalX(msg.X)
-	menuTopY := editorHeaderMenuTopY
-	menuHeight := m.Editor.Header.MoveMenuHeight()
-	menuX := m.Editor.Header.MoveMenuLeftX()
-	menuWidth := m.Editor.Header.MoveMenu.Width()
-
-	if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
-		relX := edX - menuX
-		relY := msg.Y - menuTopY
-		cmd := m.Editor.Header.HandleMoveMenuClick(relX, relY)
-
-		if cmd == nil {
-			return nil
-		}
-
-		if moveMsg, ok := cmd().(noteMoveMsg); ok {
-			return m.handleNoteMove(moveMsg, now)
-		}
-
-		return cmd
-	}
-
-	m.Editor.Header.CloseMoveMenu()
-
-	return nil
+	// 固定位置メニューが開いている場合（Footer / EditorHeader / MoveMenu / FolderList）
+	return m.popup.HandleFixedClick(msg, now)
 }
 
 func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
@@ -437,25 +392,6 @@ func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	default:
 		return m.handleEditorClick(msg)
 	}
-}
-
-func (m *Model) handleClickWithMenu(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	menuHeight := m.Footer.MenuHeight()
-	bodyLines := m.layout.BodyHeight()
-	menuTopY := bodyLines - menuHeight
-
-	// メニュー領域内のクリック
-	if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight {
-		relX := msg.X - 1        // 先頭スペース分を引く
-		relY := msg.Y - menuTopY // PopupMenu 座標 (0=上枠, 1=項目1, ...)
-
-		return m.processFooterCmd(m.Footer.HandleMenuClick(relX, relY), now)
-	}
-
-	// メニュー外クリック → メニューを閉じるだけ
-	m.Footer.CloseMenu()
-
-	return nil
 }
 
 func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
