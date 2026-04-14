@@ -7,6 +7,10 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
+	"github.com/stretchr/testify/require"
+
+	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
 const (
@@ -246,6 +250,140 @@ func TestE2E_TrashViaFolder(t *testing.T) {
 		return strings.Contains(s, "Notes") && !strings.Contains(s, "Test")
 	}, teatest.WithDuration(3*time.Second))
 
+	tm.Send(tea.KeyPressMsg{Code: 'q'})
+	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+// newTestModelWithStore はファイルストア付きのテスト用モデルを生成する。
+func newTestModelWithStore(t *testing.T) *ui.Model {
+	t.Helper()
+
+	a, err := app.NewWithTempDir(t.TempDir())
+	require.NoError(t, err)
+
+	return ui.InitialModel(a, false)
+}
+
+func TestE2E_MoveMenuFromNoteList_ShowsAtNoteList(t *testing.T) {
+	t.Parallel()
+
+	m := newTestModelWithStore(t)
+
+	// フォルダ作成
+	require.NoError(t, m.App.CreateFolder("work"))
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Notes")
+	}, teatest.WithDuration(3*time.Second))
+
+	// ノート作成してテキスト入力
+	tm.Send(tea.KeyPressMsg{Code: 'n'})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "New Note")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: 'H', Text: "H"})
+	tm.Send(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Hi")
+	}, teatest.WithDuration(3*time.Second))
+
+	// NoteList で m → コンテキストメニュー → j×3 で Move to… → Enter
+	tm.Send(tea.KeyPressMsg{Code: 'm'})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Move to")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	// MoveMenu が NoteList 横（noteListWidth=32 以下の列）に表示されるべき
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		s := screen(bts)
+		lines := strings.SplitSeq(s, "\n")
+
+		for line := range lines {
+			// "work" がメニューとして表示されている行を検出
+			idx := strings.Index(line, "work")
+			if idx >= 0 && idx < 32 {
+				return true
+			}
+		}
+
+		return false
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	tm.Send(tea.KeyPressMsg{Code: 'q'})
+	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
+}
+
+func TestE2E_MoveMenuFromEditorHeader_ShowsAtEditor(t *testing.T) {
+	t.Parallel()
+
+	m := newTestModelWithStore(t)
+
+	// フォルダ作成
+	require.NoError(t, m.App.CreateFolder("work"))
+
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(termW, termH))
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Notes")
+	}, teatest.WithDuration(3*time.Second))
+
+	// ノート作成してテキスト入力
+	tm.Send(tea.KeyPressMsg{Code: 'n'})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "New Note")
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: 'H', Text: "H"})
+	tm.Send(tea.KeyPressMsg{Code: 'i', Text: "i"})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Hi")
+	}, teatest.WithDuration(3*time.Second))
+
+	// ⋯ ボタンクリックでメニューを開く（noteListWidth=32, editorWidth=68, moreX = 32 + 68 - 20 - 2 = 78）
+	tm.Send(tea.MouseClickMsg{X: 78, Y: 0, Button: tea.MouseLeft})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return strings.Contains(screen(bts), "Move to")
+	}, teatest.WithDuration(3*time.Second))
+
+	// j×3 で Move to… → Enter
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: 'j'})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	// MoveMenu が EditorHeader 下（noteListWidth=32 以上の列）に表示されるべき
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		s := screen(bts)
+		lines := strings.SplitSeq(s, "\n")
+
+		for line := range lines {
+			idx := strings.Index(line, "work")
+			if idx >= 32 {
+				return true
+			}
+		}
+
+		return false
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 	tm.Send(tea.KeyPressMsg{Code: 'q'})
 	tm.FinalModel(t, teatest.WithFinalTimeout(3*time.Second))
 }

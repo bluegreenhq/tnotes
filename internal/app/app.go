@@ -46,6 +46,16 @@ func New(s store.Store) (*App, error) {
 	return a, nil
 }
 
+// NewWithTempDir はテスト用に一時ディレクトリを使ってストア付き App を生成する。
+func NewWithTempDir(dir string) (*App, error) {
+	s, err := store.NewFileStore(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(s)
+}
+
 // ListNotes は通常ノート一覧を返す（Trash を除外）。
 func (a *App) ListNotes() []note.Note {
 	result := make([]note.Note, 0, len(a.Notes))

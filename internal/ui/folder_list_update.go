@@ -203,14 +203,7 @@ func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 
 func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
 	if keyMsg.Mod&tea.ModCtrl != 0 {
-		switch keyMsg.Code {
-		case 'p':
-			return fl.moveUp()
-		case 'n':
-			return fl.moveDown()
-		}
-
-		return *fl, nil
+		return fl.handleCtrlKeyNav(keyMsg)
 	}
 
 	switch keyMsg.Code {
@@ -222,6 +215,23 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 		return *fl, FolderListMenu.Cmd()
 	case tea.KeyEnter, tea.KeyTab:
 		return *fl, FolderListFocusNext.Cmd()
+	case 'q':
+		return *fl, FolderListQuit.Cmd()
+	case '?':
+		return *fl, FolderListHelp.Cmd()
+	}
+
+	return *fl, nil
+}
+
+func (fl *FolderList) handleCtrlKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
+	switch keyMsg.Code {
+	case 'p':
+		return fl.moveUp()
+	case 'n':
+		return fl.moveDown()
+	case 'b':
+		return *fl, FolderListClose.Cmd()
 	}
 
 	return *fl, nil

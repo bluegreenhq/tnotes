@@ -136,10 +136,12 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 // overlayHelpOverlay はショートカットヘルプをオーバーレイする。
 func (m *Model) overlayHelpOverlay(bodyLines []string) {
+	m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+
 	rendered := m.helpOverlay.View()
 	dialogLines := strings.Split(rendered, "\n")
 
-	startX, startY := m.helpOverlayOrigin(dialogLines)
+	startX, startY := m.helpOverlay.Origin()
 
 	for i, dLine := range dialogLines {
 		y := startY + i
@@ -152,37 +154,6 @@ func (m *Model) overlayHelpOverlay(bodyLines []string) {
 		padded := truncated + strings.Repeat(" ", startX-w)
 		bodyLines[y] = padded + dLine
 	}
-}
-
-// helpOverlayOrigin はヘルプオーバーレイの画面左上座標を返す。
-func (m *Model) helpOverlayOrigin(dialogLines []string) (int, int) {
-	const centerDivisor = 2
-
-	bodyHeight := m.layout.BodyHeight()
-	startY := max((bodyHeight-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
-
-	return startX, startY
-}
-
-// helpCloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
-// ✕はタイトル行の右端に1文字で配置される。
-func (m *Model) helpCloseButtonHit(x, y int) bool {
-	rendered := m.helpOverlay.View()
-	dialogLines := strings.Split(rendered, "\n")
-	startX, startY := m.helpOverlayOrigin(dialogLines)
-
-	if len(dialogLines) == 0 {
-		return false
-	}
-
-	dialogWidth := lipgloss.Width(dialogLines[0])
-
-	// ✕ は paddingTop行（行1）、border右の直前（dialogWidth - 2）に配置
-	btnY := startY + helpCloseBtnRow
-	btnX := startX + dialogWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
-
-	return x == btnX && y == btnY
 }
 
 // overlayAtAnchor はメニューを指定座標にオーバーレイする。
@@ -286,7 +257,10 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 
 	menuX = max(menuX, editorStartX)
 
+	menuWidth := m.Editor.Header.MoveMenu.Width()
+
 	startY := editorHeaderMenuTopY
+	menuRight := menuX + menuWidth
 
 	for i, menuLine := range menuLines {
 		y := startY + i
@@ -297,12 +271,15 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 		truncated := ansi.Truncate(bodyLines[y], menuX, "")
 		w := lipgloss.Width(truncated)
 		padded := truncated + strings.Repeat(" ", menuX-w)
-		bodyLines[y] = padded + menuLine
+		rest := truncateLeftSafe(bodyLines[y], menuRight)
+		bodyLines[y] = padded + menuLine + rest
 	}
 }
 
 // overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
 func (m *Model) overlayConfirmDialog(bodyLines []string) {
+	m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+
 	rendered := m.confirmDialog.View()
 	dialogLines := strings.Split(rendered, "\n")
 

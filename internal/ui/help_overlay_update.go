@@ -10,6 +10,8 @@ const (
 	HelpContinue HelpResult = iota
 	// HelpClose はオーバーレイを閉じる。
 	HelpClose
+	// HelpQuit はアプリケーション終了を要求する。
+	HelpQuit
 )
 
 // SetCloseHover は閉じるボタンのホバー状態を設定する。
@@ -25,6 +27,8 @@ func (h *HelpOverlay) Update(msg tea.Msg) HelpResult {
 	}
 
 	switch {
+	case keyMsg.Code == 'q' && keyMsg.Mod&tea.ModCtrl != 0:
+		return HelpQuit
 	case keyMsg.Code == tea.KeyEscape:
 		return HelpClose
 	case keyMsg.Code == '?' && keyMsg.Mod == 0:

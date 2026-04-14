@@ -1,5 +1,11 @@
 package ui
 
+import (
+	"strings"
+
+	"charm.land/lipgloss/v2"
+)
+
 // HelpItem はショートカット1件を表す。
 type HelpItem struct {
 	Key         string
@@ -14,8 +20,10 @@ type HelpSection struct {
 
 // HelpOverlay はショートカット一覧オーバーレイコンポーネント。
 type HelpOverlay struct {
-	sections   []HelpSection
-	closeHover bool
+	sections    []HelpSection
+	closeHover  bool
+	screenWidth int // 画面幅
+	bodyHeight  int // ボディ領域の高さ
 }
 
 // NewHelpOverlay はフォーカスに応じた HelpOverlay を生成する。
@@ -33,7 +41,48 @@ func NewHelpOverlay(focus FocusArea) *HelpOverlay {
 
 	sections = append(sections, globalHelpSection())
 
-	return &HelpOverlay{sections: sections, closeHover: false}
+	return &HelpOverlay{sections: sections, closeHover: false, screenWidth: 0, bodyHeight: 0}
+}
+
+// SetScreenSize は画面サイズを設定する。
+func (h *HelpOverlay) SetScreenSize(screenWidth, bodyHeight int) {
+	h.screenWidth = screenWidth
+	h.bodyHeight = bodyHeight
+}
+
+// Origin はオーバーレイの画面左上座標を返す。
+func (h *HelpOverlay) Origin() (int, int) {
+	rendered := h.View()
+	dialogLines := strings.Split(rendered, "\n")
+
+	if len(dialogLines) == 0 {
+		return 0, 0
+	}
+
+	const centerDivisor = 2
+
+	startY := max((h.bodyHeight-len(dialogLines))/centerDivisor, 0)
+	startX := max((h.screenWidth-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
+
+	return startX, startY
+}
+
+// CloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
+func (h *HelpOverlay) CloseButtonHit(absX, absY int) bool {
+	rendered := h.View()
+	dialogLines := strings.Split(rendered, "\n")
+
+	if len(dialogLines) == 0 {
+		return false
+	}
+
+	startX, startY := h.Origin()
+	dialogWidth := lipgloss.Width(dialogLines[0])
+
+	btnY := startY + helpCloseBtnRow
+	btnX := startX + dialogWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
+
+	return absX == btnX && absY == btnY
 }
 
 func noteListHelpSection() HelpSection {

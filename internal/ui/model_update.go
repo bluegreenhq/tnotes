@@ -30,26 +30,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		return m, m.handleWheel(msg, now)
 	case tea.MouseMsg:
 		return m, m.handleHover(msg)
-	case FolderListMsg:
-		return m, m.processFolderListMsg(msg, now)
-	case folderCreateMsg:
-		return m, m.handleFolderCreate(msg)
-	case folderRenameMsg:
-		return m, m.handleFolderRename(msg)
-	case noteMoveMsg:
-		return m, m.handleNoteMove(msg, now)
-	case folderDeleteMsg:
-		return m, m.handleFolderDelete(msg, now)
-	case NoteListMsg:
-		return m, m.processNoteListMsg(msg, now)
-	case EditorMsg:
-		return m, m.processEditorMsg(msg, now)
-	case editorOpenURLMsg:
-		return m, openURLInBrowser(msg.URL)
-	case EditorHeaderMsg:
-		return m, m.processEditorHeaderMsg(msg, now)
-	case FooterMsg:
-		return m, m.processFooterMsg(msg, now)
 	case tea.FocusMsg:
 		return m, m.handleFocusRestore()
 	case tea.BlurMsg: // 他アプリへ切り替え時に編集中の内容を保存
@@ -86,31 +66,10 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 	}
 }
 
-func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint:cyclop,gocyclo,funlen // key dispatch
-	// メニューが開いている場合（右クリック or キーボード起動）
-	if menu, kind := m.popup.Active(); menu != nil {
-		return m.popup.HandleKey(msg, menu, kind, now)
-	}
-
-	// 確認ダイアログ表示中
-	if m.confirmDialog != nil {
-		return m.handleConfirmDialogKey(msg)
-	}
-
-	// ヘルプオーバーレイ表示中
-	if m.helpOverlay != nil {
-		if msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0 {
-			m.helpOverlay = nil
-			m.syncEditorToNote(now)
-
-			return tea.Quit
-		}
-
-		if m.helpOverlay.Update(msg) == HelpClose {
-			m.helpOverlay = nil
-		}
-
-		return nil
+func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+	// モーダル状態の処理（優先度順）
+	if cmd, handled := m.handleModalKey(msg, now); handled {
+		return cmd
 	}
 
 	m.errMsg = ""
@@ -119,78 +78,97 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd { //nolint
 	m.Editor.Header.CloseMenu()
 	m.Editor.Header.CloseMoveMenu()
 
+	// グローバルキー
+	if cmd, handled := m.handleGlobalKey(msg, now); handled {
+		return cmd
+	}
+
+	// フォーカスベースの委譲
+	return m.handleFocusKey(msg, now)
+}
+
+func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
+	// メニューが開いている場合（右クリック or キーボード起動）
+	if menu, kind := m.popup.Active(); menu != nil {
+		return m.popup.HandleKey(msg, menu, kind, now), true
+	}
+
+	// 確認ダイアログ表示中
+	if m.confirmDialog != nil {
+		return m.handleConfirmDialogKey(msg), true
+	}
+
+	// ヘルプオーバーレイ表示中
+	if m.helpOverlay != nil {
+		switch m.helpOverlay.Update(msg) {
+		case HelpQuit:
+			m.helpOverlay = nil
+			m.syncEditorToNote(now)
+
+			return tea.Quit, true
+		case HelpClose:
+			m.helpOverlay = nil
+		case HelpContinue:
+			// 継続中 — 何もしない
+		}
+
+		return nil, true
+	}
+
+	return nil, false
+}
+
+func (m *Model) handleGlobalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
 	switch {
 	case msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0:
 		m.syncEditorToNote(now)
 
-		return tea.Quit
-	case msg.Code == 'q' && (m.Focus == FocusNoteList || m.Focus == FocusFolderList):
-		m.syncEditorToNote(now)
-
-		return tea.Quit
-	case msg.Code == tea.KeyTab && m.Focus == FocusNoteList:
-		return m.focusEditor()
-	case msg.Code == tea.KeyTab && m.Focus == FocusFolderList:
-		m.Focus = FocusNoteList
-
-		return nil
-	case msg.Code == tea.KeyEscape && m.Focus == FocusNoteList && m.FolderList.Visible():
-		m.Focus = FocusFolderList
-
-		return nil
-	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0 &&
-		m.Focus != FocusEditor &&
-		!m.FolderList.InputMode() && !m.FolderList.RenameMode():
-		return m.toggleFolderList(now)
+		return tea.Quit, true
 	case msg.Code == 'f' && msg.Mod == (tea.ModCtrl|tea.ModShift):
 		m.Editor.Header.SetSearchFocused(true)
 		m.Focus = FocusEditor
 
-		return m.Editor.Header.searchBlink.Reset()
+		return m.Editor.Header.searchBlink.Reset(), true
 	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
-		m.helpOverlay = NewHelpOverlay(m.Focus)
+		m.openHelp()
 
-		return nil
-	case msg.Code == '?' && msg.Mod == 0 && m.Focus != FocusEditor:
-		m.helpOverlay = NewHelpOverlay(m.Focus)
-
-		return nil
+		return nil, true
 	}
 
+	return nil, false
+}
+
+func (m *Model) handleFocusKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	switch m.Focus {
 	case FocusFolderList:
 		return m.handleFolderListKey(msg, now)
 	case FocusNoteList:
-		_, cmd := m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
-
-		return m.processNoteListCmd(cmd, now)
+		return m.handleNoteListKey(msg, now)
 	case FocusEditor:
-		// 検索フィールドにフォーカスがある場合
-		if m.Editor.Header.SearchFocused() {
-			handled, _ := m.Editor.Header.HandleSearchKey(msg)
-			if handled {
-				if !m.Editor.Header.SearchFocused() {
-					// Esc で検索フォーカスを外した → ノート一覧にフォーカス
-					m.Editor.Header.searchBlink.Stop()
-					m.Focus = FocusNoteList
-
-					return nil
-				}
-
-				blinkCmd := m.Editor.Header.searchBlink.Reset()
-
-				return tea.Batch(m.scheduleSearchDebounce(), blinkCmd)
-			}
-		}
-
-		_, cmd := m.Editor.Update(msg, now)
-		editorCmd := m.processEditorCmd(cmd, now)
-		blinkCmd := m.Editor.resetBlink()
-
-		return tea.Batch(editorCmd, blinkCmd)
+		return m.handleEditorKey(msg, now)
 	}
 
 	return nil
+}
+
+func (m *Model) handleNoteListKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+	_, cmd := m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
+
+	return m.processNoteListCmd(cmd, now)
+}
+
+func (m *Model) handleEditorKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+	_, cmd := m.Editor.Update(msg, now)
+	editorCmd := m.processEditorCmd(cmd, now)
+
+	// 検索フォーカス中は blink を Editor 側で管理する
+	if m.Editor.Header.SearchFocused() {
+		return editorCmd
+	}
+
+	blinkCmd := m.Editor.resetBlink()
+
+	return tea.Batch(editorCmd, blinkCmd)
 }
 
 func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
@@ -349,72 +327,10 @@ func (m *Model) rightClickEditor(msg tea.MouseClickMsg) tea.Cmd {
 	return nil
 }
 
-// processFooterMenuAction はフッターメニューのインデックスからアクションを実行する。
-func (m *Model) processFooterMenuAction(idx int, now time.Time) tea.Cmd {
-	cmd := m.Footer.ExecuteMenuAction(idx)
-	if cmd == nil {
-		return nil
-	}
-
-	msg, ok := cmd().(FooterMsg)
-	if !ok {
+func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	// モーダル状態の処理（優先度順）
+	if cmd, handled := m.handleModalClick(msg, now); handled {
 		return cmd
-	}
-
-	return m.processFooterMsg(msg, now)
-}
-
-func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // mouse dispatch
-	// 右クリックメニュー（アンカー付き）が開いている場合
-	if m.popup.HasAnchor() {
-		return m.popup.HandleAnchoredClick(msg)
-	}
-
-	// ヘルプオーバーレイ表示中（✕ボタンのみで閉じる）
-	if m.helpOverlay != nil {
-		if m.helpCloseButtonHit(msg.X, msg.Y) {
-			m.helpOverlay = nil
-		}
-
-		return nil
-	}
-
-	// 確認ダイアログ表示中
-	if m.confirmDialog != nil {
-		return m.handleConfirmDialogClick(msg)
-	}
-
-	// フッターメニューが開いている場合
-	if m.Footer.MenuOpen() {
-		return m.handleClickWithMenu(msg, now)
-	}
-
-	// 移動先メニューが開いている場合
-	if m.Editor.Header.MoveMenuOpen() {
-		edX := m.layout.EditorLocalX(msg.X)
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := m.Editor.Header.MoveMenuHeight()
-		menuX := m.Editor.Header.MoveMenuLeftX()
-		menuWidth := m.Editor.Header.MoveMenu.Width()
-
-		if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
-			relX := edX - menuX
-			relY := msg.Y - menuTopY
-
-			return m.Editor.Header.HandleMoveMenuClick(relX, relY)
-		}
-
-		m.Editor.Header.CloseMoveMenu()
-
-		return nil
-	}
-
-	// エディタヘッダーメニューが開いている場合
-	if m.Editor.IsHeaderMenuOpen() {
-		edX := m.layout.EditorLocalX(msg.X)
-		cmd := m.Editor.HandleClick(edX, msg.Y)
-
-		return m.processEditorHeaderCmd(cmd, now)
 	}
 
 	// 検索フォーカス中にエディタヘッダー以外をクリックしたらフォーカス解除
@@ -426,6 +342,79 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		}
 	}
 
+	return m.handleZoneClick(msg, now)
+}
+
+func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd, bool) {
+	// 右クリックメニュー（アンカー付き）が開いている場合
+	if m.popup.HasAnchor() {
+		return m.popup.HandleAnchoredClick(msg), true
+	}
+
+	// ヘルプオーバーレイ表示中（✕ボタンのみで閉じる）
+	if m.helpOverlay != nil {
+		if m.helpOverlay.CloseButtonHit(msg.X, msg.Y) {
+			m.helpOverlay = nil
+		}
+
+		return nil, true
+	}
+
+	// 確認ダイアログ表示中
+	if m.confirmDialog != nil {
+		return m.handleConfirmDialogClick(msg), true
+	}
+
+	// フッターメニューが開いている場合
+	if m.Footer.MenuOpen() {
+		return m.handleClickWithMenu(msg, now), true
+	}
+
+	// 移動先メニューが開いている場合
+	if m.Editor.Header.MoveMenuOpen() {
+		return m.handleMoveMenuClick(msg, now), true
+	}
+
+	// エディタヘッダーメニューが開いている場合
+	if m.Editor.IsHeaderMenuOpen() {
+		edX := m.layout.EditorLocalX(msg.X)
+		cmd := m.Editor.HandleClick(edX, msg.Y)
+
+		return m.processEditorHeaderCmd(cmd, now), true
+	}
+
+	return nil, false
+}
+
+func (m *Model) handleMoveMenuClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
+	edX := m.layout.EditorLocalX(msg.X)
+	menuTopY := editorHeaderMenuTopY
+	menuHeight := m.Editor.Header.MoveMenuHeight()
+	menuX := m.Editor.Header.MoveMenuLeftX()
+	menuWidth := m.Editor.Header.MoveMenu.Width()
+
+	if msg.Y >= menuTopY && msg.Y < menuTopY+menuHeight && edX >= menuX && edX < menuX+menuWidth {
+		relX := edX - menuX
+		relY := msg.Y - menuTopY
+		cmd := m.Editor.Header.HandleMoveMenuClick(relX, relY)
+
+		if cmd == nil {
+			return nil
+		}
+
+		if moveMsg, ok := cmd().(noteMoveMsg); ok {
+			return m.handleNoteMove(moveMsg, now)
+		}
+
+		return cmd
+	}
+
+	m.Editor.Header.CloseMoveMenu()
+
+	return nil
+}
+
+func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	zone := m.layout.HitTest(msg.X, msg.Y)
 
 	switch zone { //nolint:exhaustive // EditorHeader/EditorBody は default で処理
@@ -460,17 +449,7 @@ func (m *Model) handleClickWithMenu(msg tea.MouseClickMsg, now time.Time) tea.Cm
 		relX := msg.X - 1        // 先頭スペース分を引く
 		relY := msg.Y - menuTopY // PopupMenu 座標 (0=上枠, 1=項目1, ...)
 
-		cmd := m.Footer.HandleMenuClick(relX, relY)
-		if cmd == nil {
-			return nil
-		}
-
-		fMsg, ok := cmd().(FooterMsg)
-		if !ok {
-			return cmd
-		}
-
-		return m.processFooterMsg(fMsg, now)
+		return m.processFooterCmd(m.Footer.HandleMenuClick(relX, relY), now)
 	}
 
 	// メニュー外クリック → メニューを閉じるだけ
@@ -482,19 +461,7 @@ func (m *Model) handleClickWithMenu(msg tea.MouseClickMsg, now time.Time) tea.Cm
 func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
 	m.rebuildFooterButtons()
 
-	cmd := m.Footer.HandleClick(x)
-	if cmd == nil {
-		return nil
-	}
-
-	msg := cmd()
-
-	fMsg, ok := msg.(FooterMsg)
-	if !ok {
-		return cmd
-	}
-
-	return m.processFooterMsg(fMsg, now)
+	return m.processFooterCmd(m.Footer.HandleClick(x), now)
 }
 
 func (m *Model) handleNoteListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
@@ -611,7 +578,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	if m.helpOverlay != nil {
-		m.helpOverlay.SetCloseHover(m.helpCloseButtonHit(mouse.X, mouse.Y))
+		m.helpOverlay.SetCloseHover(m.helpOverlay.CloseButtonHit(mouse.X, mouse.Y))
 
 		return nil
 	}
@@ -664,11 +631,7 @@ func (m *Model) updateConfirmDialogHover(mouse tea.Mouse) {
 		return
 	}
 
-	originX, originY := m.confirmDialogOrigin()
-	relX := mouse.X - originX
-	relY := mouse.Y - originY
-
-	m.confirmDialog.HandleMotion(relX, relY)
+	m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
 }
 
 func (m *Model) updateNoteListFolderBtnHover(mouse tea.Mouse) {
@@ -708,7 +671,7 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 	m.hoverFolderSep = m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X)
 
 	if m.helpOverlay != nil {
-		m.helpOverlay.SetCloseHover(m.helpCloseButtonHit(mouse.X, mouse.Y))
+		m.helpOverlay.SetCloseHover(m.helpOverlay.CloseButtonHit(mouse.X, mouse.Y))
 
 		return nil
 	}
@@ -793,15 +756,19 @@ func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 
 	switch msg := rawMsg.(type) {
 	case FolderListMsg:
-		return m.processFolderListMsg(msg, now)
+		return m.handleFolderListMsg(msg, now)
 	case folderMenuActionMsg:
-		return m.handleFolderMenuAction(msg.idx)
+		return m.handleFolderMenuAction(msg.idx, now)
+	case folderCreateMsg:
+		return m.handleFolderCreate(msg)
+	case folderRenameMsg:
+		return m.handleFolderRename(msg)
 	default:
 		return cmd
 	}
 }
 
-func (m *Model) processFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
+func (m *Model) handleFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case FolderListSelect:
 		return m.handleFolderSelect(now)
@@ -822,6 +789,14 @@ func (m *Model) processFolderListMsg(msg FolderListMsg, now time.Time) tea.Cmd {
 		m.Focus = FocusFolderList
 
 		return blinkCmd
+	case FolderListQuit:
+		m.syncEditorToNote(now)
+
+		return tea.Quit
+	case FolderListHelp:
+		m.openHelp()
+
+		return nil
 	}
 
 	return nil
@@ -837,10 +812,10 @@ func (m *Model) processNoteListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return cmd
 	}
 
-	return m.processNoteListMsg(msg, now)
+	return m.dispatchNoteListMsg(msg, now)
 }
 
-func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // メッセ���ジ振り分けのため許容
+func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // msg種別ごとの分岐
 	switch msg {
 	case NoteListSelect:
 		m.loadSelectedNote()
@@ -861,18 +836,34 @@ func (m *Model) processNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //n
 	case NoteListCopy:
 		return m.copyNote()
 	case NoteListMenu:
-		m.Editor.Header.OpenMenu()
-		menuW := m.Editor.Header.PopupMenu.Width()
-		x := m.layout.EditorStartX() - menuW
-		y := m.NoteList.SelectedY(now)
-		m.popup.SetAnchor(x, y)
-
-		return nil
+		return m.openNoteListMenu(now)
 	case NoteListQuit:
 		m.syncEditorToNote(now)
 
 		return tea.Quit
+	case NoteListFocusPrev:
+		if m.FolderList.Visible() {
+			m.Focus = FocusFolderList
+		}
+
+		return nil
+	case NoteListToggleFolder:
+		return m.toggleFolderList(now)
+	case NoteListHelp:
+		m.openHelp()
+
+		return nil
 	}
+
+	return nil
+}
+
+func (m *Model) openNoteListMenu(now time.Time) tea.Cmd {
+	m.Editor.Header.OpenMenu()
+	menuW := m.Editor.Header.PopupMenu.Width()
+	x := m.layout.EditorStartX() - menuW
+	y := m.NoteList.SelectedY(now)
+	m.popup.SetAnchor(x, y)
 
 	return nil
 }
@@ -882,22 +873,28 @@ func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	msg, ok := cmd().(EditorMsg)
-	if !ok {
+	rawMsg := cmd()
+
+	switch msg := rawMsg.(type) {
+	case EditorMsg:
+		switch msg {
+		case EditorBlur:
+			return m.blurEditor(now)
+		case EditorSave:
+			m.syncEditorToNote(now)
+
+			return m.setInfoMsg("Saved")
+		case EditorSearchChanged:
+			return m.scheduleSearchDebounce()
+		case EditorSearchBlur:
+			m.Focus = FocusNoteList
+
+			return nil
+		}
+	case editorOpenURLMsg:
+		return openURLInBrowser(msg.URL)
+	default:
 		return cmd
-	}
-
-	return m.processEditorMsg(msg, now)
-}
-
-func (m *Model) processEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
-	switch msg {
-	case EditorBlur:
-		return m.blurEditor(now)
-	case EditorSave:
-		m.syncEditorToNote(now)
-
-		return m.setInfoMsg("Saved")
 	}
 
 	return nil
@@ -913,10 +910,6 @@ func (m *Model) processEditorHeaderCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return cmd
 	}
 
-	return m.processEditorHeaderMsg(msg, now)
-}
-
-func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case EditorHeaderNew:
 		return m.createNote(now)
@@ -937,7 +930,16 @@ func (m *Model) processEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.C
 	return nil
 }
 
-func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
+func (m *Model) processFooterCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+
+	msg, ok := cmd().(FooterMsg)
+	if !ok {
+		return cmd
+	}
+
 	switch msg {
 	case FooterQuit:
 		m.syncEditorToNote(now)
@@ -946,7 +948,7 @@ func (m *Model) processFooterMsg(msg FooterMsg, now time.Time) tea.Cmd {
 	case FooterMore:
 		return nil
 	case FooterHelp:
-		m.helpOverlay = NewHelpOverlay(m.Focus)
+		m.openHelp()
 
 		return nil
 	}

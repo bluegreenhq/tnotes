@@ -390,7 +390,7 @@ func (m *Model) handleFolderSelect(now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
+func (m *Model) handleFolderMenuAction(idx int, now time.Time) tea.Cmd {
 	const (
 		menuRename = 0
 		menuDelete = 1
@@ -402,7 +402,7 @@ func (m *Model) handleFolderMenuAction(idx int) tea.Cmd {
 	case menuDelete:
 		name := m.FolderList.SelectedName()
 
-		return folderDeleteMsg{Name: name}.Cmd()
+		return m.handleFolderDelete(folderDeleteMsg{Name: name}, now)
 	}
 
 	return nil
@@ -446,6 +446,7 @@ func (m *Model) handleFolderDelete(msg folderDeleteMsg, _ time.Time) tea.Cmd {
 		m.confirmDeleteFolder = msg.Name
 		detail := fmt.Sprintf("%d note(s) will be moved to Trash.", count)
 		dialog := NewConfirmDialog(fmt.Sprintf("Delete %q?", msg.Name), detail)
+		dialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 		m.confirmDialog = &dialog
 
 		return nil
@@ -469,11 +470,7 @@ func (m *Model) handleConfirmDialogKey(msg tea.KeyPressMsg) tea.Cmd {
 }
 
 func (m *Model) handleConfirmDialogClick(msg tea.MouseClickMsg) tea.Cmd {
-	originX, originY := m.confirmDialogOrigin()
-	relX := msg.X - originX
-	relY := msg.Y - originY
-
-	return m.applyConfirmResult(m.confirmDialog.HandleClick(relX, relY))
+	return m.applyConfirmResult(m.confirmDialog.HandleClickAbs(msg.X, msg.Y))
 }
 
 func (m *Model) applyConfirmResult(result ConfirmResult) tea.Cmd {

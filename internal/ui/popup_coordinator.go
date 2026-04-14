@@ -88,13 +88,22 @@ func (c *PopupCoordinator) HandleKey(msg tea.KeyPressMsg, menu *PopupMenu, kind 
 	if msg.Code == tea.KeyEnter {
 		idx := menu.SelectHover()
 
+		// サブメニュー復元用にアンカーを保存してからクリア
+		c.lastAnchor = c.anchor
 		c.CloseAll()
 
 		if idx < 0 {
+			c.lastAnchor = nil
+
 			return nil
 		}
 
-		return c.executeAction(idx, kind, now)
+		cmd := c.executeAction(idx, kind, now)
+
+		// ハンドラが TakeLastAnchor で消費しなかった場合、stale 防止のためクリア
+		c.lastAnchor = nil
+
+		return cmd
 	}
 
 	menu.HandleKeyNav(msg)
@@ -115,6 +124,11 @@ func (c *PopupCoordinator) HandleAnchoredClick(msg tea.MouseClickMsg) tea.Cmd {
 	relX := msg.X - x
 	relY := msg.Y - y
 
+	// lastAnchor をハンドラ呼び出し前に保存する。
+	// ハンドラ内で TakeLastAnchor() → SetAnchor() によりサブメニューを同じ位置に表示できるようにするため。
+	c.lastAnchor = c.anchor
+	c.anchor = nil
+
 	var cmd tea.Cmd
 
 	for i := range c.entries {
@@ -125,8 +139,8 @@ func (c *PopupCoordinator) HandleAnchoredClick(msg tea.MouseClickMsg) tea.Cmd {
 		}
 	}
 
-	c.lastAnchor = c.anchor
-	c.anchor = nil
+	// ハンドラが TakeLastAnchor で消費しなかった場合、stale 防止のためクリア
+	c.lastAnchor = nil
 
 	return cmd
 }

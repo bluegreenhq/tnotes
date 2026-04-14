@@ -1,11 +1,9 @@
 package ui
 
 import (
-	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -137,11 +135,31 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 			menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
 			isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
 			close:  func() { m.Editor.Header.CloseMoveMenu() },
-			execute: func(idx int, _ time.Time) tea.Cmd {
-				return m.Editor.Header.ExecuteMoveMenuAction(idx)
+			execute: func(idx int, now time.Time) tea.Cmd {
+				cmd := m.Editor.Header.ExecuteMoveMenuAction(idx)
+				if cmd == nil {
+					return nil
+				}
+
+				msg, ok := cmd().(noteMoveMsg)
+				if !ok {
+					return cmd
+				}
+
+				return m.handleNoteMove(msg, now)
 			},
 			handleAnchorClick: func(relX, relY int) tea.Cmd {
-				return m.Editor.Header.HandleMoveMenuClick(relX, relY)
+				cmd := m.Editor.Header.HandleMoveMenuClick(relX, relY)
+				if cmd == nil {
+					return nil
+				}
+
+				msg, ok := cmd().(noteMoveMsg)
+				if !ok {
+					return cmd
+				}
+
+				return m.handleNoteMove(msg, time.Now())
 			},
 		},
 		{
@@ -149,11 +167,15 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 			menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
 			isOpen: func() bool { return m.Editor.Header.MenuOpen() },
 			close:  func() { m.Editor.Header.CloseMenu() },
-			execute: func(idx int, _ time.Time) tea.Cmd {
-				return m.Editor.Header.ExecuteMenuAction(idx)
+			execute: func(idx int, now time.Time) tea.Cmd {
+				cmd := m.Editor.Header.ExecuteMenuAction(idx)
+
+				return m.processEditorHeaderCmd(cmd, now)
 			},
 			handleAnchorClick: func(relX, relY int) tea.Cmd {
-				return m.Editor.Header.HandleMenuClick(relX, relY)
+				cmd := m.Editor.Header.HandleMenuClick(relX, relY)
+
+				return m.processEditorHeaderCmd(cmd, time.Now())
 			},
 		},
 		{
@@ -161,15 +183,15 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 			menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
 			isOpen: func() bool { return m.FolderList.MenuOpen() },
 			close:  func() { m.FolderList.CloseMenu() },
-			execute: func(idx int, _ time.Time) tea.Cmd {
-				return m.handleFolderMenuAction(idx)
+			execute: func(idx int, now time.Time) tea.Cmd {
+				return m.handleFolderMenuAction(idx, now)
 			},
 			handleAnchorClick: func(relX, relY int) tea.Cmd {
 				idx, hit := m.FolderList.PopupMenu.HandleClick(relX, relY)
 				m.FolderList.CloseMenu()
 
 				if hit {
-					return m.handleFolderMenuAction(idx)
+					return m.handleFolderMenuAction(idx, time.Now())
 				}
 
 				return nil
@@ -181,36 +203,11 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 			isOpen: func() bool { return m.Footer.MenuOpen() },
 			close:  func() { m.Footer.CloseMenu() },
 			execute: func(idx int, now time.Time) tea.Cmd {
-				return m.processFooterMenuAction(idx, now)
+				return m.processFooterCmd(m.Footer.ExecuteMenuAction(idx), now)
 			},
 			handleAnchorClick: nil,
 		},
 	})
-}
-
-// confirmDialogOrigin はダイアログの画面上のコンテンツ左上座標を返す。
-// overlayConfirmDialog と同じ起点計算を行い、border + padding 分を加算する。
-func (m *Model) confirmDialogOrigin() (int, int) {
-	if m.confirmDialog == nil {
-		return 0, 0
-	}
-
-	rendered := m.confirmDialog.View()
-	dialogLines := strings.Split(rendered, "\n")
-
-	const (
-		centerDivisor      = 2
-		borderPaddingLines = 2 // border上 + padding上
-		borderPaddingCols  = 3 // border左1 + padding左2
-	)
-
-	bodyHeight := m.layout.BodyHeight()
-	dialogWidth := lipgloss.Width(dialogLines[0])
-
-	sy := max((bodyHeight-len(dialogLines))/centerDivisor, 0) + borderPaddingLines
-	sx := max((m.layout.width-dialogWidth)/centerDivisor, 0) + borderPaddingCols
-
-	return sx, sy
 }
 
 func (m *Model) rebuildFooterButtons() {
@@ -220,4 +217,10 @@ func (m *Model) rebuildFooterButtons() {
 // isTrashFolder は現在 Trash フォルダを表示しているかを返す。
 func (m *Model) isTrashFolder() bool {
 	return m.FolderList.SelectedKind() == FolderTrash
+}
+
+func (m *Model) openHelp() {
+	h := NewHelpOverlay(m.Focus)
+	h.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+	m.helpOverlay = h
 }

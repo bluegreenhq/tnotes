@@ -86,6 +86,11 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 	}
 
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
+		// 検索フィールドにフォーカスがある場合
+		if e.Header.SearchFocused() {
+			return e.handleSearchKey(msg)
+		}
+
 		return e.handleKey(msg, now)
 	}
 
@@ -101,6 +106,24 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
 	}
 
 	return *e, cmd
+}
+
+func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, tea.Cmd) {
+	handled, _ := e.Header.HandleSearchKey(msg)
+	if !handled {
+		return *e, nil
+	}
+
+	if !e.Header.SearchFocused() {
+		// Esc/Enter で検索フォーカスを外した
+		e.Header.searchBlink.Stop()
+
+		return *e, EditorSearchBlur.Cmd()
+	}
+
+	blinkCmd := e.Header.searchBlink.Reset()
+
+	return *e, tea.Batch(EditorSearchChanged.Cmd(), blinkCmd)
 }
 
 func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐

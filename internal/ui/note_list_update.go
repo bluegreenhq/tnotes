@@ -159,6 +159,11 @@ func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList,
 		return *s, nil
 	}
 
+	// ナビゲーション共通キー（通常/ゴミ箱モード共通）
+	if cmd, handled := s.handleNavKey(keyMsg); handled {
+		return *s, cmd
+	}
+
 	if keyMsg.Mod&tea.ModCtrl != 0 {
 		return s.handleCtrlKey(keyMsg, now)
 	}
@@ -168,6 +173,23 @@ func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList,
 	}
 
 	return s.handleNormalKey(keyMsg, now)
+}
+
+func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+	switch {
+	case msg.Code == 'q' && msg.Mod == 0:
+		return NoteListQuit.Cmd(), true
+	case msg.Code == tea.KeyTab:
+		return NoteListEdit.Cmd(), true
+	case msg.Code == tea.KeyEscape:
+		return NoteListFocusPrev.Cmd(), true
+	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0:
+		return NoteListToggleFolder.Cmd(), true
+	case msg.Code == '?' && msg.Mod == 0:
+		return NoteListHelp.Cmd(), true
+	}
+
+	return nil, false
 }
 
 func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
