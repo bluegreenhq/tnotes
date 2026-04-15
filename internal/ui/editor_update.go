@@ -121,9 +121,7 @@ func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, tea.Cmd) {
 		return *e, EditorSearchBlur.Cmd()
 	}
 
-	blinkCmd := e.Header.searchBlink.Reset()
-
-	return *e, tea.Batch(EditorSearchChanged.Cmd(), blinkCmd)
+	return *e, EditorSearchChanged.Cmd()
 }
 
 func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐

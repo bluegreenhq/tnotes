@@ -592,12 +592,14 @@ func (m *Model) syncEditorToNote(now time.Time) {
 
 	if m.App.DiscardIfEmpty(m.Editor.NoteID()) {
 		m.refreshNoteListKeepSelection(now)
+		m.updateIndexModTime()
 
 		return
 	}
 
 	if saved {
 		m.refreshNoteListKeepSelection(now)
+		m.updateIndexModTime()
 	}
 }
 

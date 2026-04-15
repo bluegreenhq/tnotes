@@ -114,6 +114,15 @@ func (m *Model) NoteListWidth() int { return m.layout.noteListWidth }
 // HelpVisible はヘルプオーバーレイが表示中かを返す。
 func (m *Model) HelpVisible() bool { return m.helpOverlay != nil }
 
+// updateIndexModTime は indexModTime を現在の index.json の modtime で更新する。
+// 自身の保存操作による modtime 変更を外部変更と誤検知しないようにする。
+func (m *Model) updateIndexModTime() {
+	mt, err := m.App.IndexModTime()
+	if err == nil {
+		m.indexModTime = mt
+	}
+}
+
 func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メニュー登録の一覧性を優先
 	return NewPopupCoordinator(&m.layout, []popupEntry{
 		{

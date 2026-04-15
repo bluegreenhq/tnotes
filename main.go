@@ -11,6 +11,7 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/cli"
 	"github.com/bluegreenhq/tnotes/internal/store"
 	"github.com/bluegreenhq/tnotes/internal/ui"
+	"github.com/bluegreenhq/tnotes/pkg/screencopy"
 )
 
 // version はGoReleaserによりビルド時に -ldflags で注入される。
@@ -52,7 +53,7 @@ func main() {
 
 	noWrap := hasFlag(os.Args, "--no-wrap")
 	m := ui.InitialModel(a, noWrap)
-	p := tea.NewProgram(m, tea.WithoutSignalHandler())
+	p := tea.NewProgram(screencopy.Wrap(m), tea.WithoutSignalHandler())
 
 	_, err = p.Run()
 	if err != nil {

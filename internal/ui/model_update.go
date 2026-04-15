@@ -161,9 +161,10 @@ func (m *Model) handleEditorKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 	_, cmd := m.Editor.Update(msg, now)
 	editorCmd := m.processEditorCmd(cmd, now)
 
-	// 検索フォーカス中は blink を Editor 側で管理する
 	if m.Editor.Header.SearchFocused() {
-		return editorCmd
+		blinkCmd := m.Editor.Header.ResetSearchBlink()
+
+		return tea.Batch(editorCmd, blinkCmd)
 	}
 
 	blinkCmd := m.Editor.resetBlink()

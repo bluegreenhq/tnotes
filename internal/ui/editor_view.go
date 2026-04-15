@@ -333,6 +333,10 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 		middle := line[byteStart:byteEnd]
 		after := line[byteEnd:]
 
+		// 選択範囲内の検索ハイライトを除去して選択スタイルを優先する
+		middle = strings.ReplaceAll(middle, editorSearchHighlightOn, "")
+		middle = strings.ReplaceAll(middle, editorSearchHighlightOff, "")
+
 		restore := collectANSIState(line, byteEnd)
 		viewLines[i] = before + editorSelectionOn + middle + editorSelectionOff + restore + after
 	}
