@@ -149,6 +149,7 @@ func globalHelpSection() HelpSection {
 		Title: "Global",
 		Items: []HelpItem{
 			{"Ctrl+Shift+F", "Search"},
+			{"Ctrl+Shift+4", "Copy screen"},
 			{"Ctrl+Q", "Quit"},
 			{"Ctrl+B", "Toggle folders"},
 			{"Tab", "Next pane"},
