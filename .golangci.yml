@@ -91,6 +91,9 @@ linters:
           disabled: true
         - name: exported
           disabled: true
+        - name: file-length-limit
+          arguments:
+            - max: 1000
   exclusions:
     generated: lax
     rules:
@@ -134,6 +137,10 @@ linters:
           - funlen
         path: "model\\.go"
         text: "handleClick"
+      - linters:
+          - revive
+        path: "_test\\.go"
+        text: "file-length-limit"
     presets:
       - comments
       - common-false-positives
