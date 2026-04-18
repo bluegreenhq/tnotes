@@ -18,8 +18,8 @@ func (e *Editor) resetBlink() tea.Cmd {
 	return e.blink.Reset()
 }
 
-// HandleBlinkMsg は cursorBlinkMsg を処理して blink 状態を切り替える。
-func (e *Editor) HandleBlinkMsg(msg cursorBlinkMsg) tea.Cmd {
+// HandleBlinkMsg は CursorBlinkMsg を処理して blink 状態を切り替える。
+func (e *Editor) HandleBlinkMsg(msg tui.CursorBlinkMsg) tea.Cmd {
 	return e.blink.HandleMsg(msg)
 }
 

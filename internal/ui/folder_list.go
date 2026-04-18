@@ -50,12 +50,12 @@ type FolderList struct {
 	width      int
 	height     int
 	visible    bool
-	inputMode  bool        // インライン入力中かどうか（新規作成）
-	renameMode bool        // リネーム入力中かどうか
-	renameName string      // リネーム元のフォルダ名
-	lineInput  lineInput   // インライン入力の状態
-	blink      cursorBlink // カーソル点滅状態
-	menuOpen   bool        // moreメニュー表示中かどうか
+	inputMode  bool            // インライン入力中かどうか（新規作成）
+	renameMode bool            // リネーム入力中かどうか
+	renameName string          // リネーム元のフォルダ名
+	lineInput  tui.LineInput   // インライン入力の状態
+	blink      tui.CursorBlink // カーソル点滅状態
+	menuOpen   bool            // moreメニュー表示中かどうか
 	PopupMenu  *tui.PopupMenu
 	hoverClose bool
 	hoverAdd   bool
@@ -75,8 +75,8 @@ func NewFolderList(width, height int) FolderList {
 		inputMode:  false,
 		renameMode: false,
 		renameName: "",
-		lineInput:  newLineInput(),
-		blink:      newCursorBlink(blinkOwnerFolderList),
+		lineInput:  tui.NewLineInput(),
+		blink:      tui.NewCursorBlink(blinkOwnerFolderList),
 		menuOpen:   false,
 		PopupMenu:  tui.NewPopupMenu(nil),
 		hoverClose: false,

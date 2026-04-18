@@ -16,7 +16,7 @@ require (
 
 require (
 	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
-	github.com/bluegreenhq/dogubako/tui v0.0.0-20260418014318-6baed54c2b1c
+	github.com/bluegreenhq/dogubako/tui v0.1.0
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260416155717-489999b90468 // indirect
 	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f // indirect

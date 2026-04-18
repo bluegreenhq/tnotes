@@ -44,7 +44,7 @@ type Editor struct {
 	selStart        *SelectionAnchor
 	selEnd          *SelectionAnchor
 	UndoMgr         *EditorUndoManager
-	blink           cursorBlink
+	blink           tui.CursorBlink
 	contextMenuOpen bool           // コンテキストメニュー表示中
 	ContextMenu     *tui.PopupMenu // コンテキストメニュー
 	searchQuery     string         // 検索クエリ
@@ -71,7 +71,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 		selStart:        nil,
 		selEnd:          nil,
 		UndoMgr:         NewEditorUndoManager(),
-		blink:           newCursorBlink(blinkOwnerEditor),
+		blink:           tui.NewCursorBlink(blinkOwnerEditor),
 		contextMenuOpen: false,
 		ContextMenu:     tui.NewPopupMenu(nil),
 		searchQuery:     "",

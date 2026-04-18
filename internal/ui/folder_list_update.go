@@ -1,6 +1,9 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
+)
 
 // StartInput はインライン入力モードを開始する（新規作成用）。
 func (fl *FolderList) StartInput() tea.Cmd {
@@ -274,14 +277,14 @@ func (fl *FolderList) moveDown() (FolderList, tea.Cmd) {
 }
 
 func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
-	result := fl.lineInput.handleKey(keyMsg)
+	result := fl.lineInput.HandleKey(keyMsg)
 
 	switch result {
-	case lineInputNone:
+	case tui.LineInputNone:
 		// blink reset は model_update 側で行う
-	case lineInputSubmit:
+	case tui.LineInputSubmit:
 		return *fl, fl.CommitRename()
-	case lineInputCancel:
+	case tui.LineInputCancel:
 		fl.CancelRename()
 
 		return *fl, nil
@@ -291,14 +294,14 @@ func (fl *FolderList) updateRename(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 }
 
 func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) {
-	result := fl.lineInput.handleKey(keyMsg)
+	result := fl.lineInput.HandleKey(keyMsg)
 
 	switch result {
-	case lineInputNone:
+	case tui.LineInputNone:
 		// blink reset は model_update 側で行う
-	case lineInputSubmit:
+	case tui.LineInputSubmit:
 		return *fl, fl.CommitInput()
-	case lineInputCancel:
+	case tui.LineInputCancel:
 		fl.CancelInput()
 
 		return *fl, nil

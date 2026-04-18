@@ -4,9 +4,17 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
+)
+
+// blinkOwner はアプリ固有の CursorBlink 所有者定数。
+const (
+	blinkOwnerEditor = iota
+	blinkOwnerFolderList
+	blinkOwnerSearch
 )
 
 // --- イベントハンドラ ---
@@ -36,8 +44,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		m.syncEditorToNote(now)
 
 		return m, nil
-	case cursorBlinkMsg:
-		switch msg.owner {
+	case tui.CursorBlinkMsg:
+		switch msg.Owner {
 		case blinkOwnerEditor:
 			return m, m.Editor.HandleBlinkMsg(msg)
 		case blinkOwnerFolderList:

@@ -24,13 +24,13 @@ type EditorHeader struct {
 	hasContent    bool
 	trashMode     bool
 	pinned        bool
-	moveMenuOpen  bool           // 移動先フォルダメニュー表示中
-	MoveMenu      *tui.PopupMenu // 移動先フォルダ一覧
-	moveFolders   []string       // 移動先フォルダ名リスト
-	searchInput   lineInput      // 検索入力
-	searchFocused bool           // 検索フィールドにフォーカスがあるか
-	searchBlink   cursorBlink    // 検索カーソル点滅
-	hoverSearch   bool           // 検索フィールドのホバー状態
+	moveMenuOpen  bool            // 移動先フォルダメニュー表示中
+	MoveMenu      *tui.PopupMenu  // 移動先フォルダ一覧
+	moveFolders   []string        // 移動先フォルダ名リスト
+	searchInput   tui.LineInput   // 検索入力
+	searchFocused bool            // 検索フィールドにフォーカスがあるか
+	searchBlink   tui.CursorBlink // 検索カーソル点滅
+	hoverSearch   bool            // 検索フィールドのホバー状態
 }
 
 // NewEditorHeader は新しい EditorHeader を生成する。
@@ -49,9 +49,9 @@ func NewEditorHeader(width int) *EditorHeader {
 		moveMenuOpen:  false,
 		MoveMenu:      tui.NewPopupMenu(nil),
 		moveFolders:   nil,
-		searchInput:   newLineInput(),
+		searchInput:   tui.NewLineInput(),
 		searchFocused: false,
-		searchBlink:   newCursorBlink(blinkOwnerSearch),
+		searchBlink:   tui.NewCursorBlink(blinkOwnerSearch),
 		hoverSearch:   false,
 	}
 }

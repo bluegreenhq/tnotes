@@ -230,7 +230,7 @@ func (h *EditorHeader) HandleSearchKey(msg tea.KeyPressMsg) (bool, tea.Cmd) {
 
 		return true, nil
 	default:
-		h.searchInput.handleKey(msg)
+		h.searchInput.HandleKey(msg)
 
 		return true, nil
 	}
