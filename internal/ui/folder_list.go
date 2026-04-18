@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/bluegreenhq/dogubako/tui"
+
 // FolderKind はフォルダの種類を表す。
 type FolderKind int
 
@@ -54,7 +56,7 @@ type FolderList struct {
 	lineInput  lineInput   // インライン入力の状態
 	blink      cursorBlink // カーソル点滅状態
 	menuOpen   bool        // moreメニュー表示中かどうか
-	PopupMenu  *PopupMenu
+	PopupMenu  *tui.PopupMenu
 	hoverClose bool
 	hoverAdd   bool
 }
@@ -76,7 +78,7 @@ func NewFolderList(width, height int) FolderList {
 		lineInput:  newLineInput(),
 		blink:      newCursorBlink(blinkOwnerFolderList),
 		menuOpen:   false,
-		PopupMenu:  NewPopupMenu(nil),
+		PopupMenu:  tui.NewPopupMenu(nil),
 		hoverClose: false,
 		hoverAdd:   false,
 	}
@@ -141,9 +143,9 @@ func (fl *FolderList) MenuOpen() bool { return fl.menuOpen }
 
 // OpenMenu はmoreメニューを開く。
 func (fl *FolderList) OpenMenu() {
-	fl.PopupMenu = NewPopupMenu([]MenuItem{
-		NewMenuItem("Rename"),
-		NewMenuItem("Delete"),
+	fl.PopupMenu = tui.NewPopupMenu([]tui.MenuItem{
+		tui.NewMenuItem("Rename"),
+		tui.NewMenuItem("Delete"),
 	})
 	fl.menuOpen = true
 }
@@ -151,7 +153,7 @@ func (fl *FolderList) OpenMenu() {
 // CloseMenu はmoreメニューを閉じる。
 func (fl *FolderList) CloseMenu() {
 	fl.menuOpen = false
-	fl.PopupMenu.hover = -1
+	fl.PopupMenu.SetHover(-1)
 }
 
 // MenuHeight はメニューの高さを返す。

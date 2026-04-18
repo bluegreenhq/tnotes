@@ -1,5 +1,7 @@
 package ui
 
+import "github.com/bluegreenhq/dogubako/tui"
+
 // HoverTarget はフッターボタンのホバーターゲット。
 type HoverTarget int
 
@@ -26,7 +28,7 @@ type Footer struct {
 	hover     HoverTarget
 	buttons   []FooterButton
 	menuOpen  bool
-	PopupMenu *PopupMenu
+	PopupMenu *tui.PopupMenu
 	menuMsgs  []FooterMsg // menuItems[i] に対応する FooterMsg
 }
 
@@ -36,7 +38,7 @@ func NewFooter() Footer {
 		hover:     HoverNone,
 		buttons:   nil,
 		menuOpen:  false,
-		PopupMenu: NewPopupMenu(nil),
+		PopupMenu: tui.NewPopupMenu(nil),
 		menuMsgs:  nil,
 	}
 }
@@ -54,14 +56,14 @@ func (f *Footer) RebuildButtons() {
 	}
 
 	// メニュー項目を構築
-	menuItems := []MenuItem{
-		NewMenuItem("Shortcuts"),
-		NewMenuItem("Quit"),
+	menuItems := []tui.MenuItem{
+		tui.NewMenuItem("Shortcuts"),
+		tui.NewMenuItem("Quit"),
 	}
 
 	f.menuMsgs = []FooterMsg{FooterHelp, FooterQuit}
 
-	prevHover := f.PopupMenu.hover
-	f.PopupMenu = NewPopupMenu(menuItems)
-	f.PopupMenu.hover = prevHover
+	prevHover := f.PopupMenu.Hover()
+	f.PopupMenu = tui.NewPopupMenu(menuItems)
+	f.PopupMenu.SetHover(prevHover)
 }

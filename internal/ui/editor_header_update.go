@@ -1,48 +1,51 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
+)
 
 // newButtonX は + ボタンの X 座標（左端スペース含む）。
 const newButtonX = 1
 
 // RebuildMenu はメニュー項目を現在の状態に基づいて再構築する。
 func (h *EditorHeader) RebuildMenu() {
-	var menuItems []MenuItem
+	var menuItems []tui.MenuItem
 
 	if h.trashMode {
-		menuItems = []MenuItem{
-			NewMenuItem("Move to…"),
+		menuItems = []tui.MenuItem{
+			tui.NewMenuItem("Move to…"),
 		}
 		h.menuMsgs = []EditorHeaderMsg{EditorHeaderMove}
 	} else {
-		menuItems = []MenuItem{
-			NewMenuItem("Delete Note"),
+		menuItems = []tui.MenuItem{
+			tui.NewMenuItem("Delete Note"),
 		}
 		h.menuMsgs = []EditorHeaderMsg{EditorHeaderTrash}
 
 		if h.pinned {
-			menuItems = append(menuItems, NewMenuItem("Unpin Note"))
+			menuItems = append(menuItems, tui.NewMenuItem("Unpin Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderUnpin)
 		} else {
-			menuItems = append(menuItems, NewMenuItem("Pin Note"))
+			menuItems = append(menuItems, tui.NewMenuItem("Pin Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderPin)
 		}
 
-		menuItems = append(menuItems, NewMenuItem("Move to…"))
+		menuItems = append(menuItems, tui.NewMenuItem("Move to…"))
 		h.menuMsgs = append(h.menuMsgs, EditorHeaderMove)
 
-		menuItems = append(menuItems, NewMenuItem("Duplicate"))
+		menuItems = append(menuItems, tui.NewMenuItem("Duplicate"))
 		h.menuMsgs = append(h.menuMsgs, EditorHeaderDuplicate)
 
 		if h.hasContent {
-			menuItems = append(menuItems, NewMenuItem("Copy Note"))
+			menuItems = append(menuItems, tui.NewMenuItem("Copy Note"))
 			h.menuMsgs = append(h.menuMsgs, EditorHeaderCopy)
 		}
 	}
 
-	prevHover := h.PopupMenu.hover
-	h.PopupMenu = NewPopupMenu(menuItems)
-	h.PopupMenu.hover = prevHover
+	prevHover := h.PopupMenu.Hover()
+	h.PopupMenu = tui.NewPopupMenu(menuItems)
+	h.PopupMenu.SetHover(prevHover)
 }
 
 // OpenMenu はメニューを開く。
@@ -54,7 +57,7 @@ func (h *EditorHeader) OpenMenu() {
 // CloseMenu はメニューを閉じる。
 func (h *EditorHeader) CloseMenu() {
 	h.menuOpen = false
-	h.PopupMenu.hover = -1
+	h.PopupMenu.SetHover(-1)
 	h.moveMenuOpen = false
 }
 
@@ -158,13 +161,13 @@ func (h *EditorHeader) isMoreButtonX(x int) bool {
 // OpenMoveMenu は移動先フォルダ選択メニューを開く。
 func (h *EditorHeader) OpenMoveMenu(folders []string) {
 	h.moveFolders = folders
-	items := make([]MenuItem, len(folders))
+	items := make([]tui.MenuItem, len(folders))
 
 	for i, name := range folders {
-		items[i] = NewMenuItem(name)
+		items[i] = tui.NewMenuItem(name)
 	}
 
-	h.MoveMenu = NewPopupMenu(items)
+	h.MoveMenu = tui.NewPopupMenu(items)
 	h.moveMenuOpen = true
 	h.menuOpen = false
 }
@@ -172,7 +175,7 @@ func (h *EditorHeader) OpenMoveMenu(folders []string) {
 // CloseMoveMenu は移動先メニューを閉じる。
 func (h *EditorHeader) CloseMoveMenu() {
 	h.moveMenuOpen = false
-	h.MoveMenu.hover = -1
+	h.MoveMenu.SetHover(-1)
 }
 
 // HandleMoveMenuClick は移動先メニューのクリックを処理する。

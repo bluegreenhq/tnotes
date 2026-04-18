@@ -1,6 +1,9 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
+)
 
 const (
 	// editorHeaderHeight はヘッダーの高さ（行数: ボタン行 + セパレーター行）。
@@ -13,7 +16,7 @@ const (
 type EditorHeader struct {
 	width         int
 	menuOpen      bool
-	PopupMenu     *PopupMenu
+	PopupMenu     *tui.PopupMenu
 	menuMsgs      []EditorHeaderMsg
 	hoverNew      bool
 	hoverMore     bool
@@ -21,13 +24,13 @@ type EditorHeader struct {
 	hasContent    bool
 	trashMode     bool
 	pinned        bool
-	moveMenuOpen  bool        // 移動先フォルダメニュー表示中
-	MoveMenu      *PopupMenu  // 移動先フォルダ一覧
-	moveFolders   []string    // 移動先フォルダ名リスト
-	searchInput   lineInput   // 検索入力
-	searchFocused bool        // 検索フィールドにフォーカスがあるか
-	searchBlink   cursorBlink // 検索カーソル点滅
-	hoverSearch   bool        // 検索フィールドのホバー状態
+	moveMenuOpen  bool           // 移動先フォルダメニュー表示中
+	MoveMenu      *tui.PopupMenu // 移動先フォルダ一覧
+	moveFolders   []string       // 移動先フォルダ名リスト
+	searchInput   lineInput      // 検索入力
+	searchFocused bool           // 検索フィールドにフォーカスがあるか
+	searchBlink   cursorBlink    // 検索カーソル点滅
+	hoverSearch   bool           // 検索フィールドのホバー状態
 }
 
 // NewEditorHeader は新しい EditorHeader を生成する。
@@ -35,7 +38,7 @@ func NewEditorHeader(width int) *EditorHeader {
 	return &EditorHeader{
 		width:         width,
 		menuOpen:      false,
-		PopupMenu:     NewPopupMenu(nil),
+		PopupMenu:     tui.NewPopupMenu(nil),
 		menuMsgs:      nil,
 		hoverNew:      false,
 		hoverMore:     false,
@@ -44,7 +47,7 @@ func NewEditorHeader(width int) *EditorHeader {
 		trashMode:     false,
 		pinned:        false,
 		moveMenuOpen:  false,
-		MoveMenu:      NewPopupMenu(nil),
+		MoveMenu:      tui.NewPopupMenu(nil),
 		moveFolders:   nil,
 		searchInput:   newLineInput(),
 		searchFocused: false,

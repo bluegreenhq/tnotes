@@ -4,6 +4,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -53,8 +54,8 @@ type Model struct {
 	infoMsg             string
 	infoMsgID           int
 	indexModTime        time.Time
-	confirmDialog       *ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
-	confirmDeleteFolder string         // 削除確認中のフォルダ名
+	confirmDialog       *tui.ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
+	confirmDeleteFolder string             // 削除確認中のフォルダ名
 	popup               PopupCoordinator
 	helpOverlay         *HelpOverlay // ショートカットヘルプ（nil = 非表示）
 	searchDebounceID    int          // デバウンスタイマーの世代ID
@@ -127,7 +128,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 	return NewPopupCoordinator(&m.layout, []popupEntry{
 		{
 			kind:   menuKindEditorContext,
-			menu:   func() *PopupMenu { return m.Editor.ContextMenu },
+			menu:   func() *tui.PopupMenu { return m.Editor.ContextMenu },
 			isOpen: func() bool { return m.Editor.IsContextMenuOpen() },
 			close:  func() { m.Editor.CloseContextMenu() },
 			execute: func(_ int, _ time.Time) tea.Cmd {
@@ -142,7 +143,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 		},
 		{
 			kind:   menuKindMoveMenu,
-			menu:   func() *PopupMenu { return m.Editor.Header.MoveMenu },
+			menu:   func() *tui.PopupMenu { return m.Editor.Header.MoveMenu },
 			isOpen: func() bool { return m.Editor.Header.MoveMenuOpen() },
 			close:  func() { m.Editor.Header.CloseMoveMenu() },
 			execute: func(idx int, now time.Time) tea.Cmd {
@@ -177,7 +178,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 		},
 		{
 			kind:   menuKindEditorHeader,
-			menu:   func() *PopupMenu { return m.Editor.Header.PopupMenu },
+			menu:   func() *tui.PopupMenu { return m.Editor.Header.PopupMenu },
 			isOpen: func() bool { return m.Editor.Header.MenuOpen() },
 			close:  func() { m.Editor.Header.CloseMenu() },
 			execute: func(idx int, now time.Time) tea.Cmd {
@@ -196,7 +197,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 		},
 		{
 			kind:   menuKindFolderList,
-			menu:   func() *PopupMenu { return m.FolderList.PopupMenu },
+			menu:   func() *tui.PopupMenu { return m.FolderList.PopupMenu },
 			isOpen: func() bool { return m.FolderList.MenuOpen() },
 			close:  func() { m.FolderList.CloseMenu() },
 			execute: func(idx int, now time.Time) tea.Cmd {
@@ -218,7 +219,7 @@ func (m *Model) newPopupCoordinator() PopupCoordinator { //nolint:funlen // メ�
 		},
 		{
 			kind:   menuKindFooter,
-			menu:   func() *PopupMenu { return m.Footer.PopupMenu },
+			menu:   func() *tui.PopupMenu { return m.Footer.PopupMenu },
 			isOpen: func() bool { return m.Footer.MenuOpen() },
 			close:  func() { m.Footer.CloseMenu() },
 			execute: func(idx int, now time.Time) tea.Cmd {

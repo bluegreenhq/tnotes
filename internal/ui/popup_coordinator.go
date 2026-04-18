@@ -5,6 +5,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/bluegreenhq/dogubako/tui"
 )
 
 // menuKind は開いているメニューの種類を表す。
@@ -32,7 +33,7 @@ func newMenuAnchor(x, y int) *menuAnchor {
 // popupEntry はコーディネータに登録された個々のメニュー情報。
 type popupEntry struct {
 	kind              menuKind
-	menu              func() *PopupMenu
+	menu              func() *tui.PopupMenu
 	isOpen            func() bool
 	close             func()
 	execute           func(idx int, now time.Time) tea.Cmd
@@ -59,7 +60,7 @@ func NewPopupCoordinator(layout *Layout, entries []popupEntry) PopupCoordinator 
 }
 
 // Active は現在開いているポップアップメニューとその種類を返す。なければ nil。
-func (c *PopupCoordinator) Active() (*PopupMenu, menuKind) {
+func (c *PopupCoordinator) Active() (*tui.PopupMenu, menuKind) {
 	for i := range c.entries {
 		if c.entries[i].isOpen() {
 			return c.entries[i].menu(), c.entries[i].kind
@@ -79,7 +80,7 @@ func (c *PopupCoordinator) CloseAll() {
 }
 
 // HandleKey はメニュー表示中のキー入力を処理する。
-func (c *PopupCoordinator) HandleKey(msg tea.KeyPressMsg, menu *PopupMenu, kind menuKind, now time.Time) tea.Cmd {
+func (c *PopupCoordinator) HandleKey(msg tea.KeyPressMsg, menu *tui.PopupMenu, kind menuKind, now time.Time) tea.Cmd {
 	if msg.Code == tea.KeyEscape {
 		c.CloseAll()
 
@@ -267,7 +268,7 @@ func (c *PopupCoordinator) ClampAnchor(anchor *menuAnchor, menuWidth, menuHeight
 }
 
 // AnchoredMenuOrigin はアンカー付きメニューのクランプ済み描画左上座標を返す。
-func (c *PopupCoordinator) AnchoredMenuOrigin(menu *PopupMenu) (int, int) {
+func (c *PopupCoordinator) AnchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
 	menuLines := menu.View()
 	if len(menuLines) == 0 {
 		return c.anchor.x, c.anchor.y
@@ -286,7 +287,7 @@ func (c *PopupCoordinator) executeAction(idx int, kind menuKind, now time.Time) 
 	return nil
 }
 
-func (c *PopupCoordinator) anchoredMenu() *PopupMenu {
+func (c *PopupCoordinator) anchoredMenu() *tui.PopupMenu {
 	for i := range c.entries {
 		if c.entries[i].isOpen() && c.entries[i].handleAnchorClick != nil {
 			return c.entries[i].menu()
@@ -296,7 +297,7 @@ func (c *PopupCoordinator) anchoredMenu() *PopupMenu {
 	return nil
 }
 
-func (c *PopupCoordinator) anchoredMenuOrigin(menu *PopupMenu) (int, int) {
+func (c *PopupCoordinator) anchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
 	menuLines := menu.View()
 	if len(menuLines) == 0 {
 		return c.anchor.x, c.anchor.y

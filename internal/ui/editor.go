@@ -4,6 +4,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/bluegreenhq/dogubako/tui"
+
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
@@ -43,9 +45,9 @@ type Editor struct {
 	selEnd          *SelectionAnchor
 	UndoMgr         *EditorUndoManager
 	blink           cursorBlink
-	contextMenuOpen bool       // コンテキストメニュー表示中
-	ContextMenu     *PopupMenu // コンテキストメニュー
-	searchQuery     string     // 検索クエリ
+	contextMenuOpen bool           // コンテキストメニュー表示中
+	ContextMenu     *tui.PopupMenu // コンテキストメニュー
+	searchQuery     string         // 検索クエリ
 	lastClickTime   time.Time
 	lastClickPos    SelectionAnchor
 	clickCount      int
@@ -71,7 +73,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 		UndoMgr:         NewEditorUndoManager(),
 		blink:           newCursorBlink(blinkOwnerEditor),
 		contextMenuOpen: false,
-		ContextMenu:     NewPopupMenu(nil),
+		ContextMenu:     tui.NewPopupMenu(nil),
 		searchQuery:     "",
 		lastClickTime:   time.Time{},
 		lastClickPos:    NewSelectionAnchor(0, 0),

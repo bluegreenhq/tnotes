@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
+	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
@@ -445,7 +446,7 @@ func (m *Model) handleFolderDelete(msg folderDeleteMsg, _ time.Time) tea.Cmd {
 	if count > 0 {
 		m.confirmDeleteFolder = msg.Name
 		detail := fmt.Sprintf("%d note(s) will be moved to Trash.", count)
-		dialog := NewConfirmDialog(fmt.Sprintf("Delete %q?", msg.Name), detail)
+		dialog := tui.NewConfirmDialog(fmt.Sprintf("Delete %q?", msg.Name), detail)
 		dialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 		m.confirmDialog = &dialog
 
@@ -473,9 +474,9 @@ func (m *Model) handleConfirmDialogClick(msg tea.MouseClickMsg) tea.Cmd {
 	return m.applyConfirmResult(m.confirmDialog.HandleClickAbs(msg.X, msg.Y))
 }
 
-func (m *Model) applyConfirmResult(result ConfirmResult) tea.Cmd {
+func (m *Model) applyConfirmResult(result tui.ConfirmResult) tea.Cmd {
 	switch result {
-	case ConfirmYes:
+	case tui.ConfirmYes:
 		name := m.confirmDeleteFolder
 		m.confirmDialog = nil
 		m.confirmDeleteFolder = ""
@@ -490,12 +491,12 @@ func (m *Model) applyConfirmResult(result ConfirmResult) tea.Cmd {
 		m.refreshFolderList()
 
 		return m.setInfoMsg("Deleted: " + name + " (" + strconv.Itoa(deleted) + " note(s) trashed)")
-	case ConfirmNo:
+	case tui.ConfirmNo:
 		m.confirmDialog = nil
 		m.confirmDeleteFolder = ""
 
 		return nil
-	case ConfirmContinue:
+	case tui.ConfirmContinue:
 		return nil
 	}
 

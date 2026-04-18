@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/atotto/clipboard"
+	"github.com/bluegreenhq/dogubako/tui"
 	"github.com/cockroachdb/errors"
 
 	"github.com/bluegreenhq/tnotes/internal/note"
@@ -672,27 +673,27 @@ func (e *Editor) urlAtCursor() string {
 func (e *Editor) OpenContextMenu() {
 	hasSel := e.HasSelection()
 
-	newItem := func(label string, disabled bool) MenuItem {
+	newItem := func(label string, disabled bool) tui.MenuItem {
 		if disabled {
-			return NewDisabledMenuItem(label)
+			return tui.NewDisabledMenuItem(label)
 		}
 
-		return NewMenuItem(label)
+		return tui.NewMenuItem(label)
 	}
 
-	items := []MenuItem{
+	items := []tui.MenuItem{
 		newItem("Copy", !hasSel),
 		newItem("Cut", !hasSel || e.readOnly),
 		newItem("Paste", e.readOnly),
 	}
-	e.ContextMenu = NewPopupMenu(items)
+	e.ContextMenu = tui.NewPopupMenu(items)
 	e.contextMenuOpen = true
 }
 
 // CloseContextMenu はエディタのコンテキストメニューを閉じる。
 func (e *Editor) CloseContextMenu() {
 	e.contextMenuOpen = false
-	e.ContextMenu.hover = -1
+	e.ContextMenu.SetHover(-1)
 }
 
 // IsContextMenuOpen はコンテキストメニューが開いているかを返す。

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/bluegreenhq/dogubako/tui"
 )
 
 var (
@@ -31,11 +32,11 @@ func (f *Footer) View(errMsg, infoMsg string, width int) (string, int) {
 	return topLine + "\n" + midLine + "\n" + botLine, footerLineCount
 }
 
-func (f *Footer) collectBoxButtons() []BoxButton {
-	btns := make([]BoxButton, 0, len(f.buttons))
+func (f *Footer) collectBoxButtons() []tui.BoxButton {
+	btns := make([]tui.BoxButton, 0, len(f.buttons))
 
 	for _, btn := range f.buttons {
-		bb := NewBoxButton(btn.Label)
+		bb := tui.NewBoxButton(btn.Label)
 		bb.SetHovered(f.hover == btn.Target)
 		btns = append(btns, bb)
 	}
@@ -43,7 +44,7 @@ func (f *Footer) collectBoxButtons() []BoxButton {
 	return btns
 }
 
-func renderFooterTopLine(btns []BoxButton) string {
+func renderFooterTopLine(btns []tui.BoxButton) string {
 	var buf strings.Builder
 
 	buf.WriteString(" ")
@@ -59,7 +60,7 @@ func renderFooterTopLine(btns []BoxButton) string {
 	return buf.String()
 }
 
-func renderFooterMidLine(btns []BoxButton, infoMsg string) string {
+func renderFooterMidLine(btns []tui.BoxButton, infoMsg string) string {
 	var buf strings.Builder
 
 	buf.WriteString(" ")
@@ -80,7 +81,7 @@ func renderFooterMidLine(btns []BoxButton, infoMsg string) string {
 	return buf.String()
 }
 
-func renderFooterBotLine(btns []BoxButton) string {
+func renderFooterBotLine(btns []tui.BoxButton) string {
 	var buf strings.Builder
 
 	buf.WriteString(" ")

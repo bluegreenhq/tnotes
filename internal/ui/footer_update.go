@@ -1,6 +1,9 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
+)
 
 // SetHover はホバーターゲットを設定する。
 func (f *Footer) SetHover(h HoverTarget) { f.hover = h }
@@ -14,7 +17,7 @@ func (f *Footer) OpenMenu() { f.menuOpen = true }
 // CloseMenu はメニューを閉じる。
 func (f *Footer) CloseMenu() {
 	f.menuOpen = false
-	f.PopupMenu.hover = -1
+	f.PopupMenu.SetHover(-1)
 }
 
 // MenuHeight はメニューが開いている場合のメニュー部分の高さを返す。
@@ -40,7 +43,7 @@ func (f *Footer) HitTest(x int) HoverTarget {
 			// disabled な非ボタン（● Modified）はラベル幅のみ
 			w = len(btn.Label)
 		} else {
-			bb := NewBoxButton(btn.Label)
+			bb := tui.NewBoxButton(btn.Label)
 			w = bb.DisplayWidth()
 		}
 
