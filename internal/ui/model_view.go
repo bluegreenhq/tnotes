@@ -6,7 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
+	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 )
@@ -143,17 +143,7 @@ func (m *Model) overlayHelpOverlay(bodyLines []string) {
 
 	startX, startY := m.helpOverlay.Origin()
 
-	for i, dLine := range dialogLines {
-		y := startY + i
-		if y >= len(bodyLines) {
-			break
-		}
-
-		truncated := ansi.Truncate(bodyLines[y], startX, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", startX-w)
-		bodyLines[y] = padded + dLine
-	}
+	tui.OverlayLines(bodyLines, dialogLines, startX, startY)
 }
 
 // overlayAtAnchor はメニューを指定座標にオーバーレイする。
@@ -166,20 +156,7 @@ func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *
 	menuWidth := lipgloss.Width(menuLines[0])
 	x, y := m.popup.ClampAnchor(anchor, menuWidth, len(menuLines))
 
-	menuRight := x + menuWidth
-
-	for i, menuLine := range menuLines {
-		row := y + i
-		if row < 0 || row >= len(bodyLines) {
-			continue
-		}
-
-		truncated := ansi.Truncate(bodyLines[row], x, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", x-w)
-		rest := truncateLeftSafe(bodyLines[row], menuRight)
-		bodyLines[row] = padded + menuLine + rest
-	}
+	tui.OverlayLines(bodyLines, menuLines, x, y)
 }
 
 // overlayFolderListMenu はフォルダリストのmoreメニューをオーバーレイする。
@@ -189,27 +166,9 @@ func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
 		return
 	}
 
-	menuX := m.FolderList.MenuLeftX()
+	menuX := max(m.FolderList.MenuLeftX(), 0)
 
-	menuX = max(menuX, 0)
-
-	startY := folderListHeaderLines // ヘッダー直下
-
-	menuWidth := m.FolderList.PopupMenu.Width()
-	menuRight := menuX + menuWidth
-
-	for i, menuLine := range menuLines {
-		y := startY + i
-		if y >= len(bodyLines) {
-			break
-		}
-
-		truncated := ansi.Truncate(bodyLines[y], menuX, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", menuX-w)
-		rest := truncateLeftSafe(bodyLines[y], menuRight)
-		bodyLines[y] = padded + menuLine + rest
-	}
+	tui.OverlayLines(bodyLines, menuLines, menuX, folderListHeaderLines)
 }
 
 // overlayEditorHeaderMenu はエディタヘッダーメニューをオーバーレイする。
@@ -224,25 +183,7 @@ func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) 
 
 	menuX = max(menuX, editorStartX)
 
-	menuWidth := m.Editor.Header.PopupMenu.Width()
-
-	startY := editorHeaderMenuTopY // セパレーター行に重ねる
-
-	menuRight := menuX + menuWidth
-
-	for i, menuLine := range menuLines {
-		y := startY + i
-		if y >= len(bodyLines) {
-			break
-		}
-
-		// ANSI エスケープシーケンスを考慮して視覚幅で切り詰め
-		truncated := ansi.Truncate(bodyLines[y], menuX, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", menuX-w)
-		rest := truncateLeftSafe(bodyLines[y], menuRight)
-		bodyLines[y] = padded + menuLine + rest
-	}
+	tui.OverlayLines(bodyLines, menuLines, menuX, editorHeaderMenuTopY)
 }
 
 // overlayMoveMenu は移動先メニューをオーバーレイする。
@@ -253,27 +194,9 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 	}
 
 	editorStartX := m.layout.EditorStartX()
-	menuX := editorStartX + m.Editor.Header.MoveMenuLeftX()
+	menuX := max(editorStartX+m.Editor.Header.MoveMenuLeftX(), editorStartX)
 
-	menuX = max(menuX, editorStartX)
-
-	menuWidth := m.Editor.Header.MoveMenu.Width()
-
-	startY := editorHeaderMenuTopY
-	menuRight := menuX + menuWidth
-
-	for i, menuLine := range menuLines {
-		y := startY + i
-		if y >= len(bodyLines) {
-			break
-		}
-
-		truncated := ansi.Truncate(bodyLines[y], menuX, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", menuX-w)
-		rest := truncateLeftSafe(bodyLines[y], menuRight)
-		bodyLines[y] = padded + menuLine + rest
-	}
+	tui.OverlayLines(bodyLines, menuLines, menuX, editorHeaderMenuTopY)
 }
 
 // overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
@@ -285,21 +208,10 @@ func (m *Model) overlayConfirmDialog(bodyLines []string) {
 
 	const centerDivisor = 2
 
-	// 画面中央に配置
 	startY := max((len(bodyLines)-len(dialogLines))/centerDivisor, 0)
 	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
 
-	for i, dLine := range dialogLines {
-		y := startY + i
-		if y >= len(bodyLines) {
-			break
-		}
-
-		truncated := ansi.Truncate(bodyLines[y], startX, "")
-		w := lipgloss.Width(truncated)
-		padded := truncated + strings.Repeat(" ", startX-w)
-		bodyLines[y] = padded + dLine
-	}
+	tui.OverlayLines(bodyLines, dialogLines, startX, startY)
 }
 
 // overlayMenu はノート一覧領域にメニューをオーバーレイする。

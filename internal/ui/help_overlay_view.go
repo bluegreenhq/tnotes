@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/x/ansi"
+	"github.com/bluegreenhq/dogubako/tui"
 )
 
 // helpCloseBtnRow は✕ボタンを配置する行（0始まり）。border上(0) の1つ下 = paddingTop行。
@@ -78,13 +78,7 @@ func (h *HelpOverlay) overlayCloseButton(rendered string) string {
 	// border右(1文字) の直前に✕を配置
 	btnX := lineWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
 
-	line := lines[helpCloseBtnRow]
-	prefix := ansi.Truncate(line, btnX, "")
-	prefixW := lipgloss.Width(prefix)
-	pad := strings.Repeat(" ", btnX-prefixW)
-	suffix := truncateLeftSafe(line, btnX+1)
-
-	lines[helpCloseBtnRow] = prefix + pad + closeStr + suffix
+	lines[helpCloseBtnRow] = tui.ComposeLine(lines[helpCloseBtnRow], closeStr, btnX, 1)
 
 	return strings.Join(lines, "\n")
 }
