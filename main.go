@@ -6,12 +6,12 @@ import (
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/cli"
 	"github.com/bluegreenhq/tnotes/internal/store"
 	"github.com/bluegreenhq/tnotes/internal/ui"
-	"github.com/bluegreenhq/tnotes/pkg/screencopy"
 )
 
 // version はGoReleaserによりビルド時に -ldflags で注入される。
@@ -53,7 +53,7 @@ func main() {
 
 	noWrap := hasFlag(os.Args, "--no-wrap")
 	m := ui.InitialModel(a, noWrap)
-	p := tea.NewProgram(screencopy.Wrap(m), tea.WithoutSignalHandler())
+	p := tea.NewProgram(tui.WrapScreenCopy(m), tea.WithoutSignalHandler())
 
 	_, err = p.Run()
 	if err != nil {
