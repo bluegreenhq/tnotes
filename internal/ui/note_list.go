@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
@@ -19,6 +20,7 @@ const (
 
 // NoteList はノートリストの状態を表す。
 type NoteList struct {
+	app            *app.App
 	notes          []note.Note
 	selected       int
 	width          int
@@ -33,8 +35,9 @@ type NoteList struct {
 }
 
 // NewNoteList は新しい NoteList を生成する。
-func NewNoteList(notes []note.Note, width, height int) NoteList {
+func NewNoteList(a *app.App, notes []note.Note, width, height int) NoteList {
 	return NoteList{
+		app:            a,
 		notes:          notes,
 		selected:       0,
 		width:          width,
@@ -198,6 +201,62 @@ func (s *NoteList) ScrollUp(n int, now time.Time) {
 func (s *NoteList) ScrollDown(n int, now time.Time) {
 	s.offset += n
 	s.clampScrollOffset(now)
+}
+
+// ResolveSelectIdx は NoteResult からUI上の選択インデックスを決定する。
+func (s *NoteList) ResolveSelectIdx(r app.NoteResult, notes []note.Note) int {
+	// Note.ID による検索
+	if r.Note.ID != "" {
+		for i, n := range notes {
+			if n.ID == r.Note.ID {
+				return i
+			}
+		}
+	}
+
+	// SelectIdx によるフォールバック
+	if r.SelectIdx >= 0 && r.SelectIdx < len(notes) {
+		return r.SelectIdx
+	}
+
+	// ノートが残っていれば現在の選択位置を維持
+	if len(notes) > 0 {
+		return min(s.selected, len(notes)-1)
+	}
+
+	return -1
+}
+
+// CurrentFolderNotes は現在のフォルダビューに応じたノート一覧を返す。
+func (s *NoteList) CurrentFolderNotes(kind FolderKind, name string) []note.Note {
+	switch kind {
+	case FolderNotes:
+		return s.app.ListByFolder(app.DefaultFolder)
+	case FolderUser:
+		return s.app.ListByFolder(name)
+	case FolderTrash:
+		return s.app.ListTrashNotes()
+	}
+
+	return s.app.ListByFolder(app.DefaultFolder)
+}
+
+// RefreshKeepSelection はNoteListを現在のフォルダに応じたノート一覧で更新し、選択を維持する。
+func (s *NoteList) RefreshKeepSelection(kind FolderKind, name string, selectedNoteID note.NoteID, now time.Time) {
+	notes := s.CurrentFolderNotes(kind, name)
+
+	selectIdx := 0
+
+	for i, n := range notes {
+		if n.ID == selectedNoteID {
+			selectIdx = i
+
+			break
+		}
+	}
+
+	s.SetNotes(notes, now)
+	s.SelectIndex(selectIdx, now)
 }
 
 // Update はメッセージに応じてノート一覧の状態を更新する。

@@ -114,10 +114,12 @@ func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 	a.NoteUndo.Push(&CreateAction{NoteID: n.ID})
 
 	return NoteResult{
-		Note:      n,
-		Notes:     a.Notes,
-		SelectIdx: 0,
-		InfoHint:  "Undo: Ctrl+Z",
+		Note:        n,
+		Notes:       a.Notes,
+		SelectIdx:   0,
+		InfoHint:    "Undo: Ctrl+Z",
+		FocusEditor: true,
+		LoadNote:    true,
 	}, nil
 }
 
@@ -141,10 +143,12 @@ func (a *App) DuplicateNote(id note.NoteID) (NoteResult, error) {
 	a.NoteUndo.Push(&DuplicateAction{NoteID: dup.ID, note: dup})
 
 	return NoteResult{
-		Note:      dup,
-		Notes:     a.Notes,
-		SelectIdx: insertIdx,
-		InfoHint:  "Undo: Ctrl+Z",
+		Note:        dup,
+		Notes:       a.Notes,
+		SelectIdx:   insertIdx,
+		InfoHint:    "Undo: Ctrl+Z",
+		FocusEditor: false,
+		LoadNote:    false,
 	}, nil
 }
 
@@ -426,6 +430,17 @@ func (a *App) MoveNoteToFolder(id note.NoteID, destFolder string) error {
 	}
 
 	return nil
+}
+
+// FindNoteFolder は指定IDのノートが属するフォルダ名を返す。見つからない場合は空文字列。
+func (a *App) FindNoteFolder(id note.NoteID) string {
+	for _, n := range a.Notes {
+		if n.ID == id {
+			return n.Folder()
+		}
+	}
+
+	return ""
 }
 
 // FolderNoteCount は指定フォルダのノート件数を返す。

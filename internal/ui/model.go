@@ -39,26 +39,24 @@ type clearInfoMsg struct {
 
 // Model はUIの状態を表す。
 type Model struct {
-	App                 *app.App
-	NoteList            NoteList
-	Editor              Editor
-	Footer              Footer
-	Focus               FocusArea
-	FolderList          FolderList
-	layout              Layout
-	dragTarget          dragTarget
-	hoverFolderSep      bool
-	hoverSeparator      bool
-	lastHovered         hoverClearer
-	errMsg              string
-	infoMsg             string
-	infoMsgID           int
-	indexModTime        time.Time
-	confirmDialog       *tui.ConfirmDialog // 削除確認ダイアログ（nil = 非表示）
-	confirmDeleteFolder string             // 削除確認中のフォルダ名
-	popup               PopupCoordinator
-	helpOverlay         *HelpOverlay // ショートカットヘルプ（nil = 非表示）
-	searchDebounceID    int          // デバウンスタイマーの世代ID
+	App              *app.App
+	NoteList         NoteList
+	Editor           Editor
+	Footer           Footer
+	Focus            FocusArea
+	FolderList       FolderList
+	layout           Layout
+	dragTarget       dragTarget
+	hoverFolderSep   bool
+	hoverSeparator   bool
+	lastHovered      hoverClearer
+	errMsg           string
+	infoMsg          string
+	infoMsgID        int
+	indexModTime     time.Time
+	popup            PopupCoordinator
+	helpOverlay      *HelpOverlay // ショートカットヘルプ（nil = 非表示）
+	searchDebounceID int          // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -66,29 +64,28 @@ var _ tea.Model = (*Model)(nil)
 // InitialModel は初期状態の Model を生成する。
 func InitialModel(a *app.App, noWrap bool) *Model {
 	m := &Model{
-		App:                 a,
-		NoteList:            NewNoteList(a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
-		Editor:              NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
-		Footer:              NewFooter(),
-		Focus:               FocusNoteList,
-		FolderList:          NewFolderList(defaultFolderListW, defaultHeight),
-		layout:              NewLayout(defaultFolderListW, defaultNoteListW),
-		dragTarget:          dragNone,
-		hoverFolderSep:      false,
-		hoverSeparator:      false,
-		lastHovered:         nil,
-		errMsg:              "",
-		infoMsg:             "",
-		infoMsgID:           0,
-		indexModTime:        time.Time{},
-		confirmDialog:       nil,
-		confirmDeleteFolder: "",
-		popup:               PopupCoordinator{anchor: nil, lastAnchor: nil, entries: nil, layout: nil},
-		helpOverlay:         nil,
-		searchDebounceID:    0,
+		App:              a,
+		NoteList:         NewNoteList(a, a.ListByFolder(app.DefaultFolder), defaultNoteListW, defaultHeight),
+		Editor:           NewEditor(minWidth-defaultNoteListW, defaultHeight, noWrap),
+		Footer:           NewFooter(),
+		Focus:            FocusNoteList,
+		FolderList:       NewFolderList(a, defaultFolderListW, defaultHeight),
+		layout:           NewLayout(defaultFolderListW, defaultNoteListW),
+		dragTarget:       dragNone,
+		hoverFolderSep:   false,
+		hoverSeparator:   false,
+		lastHovered:      nil,
+		errMsg:           "",
+		infoMsg:          "",
+		infoMsgID:        0,
+		indexModTime:     time.Time{},
+		popup:            PopupCoordinator{anchor: nil, lastAnchor: nil, entries: nil, layout: nil},
+		helpOverlay:      nil,
+		searchDebounceID: 0,
 	}
 
 	m.popup = m.newPopupCoordinator()
+	m.Editor.SetApp(a)
 	m.Editor.layout = &m.layout
 	m.NoteList.layout = &m.layout
 	m.FolderList.layout = &m.layout

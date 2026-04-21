@@ -6,6 +6,7 @@ import (
 
 	"github.com/bluegreenhq/dogubako/tui"
 
+	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
@@ -34,6 +35,7 @@ func selBefore(a, b SelectionAnchor) bool {
 // Editor はテキスト編集ペインの状態を表す。
 type Editor struct {
 	Header          *EditorHeader
+	app             *app.App
 	textarea        simpleTextArea
 	noteID          note.NoteID
 	original        string
@@ -62,6 +64,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 
 	return Editor{
 		Header:          NewEditorHeader(width),
+		app:             nil,
 		textarea:        ta,
 		noteID:          "",
 		original:        "",

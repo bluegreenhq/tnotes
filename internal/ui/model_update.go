@@ -75,7 +75,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 // syncViewState は View() に必要な派生状態を同期する。
 // Update の最後に呼ばれ、View() の純粋性を保証する。
 func (m *Model) syncViewState() {
-	m.updateFolderCounts()
+	m.FolderList.UpdateCounts()
 
 	if m.Editor.Dirty() {
 		m.NoteList.SetDirtyNoteID(m.Editor.NoteID())
@@ -84,24 +84,6 @@ func (m *Model) syncViewState() {
 	}
 
 	m.rebuildFooterButtons()
-}
-
-func (m *Model) updateFolderCounts() {
-	notesCount := len(m.App.ListByFolder(app.DefaultFolder))
-
-	for i := range m.FolderList.folders {
-		switch m.FolderList.folders[i].Kind {
-		case FolderNotes:
-			m.FolderList.folders[i].Count = notesCount
-		case FolderTrash:
-			m.FolderList.folders[i].Count = len(m.App.ListTrashNotes())
-		case FolderUser:
-			count, err := m.App.FolderNoteCount(m.FolderList.folders[i].Name)
-			if err == nil {
-				m.FolderList.folders[i].Count = count
-			}
-		}
-	}
 }
 
 func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
@@ -134,8 +116,8 @@ func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, boo
 	}
 
 	// 確認ダイアログ表示中
-	if m.confirmDialog != nil {
-		return m.handleConfirmDialogKey(msg), true
+	if m.FolderList.ConfirmDialogVisible() {
+		return m.processFolderListCmd(m.FolderList.HandleConfirmKey(msg), now), true
 	}
 
 	// ヘルプオーバーレイ表示中
@@ -240,9 +222,7 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 		m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 	}
 
-	if m.confirmDialog != nil {
-		m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
-	}
+	m.FolderList.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 
 	return nil
 }
@@ -260,7 +240,9 @@ func (m *Model) handleFocusRestore() tea.Cmd {
 	}
 
 	m.indexModTime = mt
-	m.refreshNoteListKeepSelection(time.Now())
+
+	kind, name := m.FolderList.SelectedKind(), m.FolderList.SelectedName()
+	m.NoteList.RefreshKeepSelection(kind, name, m.Editor.NoteID(), time.Now())
 	m.loadSelectedNote()
 
 	return nil
@@ -340,8 +322,8 @@ func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd,
 	}
 
 	// 確認ダイアログ表示中
-	if m.confirmDialog != nil {
-		return m.handleConfirmDialogClick(msg), true
+	if m.FolderList.ConfirmDialogVisible() {
+		return m.processFolderListCmd(m.FolderList.HandleConfirmClick(msg), now), true
 	}
 
 	// 固定位置メニューが開いている場合（Footer / EditorHeader / MoveMenu / FolderList）
@@ -487,7 +469,7 @@ func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
 	}
 }
 
-func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //nolint:cyclop // dragTarget dispatch
+func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	if m.helpOverlay != nil {
@@ -519,18 +501,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //no
 	case dragFolderList, dragNoteList, dragEditor:
 		return m.routeDragTarget(msg, now)
 	case dragNone:
-		if m.confirmDialog != nil {
-			m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
-		}
-
-		newTarget := m.calcHoverTarget(mouse.X, mouse.Y)
-		m.updateHoverTarget(newTarget)
-
-		if !m.popup.HandleHover(mouse) {
-			return m.routeMouse(msg, now)
-		}
-
-		return nil
+		return m.handleIdleHover(msg, mouse, now)
 	}
 
 	return nil
@@ -562,9 +533,13 @@ func (m *Model) handleHover(msg tea.MouseMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	if m.confirmDialog != nil {
-		m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
-	}
+	return m.handleIdleHover(msg, mouse, now)
+}
+
+// handleIdleHover はドラッグしていない状態のホバー処理。
+// handleDrag(dragNone) と handleHover の共通ロジック。
+func (m *Model) handleIdleHover(msg mouseMsg, mouse tea.Mouse, now time.Time) tea.Cmd {
+	m.FolderList.HandleConfirmMotion(mouse.X, mouse.Y)
 
 	newTarget := m.calcHoverTarget(mouse.X, mouse.Y)
 	m.updateHoverTarget(newTarget)
@@ -588,10 +563,8 @@ func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return m.handleFolderListMsg(msg, now)
 	case folderMenuActionMsg:
 		return m.handleFolderMenuAction(msg.idx, now)
-	case folderCreateMsg:
-		return m.handleFolderCreate(msg)
-	case folderRenameMsg:
-		return m.handleFolderRename(msg)
+	case folderResultMsg:
+		return m.handleFolderResult(msg)
 	case FolderListRightClickMsg:
 		m.popup.SetAnchor(msg.AnchorX, msg.AnchorY)
 
@@ -685,9 +658,9 @@ func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //
 	case NoteListTrash:
 		return m.trashNote(now)
 	case NoteListUndo:
-		return m.undoNote(now)
+		return m.undoRedoNote(now, true)
 	case NoteListRedo:
-		return m.redoNote(now)
+		return m.undoRedoNote(now, false)
 	case NoteListEdit:
 		return m.focusEditor()
 	case NoteListDuplicate:
@@ -778,9 +751,9 @@ func (m *Model) handleEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cm
 	case EditorHeaderCopy:
 		return m.copyNote()
 	case EditorHeaderPin:
-		return m.pinNote()
+		return m.setNotePin(true)
 	case EditorHeaderUnpin:
-		return m.unpinNote()
+		return m.setNotePin(false)
 	case EditorHeaderMove:
 		return m.openMoveMenu()
 	case EditorHeaderDuplicate:

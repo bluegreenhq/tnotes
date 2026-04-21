@@ -241,6 +241,35 @@ func (c *PopupCoordinator) TakeLastAnchor() *menuAnchor {
 	return a
 }
 
+// RenderOverlays は開いているポップアップメニューを bodyLines にオーバーレイ描画する。
+// Footer メニューは独自描画のため除外する。
+func (c *PopupCoordinator) RenderOverlays(bodyLines []string) {
+	for i := range c.entries {
+		entry := &c.entries[i]
+		if entry.kind == menuKindFooter || !entry.isOpen() {
+			continue
+		}
+
+		menuLines := entry.menu().View()
+		if len(menuLines) == 0 {
+			continue
+		}
+
+		if c.anchor != nil && entry.handleAnchorClick != nil {
+			menuWidth := lipgloss.Width(menuLines[0])
+			x, y := tui.ClampMenuOrigin(
+				menuWidth, len(menuLines),
+				c.anchor.x, c.anchor.y,
+				c.layout.width, c.layout.BodyHeight(),
+			)
+			tui.OverlayLines(bodyLines, menuLines, x, y)
+		} else if entry.origin != nil {
+			ox, oy := entry.origin()
+			tui.OverlayLines(bodyLines, menuLines, ox, oy)
+		}
+	}
+}
+
 func (c *PopupCoordinator) executeAction(idx int, kind menuKind, now time.Time) tea.Cmd {
 	for i := range c.entries {
 		if c.entries[i].kind == kind {

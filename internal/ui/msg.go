@@ -149,27 +149,13 @@ func (m folderMenuActionMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
 
-// folderCreateMsg はインライン入力で確定されたフォルダ名を運ぶメッセージ。
-type folderCreateMsg struct {
-	Name string
+// folderResultMsg はフォルダ操作の結果を運ぶメッセージ。
+type folderResultMsg struct {
+	Err  error
+	Info string
 }
 
-func (m folderCreateMsg) Cmd() tea.Cmd {
-	return func() tea.Msg { return m }
-}
-
-// folderDeleteMsg はフォルダ削除を運ぶメッセージ。
-type folderDeleteMsg struct {
-	Name string
-}
-
-// folderRenameMsg はフォルダリネームを運ぶメッセージ。
-type folderRenameMsg struct {
-	OldName string
-	NewName string
-}
-
-func (m folderRenameMsg) Cmd() tea.Cmd {
+func (m folderResultMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
 

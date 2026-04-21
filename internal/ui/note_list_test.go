@@ -20,7 +20,7 @@ func TestNoteListSelect(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "First"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "Second"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	assert.Equal(t, 0, nl.SelectedIndex())
 
 	nl.SelectIndex(1, now)
@@ -34,7 +34,7 @@ func TestNoteListSelectedNote(t *testing.T) {
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "First"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	n, ok := nl.SelectedNote()
 	assert.True(t, ok)
 	assert.Equal(t, note.NoteID("1"), n.ID)
@@ -43,7 +43,7 @@ func TestNoteListSelectedNote(t *testing.T) {
 func TestNoteListEmpty(t *testing.T) {
 	t.Parallel()
 
-	nl := ui.NewNoteList(nil, 30, 20)
+	nl := ui.NewNoteList(nil, nil, 30, 20)
 	_, ok := nl.SelectedNote()
 	assert.False(t, ok)
 }
@@ -56,7 +56,7 @@ func TestNoteListMoveDown(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	nl.MoveDown(now)
 	assert.Equal(t, 1, nl.SelectedIndex())
 	nl.MoveDown(now)
@@ -74,7 +74,7 @@ func TestNoteListMoveFollowsSectionOrder(t *testing.T) {
 		{Metadata: note.Metadata{ID: "pinned", UpdatedAt: time.Date(2026, 4, 4, 11, 0, 0, 0, time.Local), Pinned: true}, Body: "Pinned"},
 		{Metadata: note.Metadata{ID: "today2", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Today 2"},
 	}
-	nl := ui.NewNoteList(notes, 30, 40)
+	nl := ui.NewNoteList(nil, notes, 30, 40)
 
 	// 先頭（idx=0=Today1）から上に移動 → 画面上で上はPinned(idx=1)
 	nl.SelectIndex(0, fixedNow)
@@ -102,7 +102,7 @@ func TestNoteListHitTest(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	assert.Equal(t, -1, nl.HitTest(5, 2, now)) // section header
 	assert.Equal(t, -1, nl.HitTest(5, 3, now)) // section header line
 	assert.Equal(t, 0, nl.HitTest(5, 4, now))  // note 0
@@ -119,7 +119,7 @@ func TestNoteListHitTestWithSections(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", UpdatedAt: time.Date(2026, 4, 3, 12, 0, 0, 0, time.Local)}, Body: "B"},
 	}
-	nl := ui.NewNoteList(notes, 30, 40)
+	nl := ui.NewNoteList(nil, notes, 30, 40)
 
 	assert.Equal(t, -1, nl.HitTest(5, 0, fixedNow)) // header
 	assert.Equal(t, -1, nl.HitTest(5, 1, fixedNow)) // separator
@@ -140,7 +140,7 @@ func TestNoteListViewWithSections(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Today note\npreview"},
 		{Metadata: note.Metadata{ID: "2", UpdatedAt: time.Date(2026, 4, 3, 12, 0, 0, 0, time.Local)}, Body: "Yesterday note\npreview"},
 	}
-	nl := ui.NewNoteList(notes, 30, 40)
+	nl := ui.NewNoteList(nil, notes, 30, 40)
 
 	view := nl.View(true, false, fixedNow, false)
 	assert.Contains(t, view, "Today")
@@ -159,7 +159,7 @@ func TestNoteListUpdateMoveDown(t *testing.T) {
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 		{Metadata: note.Metadata{ID: "2", CreatedAt: now, UpdatedAt: now}, Body: "B"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	nl, cmd := nl.Update(tea.KeyPressMsg{Code: 'j'}, now, false)
 	assert.Equal(t, 1, nl.SelectedIndex())
 	assert.NotNil(t, cmd)
@@ -172,7 +172,7 @@ func TestNoteListUpdateMoveUpAtTop(t *testing.T) {
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	nl, cmd := nl.Update(tea.KeyPressMsg{Code: 'k'}, now, false)
 	assert.Equal(t, 0, nl.SelectedIndex())
 	assert.Nil(t, cmd)
@@ -182,7 +182,7 @@ func TestNoteListUpdateCreateMsg(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	nl := ui.NewNoteList(nil, 30, 20)
+	nl := ui.NewNoteList(nil, nil, 30, 20)
 	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'n'}, now, false)
 	assert.NotNil(t, cmd)
 	msg := cmd()
@@ -196,7 +196,7 @@ func TestNoteListUpdateTrashModeMenu(t *testing.T) {
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
 	}
-	nl := ui.NewNoteList(notes, 30, 20)
+	nl := ui.NewNoteList(nil, notes, 30, 20)
 	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'm'}, now, true)
 	assert.NotNil(t, cmd)
 	msg := cmd()
@@ -210,7 +210,7 @@ func TestNoteListTrashModeNoSections(t *testing.T) {
 	notes := []note.Note{
 		{Metadata: note.Metadata{ID: "1", UpdatedAt: time.Date(2026, 4, 4, 10, 0, 0, 0, time.Local)}, Body: "Trashed"},
 	}
-	nl := ui.NewNoteList(notes, 30, 40)
+	nl := ui.NewNoteList(nil, notes, 30, 40)
 	nl.SetTitle("Trash")
 	nl.SetSectioned(false)
 
@@ -236,7 +236,7 @@ func TestNoteListScrollDownDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	nl := ui.NewNoteList(makeNotes(5, now), 30, 20)
+	nl := ui.NewNoteList(nil, makeNotes(5, now), 30, 20)
 	assert.Equal(t, 0, nl.SelectedIndex())
 
 	nl.ScrollDown(3, now)
@@ -247,7 +247,7 @@ func TestNoteListScrollUpDoesNotChangeSelection(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	nl := ui.NewNoteList(makeNotes(5, now), 30, 20)
+	nl := ui.NewNoteList(nil, makeNotes(5, now), 30, 20)
 	nl.SelectIndex(4, now)
 
 	nl.ScrollUp(3, now)

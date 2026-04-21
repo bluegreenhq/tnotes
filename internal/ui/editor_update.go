@@ -9,6 +9,7 @@ import (
 	"github.com/bluegreenhq/dogubako/tui"
 	"github.com/cockroachdb/errors"
 
+	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
@@ -36,11 +37,98 @@ func (e *Editor) LoadNote(n note.Note) {
 	e.Header.CloseMenu()
 }
 
+// LoadSelected は NoteList の選択中ノートを App から読み込んでエディタに表示する。
+func (e *Editor) LoadSelected(nl *NoteList) error {
+	n, ok := nl.SelectedNote()
+	if !ok {
+		e.Clear()
+
+		return nil
+	}
+
+	if e.app != nil {
+		loaded, err := e.app.LoadNote(n)
+		if err != nil {
+			return err
+		}
+
+		n = loaded
+	}
+
+	e.LoadNote(n)
+
+	return nil
+}
+
+// BuildMoveMenu は移動先フォルダの候補を構築してメニューを開く。
+// 候補がない場合は false を返す。
+func (e *Editor) BuildMoveMenu() (bool, error) {
+	if e.noteID == "" || e.app == nil {
+		return false, nil
+	}
+
+	currentFolder := e.app.FindNoteFolder(e.noteID)
+
+	folders, err := e.app.ListFolders()
+	if err != nil {
+		return false, err
+	}
+
+	candidates := make([]string, 0, len(folders)+1)
+	if currentFolder != app.DefaultFolder {
+		candidates = append(candidates, app.DefaultFolder)
+	}
+
+	for _, f := range folders {
+		if f != currentFolder {
+			candidates = append(candidates, f)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return false, nil
+	}
+
+	e.Header.OpenMoveMenu(candidates)
+
+	return true, nil
+}
+
+// CopyToClipboard はエディタの内容をクリップボードにコピーする。
+// 内容が空の場合は何もしない。
+func (e *Editor) CopyToClipboard() error {
+	content := e.Value()
+	if content == "" {
+		return nil
+	}
+
+	return errors.WithStack(clipboard.WriteAll(content))
+}
+
 // SetValue はテキストエリアの値を設定する。
 func (e *Editor) SetValue(s string) { e.textarea.SetValue(s) }
 
 // MarkClean は現在の値を基準値として記録する。
 func (e *Editor) MarkClean() { e.original = e.textarea.Value() }
+
+// SetApp は App 参照を設定する。
+func (e *Editor) SetApp(a *app.App) { e.app = a }
+
+// Save は未保存の変更を永続化する。保存した場合は true を返す。
+func (e *Editor) Save(now time.Time) (bool, error) {
+	if !e.Dirty() || e.app == nil {
+		return false, nil
+	}
+
+	_, err := e.app.SaveNote(e.noteID, e.Value(), now)
+	if err != nil {
+		return false, err
+	}
+
+	e.MarkClean()
+
+	return true, nil
+}
 
 // Focus はエディタにフォーカスを当て、blink タイマーを開始する。
 func (e *Editor) Focus() tea.Cmd {

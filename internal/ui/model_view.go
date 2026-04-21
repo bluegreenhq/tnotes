@@ -58,130 +58,31 @@ func (m *Model) renderView(now time.Time) string {
 	return strings.Join(bodyLines, "\n") + "\n" + footer
 }
 
-func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay dispatch
-	if m.FolderList.MenuOpen() {
-		menuLines := m.FolderList.PopupMenu.View()
-		if m.popup.Anchor() != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
-		} else {
-			m.overlayFolderListMenu(bodyLines, menuLines)
-		}
-	}
-
-	if m.Editor.Header.MenuOpen() {
-		menuLines := m.Editor.Header.PopupMenu.View()
-		if m.popup.Anchor() != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
-		} else {
-			m.overlayEditorHeaderMenu(bodyLines, menuLines)
-		}
-	}
-
-	if m.Editor.Header.MoveMenuOpen() {
-		menuLines := m.Editor.Header.MoveMenu.View()
-		if m.popup.Anchor() != nil {
-			m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
-		} else {
-			m.overlayMoveMenu(bodyLines, menuLines)
-		}
-	}
-
-	if m.Editor.IsContextMenuOpen() && m.popup.Anchor() != nil {
-		menuLines := m.Editor.ContextMenu.View()
-		m.overlayAtAnchor(bodyLines, menuLines, m.popup.Anchor())
-	}
+func (m *Model) applyOverlays(bodyLines []string) {
+	m.popup.RenderOverlays(bodyLines)
 
 	if m.Footer.MenuOpen() {
-		menuLines := m.Footer.PopupMenu.View()
-		m.overlayMenu(bodyLines, menuLines)
+		m.overlayFooterMenu(bodyLines, m.Footer.PopupMenu.View())
 	}
 
-	if m.confirmDialog != nil {
-		m.overlayConfirmDialog(bodyLines)
+	if m.FolderList.ConfirmDialogVisible() {
+		rendered := m.FolderList.ConfirmDialogView()
+		g := tui.CalcOverlayGeometry(rendered, m.layout.width, m.layout.BodyHeight(), 0, 0, 0)
+		tui.OverlayLines(bodyLines, strings.Split(rendered, "\n"), g.StartX, g.StartY)
 	}
 
 	if m.helpOverlay != nil {
-		m.overlayHelpOverlay(bodyLines)
+		g := m.helpOverlay.Geometry()
+		tui.OverlayLines(bodyLines, strings.Split(m.helpOverlay.View(), "\n"), g.StartX, g.StartY)
 	}
 }
 
-// overlayHelpOverlay はショートカットヘルプをオーバーレイする。
-func (m *Model) overlayHelpOverlay(bodyLines []string) {
-	g := m.helpOverlay.Geometry()
-	dialogLines := strings.Split(m.helpOverlay.View(), "\n")
-
-	tui.OverlayLines(bodyLines, dialogLines, g.StartX, g.StartY)
-}
-
-// overlayAtAnchor はメニューを指定座標にオーバーレイする。
-// 画面端でメニューがはみ出す場合は左方向・上方向にフォールバックする。
-func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *menuAnchor) {
+// overlayFooterMenu はフッターメニューを bodyLines の下端にオーバーレイする。
+func (m *Model) overlayFooterMenu(bodyLines []string, menuLines []string) {
 	if len(menuLines) == 0 {
 		return
 	}
 
-	menuWidth := lipgloss.Width(menuLines[0])
-	x, y := tui.ClampMenuOrigin(menuWidth, len(menuLines), anchor.x, anchor.y, m.layout.width, m.layout.BodyHeight())
-
-	tui.OverlayLines(bodyLines, menuLines, x, y)
-}
-
-// overlayFolderListMenu はフォルダリストのmoreメニューをオーバーレイする。
-// メニューはヘッダー直下、フォルダリスト領域の右端寄せで表示する。
-func (m *Model) overlayFolderListMenu(bodyLines []string, menuLines []string) {
-	if len(menuLines) == 0 {
-		return
-	}
-
-	menuX := max(m.FolderList.MenuLeftX(), 0)
-
-	tui.OverlayLines(bodyLines, menuLines, menuX, folderListHeaderLines)
-}
-
-// overlayEditorHeaderMenu はエディタヘッダーメニューをオーバーレイする。
-// メニューはヘッダーの直下、エディタ領域の右端寄せで表示する。
-func (m *Model) overlayEditorHeaderMenu(bodyLines []string, menuLines []string) {
-	if len(menuLines) == 0 {
-		return
-	}
-
-	editorStartX := m.layout.EditorStartX()
-	menuX := editorStartX + m.Editor.Header.MenuLeftX()
-
-	menuX = max(menuX, editorStartX)
-
-	tui.OverlayLines(bodyLines, menuLines, menuX, editorHeaderMenuTopY)
-}
-
-// overlayMoveMenu は移動先メニューをオーバーレイする。
-// メニュー右端を ⋯ ボタンの右端（headerWidth - moreButtonOffset + 1）に揃える。
-func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
-	if len(menuLines) == 0 {
-		return
-	}
-
-	editorStartX := m.layout.EditorStartX()
-	menuX := max(editorStartX+m.Editor.Header.MoveMenuLeftX(), editorStartX)
-
-	tui.OverlayLines(bodyLines, menuLines, menuX, editorHeaderMenuTopY)
-}
-
-// overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
-func (m *Model) overlayConfirmDialog(bodyLines []string) {
-	rendered := m.confirmDialog.View()
-	g := tui.CalcOverlayGeometry(rendered, m.layout.width, m.layout.BodyHeight(), 0, 0, 0)
-
-	tui.OverlayLines(bodyLines, strings.Split(rendered, "\n"), g.StartX, g.StartY)
-}
-
-// overlayMenu はノート一覧領域にメニューをオーバーレイする。
-// bodyLines の下端（フッターの直上）にメニューを重ねる。
-func (m *Model) overlayMenu(bodyLines []string, menuLines []string) {
-	if len(menuLines) == 0 {
-		return
-	}
-
-	// メニューをbodyの下端に配置
 	startY := max(len(bodyLines)-len(menuLines), 0)
 
 	for i, menuLine := range menuLines {
@@ -190,7 +91,6 @@ func (m *Model) overlayMenu(bodyLines []string, menuLines []string) {
 			break
 		}
 
-		// メニュー行の前にスペース1つを付加
 		bodyLines[y] = " " + menuLine
 	}
 }

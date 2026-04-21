@@ -13,4 +13,8 @@ type NoteResult struct {
 	SelectIdx int
 	// InfoHint はフッターに表示するヒントメッセージ。空文字列は表示しない。
 	InfoHint string
+	// FocusEditor が true の場合、操作後にエディタにフォーカスを移す。
+	FocusEditor bool
+	// LoadNote が true の場合、Note をエディタに直接ロードする。
+	LoadNote bool
 }
