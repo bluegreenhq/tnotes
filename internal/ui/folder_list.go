@@ -10,6 +10,7 @@ import (
 	"github.com/bluegreenhq/dogubako/tui"
 
 	"github.com/bluegreenhq/tnotes/internal/app"
+	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 // FolderKind はフォルダの種類を表す。
@@ -118,6 +119,26 @@ func (fl *FolderList) ToggleVisible() { fl.visible = !fl.visible }
 // SelectedKind は選択中のフォルダの種類を返す。
 func (fl *FolderList) SelectedKind() FolderKind {
 	return fl.folders[fl.selected].Kind
+}
+
+// IsTrash は現在 Trash フォルダを選択しているかを返す。
+func (fl *FolderList) IsTrash() bool {
+	return fl.SelectedKind() == FolderTrash
+}
+
+// CurrentFolderName は現在選択中のフォルダ名を返す。
+// Trash なら note.TrashDir、未選択なら app.DefaultFolder を返す。
+func (fl *FolderList) CurrentFolderName() string {
+	if fl.IsTrash() {
+		return note.TrashDir
+	}
+
+	name := fl.SelectedName()
+	if name == "" {
+		return app.DefaultFolder
+	}
+
+	return name
 }
 
 // SelectedIndex は選択中のインデックスを返す。
@@ -361,10 +382,10 @@ func (fl *FolderList) CommitInput() tea.Cmd {
 
 	err := fl.CreateFolder(val)
 	if err != nil {
-		return folderResultMsg{Err: err, Info: ""}.Cmd()
+		return actionResultMsg{Err: err, Info: ""}.Cmd()
 	}
 
-	return folderResultMsg{Err: nil, Info: "Created: " + val}.Cmd()
+	return actionResultMsg{Err: nil, Info: "Created: " + val}.Cmd()
 }
 
 // CancelInput はインライン入力を破棄する（Esc用）。
@@ -394,10 +415,10 @@ func (fl *FolderList) CommitRename() tea.Cmd {
 
 	err := fl.RenameFolder(oldName, val)
 	if err != nil {
-		return folderResultMsg{Err: err, Info: ""}.Cmd()
+		return actionResultMsg{Err: err, Info: ""}.Cmd()
 	}
 
-	return folderResultMsg{Err: nil, Info: "Renamed: " + oldName + " → " + val}.Cmd()
+	return actionResultMsg{Err: nil, Info: "Renamed: " + oldName + " → " + val}.Cmd()
 }
 
 // CancelRename はリネーム入力を破棄する（Esc用）。
@@ -546,12 +567,12 @@ func (fl *FolderList) ConfirmDialogView() string {
 }
 
 // TryDeleteFolder はフォルダ削除を試行する。
-// 空フォルダなら即時削除して folderResultMsg を返す。
-// ノートが存在する場合は確認ダイアログを表示し、確定後に folderResultMsg を返す。
+// 空フォルダなら即時削除して actionResultMsg を返す。
+// ノートが存在する場合は確認ダイアログを表示し、確定後に actionResultMsg を返す。
 func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	count, err := fl.app.FolderNoteCount(name)
 	if err != nil {
-		return folderResultMsg{Err: err, Info: ""}.Cmd()
+		return actionResultMsg{Err: err, Info: ""}.Cmd()
 	}
 
 	if count > 0 {
@@ -567,10 +588,10 @@ func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	// 空フォルダは即時削除
 	_, err = fl.DeleteFolder(name)
 	if err != nil {
-		return folderResultMsg{Err: err, Info: ""}.Cmd()
+		return actionResultMsg{Err: err, Info: ""}.Cmd()
 	}
 
-	return folderResultMsg{Err: nil, Info: "Deleted: " + name}.Cmd()
+	return actionResultMsg{Err: nil, Info: "Deleted: " + name}.Cmd()
 }
 
 // HandleConfirmKey は確認ダイアログのキー入力を処理する。
@@ -599,12 +620,12 @@ func (fl *FolderList) applyConfirmResult(result tui.ConfirmResult) tea.Cmd {
 
 		deleted, err := fl.DeleteFolder(name)
 		if err != nil {
-			return folderResultMsg{Err: err, Info: ""}.Cmd()
+			return actionResultMsg{Err: err, Info: ""}.Cmd()
 		}
 
 		info := "Deleted: " + name + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
 
-		return folderResultMsg{Err: nil, Info: info}.Cmd()
+		return actionResultMsg{Err: nil, Info: info}.Cmd()
 	case tui.ConfirmNo:
 		fl.confirmDialog = nil
 		fl.confirmDeleteFolder = ""

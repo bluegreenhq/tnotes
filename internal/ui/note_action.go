@@ -9,61 +9,17 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
-// execNoteAction は sync → App呼び出し → エラー処理 → applyNoteResult の共通パターンを実行する。
-func (m *Model) execNoteAction(now time.Time, sync bool, fn func() (app.NoteResult, error)) tea.Cmd {
-	if sync {
-		m.syncEditorToNote(now)
-	}
-
-	result, err := fn()
-	if err != nil {
-		m.errMsg = err.Error()
-
-		return nil
-	}
-
-	return m.applyNoteResult(result, now)
-}
-
 func (m *Model) createNote(now time.Time) tea.Cmd {
+	m.syncEditorToNote(now)
+
 	folder := ""
 	if m.FolderList.Visible() && m.FolderList.SelectedKind() == FolderUser {
 		folder = m.FolderList.SelectedName()
 	}
 
-	return m.execNoteAction(now, true, func() (app.NoteResult, error) {
-		return m.App.CreateNote(now, folder)
-	})
-}
+	result, err := m.App.CreateNote(now, folder)
 
-func (m *Model) trashNote(now time.Time) tea.Cmd {
-	if len(m.NoteList.CurrentFolderNotes(m.FolderList.SelectedKind(), m.FolderList.SelectedName())) == 0 {
-		return nil
-	}
-
-	selected, ok := m.NoteList.SelectedNote()
-	if !ok {
-		return nil
-	}
-
-	return m.execNoteAction(now, true, func() (app.NoteResult, error) {
-		return m.App.TrashNote(selected.ID)
-	})
-}
-
-func (m *Model) duplicateNote(now time.Time) tea.Cmd {
-	if len(m.NoteList.CurrentFolderNotes(m.FolderList.SelectedKind(), m.FolderList.SelectedName())) == 0 {
-		return nil
-	}
-
-	selected, ok := m.NoteList.SelectedNote()
-	if !ok {
-		return nil
-	}
-
-	return m.execNoteAction(now, true, func() (app.NoteResult, error) {
-		return m.App.DuplicateNote(selected.ID)
-	})
+	return m.applyNoteAction(result, err, now)
 }
 
 // folderView はフォルダ切替時のUI状態をまとめた構造体。
@@ -172,17 +128,6 @@ func (m *Model) undoRedoNote(now time.Time, undo bool) tea.Cmd {
 	}
 
 	return m.applyNoteResult(result, now)
-}
-
-func (m *Model) copyNote() tea.Cmd {
-	err := m.Editor.CopyToClipboard()
-	if err != nil {
-		m.errMsg = err.Error()
-
-		return nil
-	}
-
-	return m.setInfoMsg("Copied")
 }
 
 func (m *Model) setNotePin(pin bool) tea.Cmd {
@@ -343,7 +288,7 @@ func (m *Model) handleFolderMenuAction(idx int, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleFolderResult(msg folderResultMsg) tea.Cmd {
+func (m *Model) handleActionResult(msg actionResultMsg) tea.Cmd {
 	if msg.Err != nil {
 		m.errMsg = msg.Err.Error()
 
@@ -370,6 +315,17 @@ func (m *Model) syncEditorToNote(now time.Time) {
 		m.NoteList.RefreshKeepSelection(m.FolderList.SelectedKind(), m.FolderList.SelectedName(), m.Editor.NoteID(), now)
 		m.updateIndexModTime()
 	}
+}
+
+// applyNoteAction は NoteResult とエラーを処理し、UI状態に反映する。
+func (m *Model) applyNoteAction(result app.NoteResult, err error, now time.Time) tea.Cmd {
+	if err != nil {
+		m.errMsg = err.Error()
+
+		return nil
+	}
+
+	return m.applyNoteResult(result, now)
 }
 
 // applyNoteResult は NoteResult をUI状態に反映する。

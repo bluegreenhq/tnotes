@@ -18,6 +18,22 @@ const (
 	sectionLinePadding  = 2 // セクション罫線の左右余白
 )
 
+// noopNoteResult は操作対象がない場合の no-op 結果。
+var noopNoteResult = app.NoteResult{
+	Note: note.Note{
+		Metadata: note.Metadata{
+			ID: "", Title: "", Preview: "", Pinned: false,
+			CreatedAt: time.Time{}, UpdatedAt: time.Time{}, Path: "",
+		},
+		Body: "",
+	},
+	Notes:       nil,
+	SelectIdx:   -1,
+	InfoHint:    "",
+	FocusEditor: false,
+	LoadNote:    false,
+}
+
 // NoteList はノートリストの状態を表す。
 type NoteList struct {
 	app            *app.App
@@ -239,6 +255,42 @@ func (s *NoteList) CurrentFolderNotes(kind FolderKind, name string) []note.Note 
 	}
 
 	return s.app.ListByFolder(app.DefaultFolder)
+}
+
+// IsEmpty は表示中のノートが0件かを返す。
+func (s *NoteList) IsEmpty() bool {
+	return len(s.notes) == 0
+}
+
+// DuplicateSelected は選択中のノートを複製する。ノートが空の場合は no-op を返す。
+func (s *NoteList) DuplicateSelected() (app.NoteResult, error) {
+	selected, ok := s.SelectedNote()
+	if !ok {
+		return noopNoteResult, nil
+	}
+
+	return s.app.DuplicateNote(selected.ID)
+}
+
+// TrashSelected は選択中のノートをゴミ箱に移動する。ノートが空の場合は no-op を返す。
+func (s *NoteList) TrashSelected() (app.NoteResult, error) {
+	selected, ok := s.SelectedNote()
+	if !ok {
+		return noopNoteResult, nil
+	}
+
+	return s.app.TrashNote(selected.ID)
+}
+
+// ApplySearchFilter はフォルダ内のノートを検索クエリでフィルタリングし、ノート一覧を更新する。
+func (s *NoteList) ApplySearchFilter(folderName string, query string, now time.Time) {
+	if query == "" {
+		s.SetNotes(s.app.ListByFolder(folderName), now)
+	} else {
+		s.SetNotes(s.app.SearchByFolder(folderName, query), now)
+	}
+
+	s.SetSearchQuery(query)
 }
 
 // RefreshKeepSelection はNoteListを現在のフォルダに応じたノート一覧で更新し、選択を維持する。

@@ -239,11 +239,6 @@ func (m *Model) rebuildFooterButtons() {
 	m.Footer.RebuildButtons()
 }
 
-// isTrashFolder は現在 Trash フォルダを表示しているかを返す。
-func (m *Model) isTrashFolder() bool {
-	return m.FolderList.SelectedKind() == FolderTrash
-}
-
 func (m *Model) openHelp() {
 	h := NewHelpOverlay(m.Focus)
 	h.SetScreenSize(m.layout.width, m.layout.BodyHeight())

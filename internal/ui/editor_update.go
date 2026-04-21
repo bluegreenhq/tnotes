@@ -96,13 +96,18 @@ func (e *Editor) BuildMoveMenu() (bool, error) {
 
 // CopyToClipboard はエディタの内容をクリップボードにコピーする。
 // 内容が空の場合は何もしない。
-func (e *Editor) CopyToClipboard() error {
+func (e *Editor) CopyToClipboard() tea.Cmd {
 	content := e.Value()
 	if content == "" {
 		return nil
 	}
 
-	return errors.WithStack(clipboard.WriteAll(content))
+	err := clipboard.WriteAll(content)
+	if err != nil {
+		return actionResultMsg{Err: errors.WithStack(err), Info: ""}.Cmd()
+	}
+
+	return actionResultMsg{Err: nil, Info: "Copied"}.Cmd()
 }
 
 // SetValue はテキストエリアの値を設定する。

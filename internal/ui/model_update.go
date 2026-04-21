@@ -5,9 +5,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/bluegreenhq/dogubako/tui"
-
-	"github.com/bluegreenhq/tnotes/internal/app"
-	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
 // blinkOwner はアプリ固有の CursorBlink 所有者定数。
@@ -63,6 +60,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 		m.applySearchFilter("", now)
 	case clearInfoMsg:
 		cmd = m.handleClearInfo(msg)
+	case actionResultMsg:
+		cmd = m.handleActionResult(msg)
 	default:
 		cmd = m.routeFocus(msg, now)
 	}
@@ -563,8 +562,8 @@ func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return m.handleFolderListMsg(msg, now)
 	case folderMenuActionMsg:
 		return m.handleFolderMenuAction(msg.idx, now)
-	case folderResultMsg:
-		return m.handleFolderResult(msg)
+	case actionResultMsg:
+		return m.handleActionResult(msg)
 	case FolderListRightClickMsg:
 		m.popup.SetAnchor(msg.AnchorX, msg.AnchorY)
 
@@ -626,7 +625,7 @@ func (m *Model) processNoteListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 }
 
 func (m *Model) handleNoteListRightClick(msg NoteListRightClickMsg, now time.Time) tea.Cmd {
-	if !m.isTrashFolder() {
+	if !m.FolderList.IsTrash() {
 		m.syncEditorToNote(now)
 	}
 
@@ -637,14 +636,14 @@ func (m *Model) handleNoteListRightClick(msg NoteListRightClickMsg, now time.Tim
 	return nil
 }
 
-func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // msg種別ごとの分岐
+func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop,funlen // msg種別ごとの分岐
 	switch msg {
 	case NoteListSelect:
 		m.loadSelectedNote()
 
 		return nil
 	case NoteListClickSelect:
-		if !m.isTrashFolder() {
+		if !m.FolderList.IsTrash() {
 			m.syncEditorToNote(now)
 		}
 
@@ -656,7 +655,10 @@ func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //
 	case NoteListCreate:
 		return m.createNote(now)
 	case NoteListTrash:
-		return m.trashNote(now)
+		m.syncEditorToNote(now)
+		result, err := m.NoteList.TrashSelected()
+
+		return m.applyNoteAction(result, err, now)
 	case NoteListUndo:
 		return m.undoRedoNote(now, true)
 	case NoteListRedo:
@@ -664,9 +666,12 @@ func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //
 	case NoteListEdit:
 		return m.focusEditor()
 	case NoteListDuplicate:
-		return m.duplicateNote(now)
+		m.syncEditorToNote(now)
+		result, err := m.NoteList.DuplicateSelected()
+
+		return m.applyNoteAction(result, err, now)
 	case NoteListCopy:
-		return m.copyNote()
+		return m.Editor.CopyToClipboard()
 	case NoteListMenu:
 		return m.openNoteListMenu(now)
 	case NoteListQuit:
@@ -747,9 +752,12 @@ func (m *Model) handleEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cm
 	case EditorHeaderNew:
 		return m.createNote(now)
 	case EditorHeaderTrash:
-		return m.trashNote(now)
+		m.syncEditorToNote(now)
+		result, err := m.NoteList.TrashSelected()
+
+		return m.applyNoteAction(result, err, now)
 	case EditorHeaderCopy:
-		return m.copyNote()
+		return m.Editor.CopyToClipboard()
 	case EditorHeaderPin:
 		return m.setNotePin(true)
 	case EditorHeaderUnpin:
@@ -757,7 +765,10 @@ func (m *Model) handleEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cm
 	case EditorHeaderMove:
 		return m.openMoveMenu()
 	case EditorHeaderDuplicate:
-		return m.duplicateNote(now)
+		m.syncEditorToNote(now)
+		result, err := m.NoteList.DuplicateSelected()
+
+		return m.applyNoteAction(result, err, now)
 	}
 
 	return nil
@@ -805,7 +816,7 @@ func (m *Model) processFooterCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 // --- アクション ---
 
 func (m *Model) focusEditor() tea.Cmd {
-	if m.isTrashFolder() {
+	if m.FolderList.IsTrash() {
 		return nil
 	}
 
@@ -855,16 +866,7 @@ func (m *Model) scheduleSearchDebounce() tea.Cmd {
 }
 
 func (m *Model) applySearchFilter(query string, now time.Time) {
-	folderName := m.currentFolderName()
-
-	if query == "" {
-		m.NoteList.SetNotes(m.App.ListByFolder(folderName), now)
-	} else {
-		results := m.App.SearchByFolder(folderName, query)
-		m.NoteList.SetNotes(results, now)
-	}
-
-	m.NoteList.SetSearchQuery(query)
+	m.NoteList.ApplySearchFilter(m.FolderList.CurrentFolderName(), query, now)
 	m.Editor.SetSearchQuery(query)
 
 	// 最初のノートを選択してエディタに読み込む
@@ -873,17 +875,4 @@ func (m *Model) applySearchFilter(query string, now time.Time) {
 	} else {
 		m.Editor.Clear()
 	}
-}
-
-func (m *Model) currentFolderName() string {
-	if m.isTrashFolder() {
-		return note.TrashDir
-	}
-
-	name := m.FolderList.SelectedName()
-	if name == "" {
-		return app.DefaultFolder
-	}
-
-	return name
 }

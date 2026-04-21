@@ -149,13 +149,13 @@ func (m folderMenuActionMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
 
-// folderResultMsg はフォルダ操作の結果を運ぶメッセージ。
-type folderResultMsg struct {
+// actionResultMsg はコンポーネント操作の結果を運ぶ汎用メッセージ。
+type actionResultMsg struct {
 	Err  error
 	Info string
 }
 
-func (m folderResultMsg) Cmd() tea.Cmd {
+func (m actionResultMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
 
