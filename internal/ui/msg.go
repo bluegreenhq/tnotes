@@ -13,6 +13,8 @@ func (m NoteListMsg) Cmd() tea.Cmd {
 const (
 	// NoteListSelect はカーソル移動によりノート選択が変わったことを通知する。
 	NoteListSelect NoteListMsg = iota
+	// NoteListClickSelect はクリックによるノート選択変更を通知する（フォーカス変更を伴う）。
+	NoteListClickSelect
 	// NoteListCreate は新規ノート作成を要求する。
 	NoteListCreate
 	// NoteListTrash はノートのゴミ箱移動を要求する。
@@ -56,6 +58,8 @@ const (
 	EditorSearchChanged
 	// EditorSearchBlur は検索フィールドからフォーカスが外れたことを通知する。
 	EditorSearchBlur
+	// EditorClickBody はエディタ本文クリックによるフォーカス取得を要求する。
+	EditorClickBody
 )
 
 // editorContextMsg はエディタコンテキストメニューのアクション。

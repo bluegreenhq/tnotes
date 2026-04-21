@@ -23,6 +23,7 @@ type NoteList struct {
 	selected       int
 	width          int
 	height         int
+	layout         *Layout
 	offset         int
 	title          string
 	sectioned      bool
@@ -38,6 +39,7 @@ func NewNoteList(notes []note.Note, width, height int) NoteList {
 		selected:       0,
 		width:          width,
 		height:         height,
+		layout:         nil,
 		offset:         0,
 		title:          "Notes",
 		sectioned:      true,
@@ -198,25 +200,23 @@ func (s *NoteList) ScrollDown(n int, now time.Time) {
 // ナビゲーション（カーソル移動）は自身で処理し、
 // ノート操作（作成、削除等）は tea.Cmd で NoteListMsg を返して Model に委譲する。
 func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyPressMsg)
-	if !ok {
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		return s.handleClickMsg(msg, now)
+	case tea.MouseWheelMsg:
+		switch msg.Mouse().Button {
+		case tea.MouseWheelUp:
+			s.ScrollUp(1, now)
+		case tea.MouseWheelDown:
+			s.ScrollDown(1, now)
+		}
+
 		return *s, nil
+	case tea.KeyPressMsg:
+		return s.handleKeyPress(msg, now, trashMode)
 	}
 
-	// ナビゲーション共通キー（通常/ゴミ箱モード共通）
-	if cmd, handled := s.handleNavKey(keyMsg); handled {
-		return *s, cmd
-	}
-
-	if keyMsg.Mod&tea.ModCtrl != 0 {
-		return s.handleCtrlKey(keyMsg, now)
-	}
-
-	if trashMode {
-		return s.handleTrashModeKey(keyMsg, now)
-	}
-
-	return s.handleNormalKey(keyMsg, now)
+	return *s, nil
 }
 
 var noteListStyle = lipgloss.NewStyle().
@@ -544,4 +544,41 @@ func findSelectedRow(rows []noteListRow, selected int) int {
 	}
 
 	return 0
+}
+
+func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteList, tea.Cmd) {
+	nlOffset := s.layout.NoteListOffset()
+
+	// トグルボタン（≡）クリック判定
+	if !s.layout.folderVisible && msg.Y == 0 && msg.X >= nlOffset+1 && msg.X <= nlOffset+2 {
+		return *s, NoteListToggleFolder.Cmd()
+	}
+
+	relX := s.layout.NoteListLocalX(msg.X)
+	idx := s.HitTest(relX, msg.Y, now)
+
+	if idx >= 0 {
+		s.SelectIndex(idx, now)
+
+		return *s, NoteListClickSelect.Cmd()
+	}
+
+	return *s, nil
+}
+
+func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
+	// ナビゲーション共通キー（通常/ゴミ箱モード共通）
+	if cmd, handled := s.handleNavKey(msg); handled {
+		return *s, cmd
+	}
+
+	if msg.Mod&tea.ModCtrl != 0 {
+		return s.handleCtrlKey(msg, now)
+	}
+
+	if trashMode {
+		return s.handleTrashModeKey(msg, now)
+	}
+
+	return s.handleNormalKey(msg, now)
 }

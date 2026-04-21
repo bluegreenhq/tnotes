@@ -89,6 +89,9 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 	}
 
 	m.popup = m.newPopupCoordinator()
+	m.Editor.layout = &m.layout
+	m.NoteList.layout = &m.layout
+	m.FolderList.layout = &m.layout
 
 	return m
 }

@@ -39,6 +39,7 @@ type Editor struct {
 	original        string
 	width           int
 	height          int
+	layout          *Layout
 	readOnly        bool
 	selecting       bool // ドラッグ中か
 	selStart        *SelectionAnchor
@@ -66,6 +67,7 @@ func NewEditor(width, height int, noWrap bool) Editor {
 		original:        "",
 		width:           width,
 		height:          height,
+		layout:          nil,
 		readOnly:        false,
 		selecting:       false,
 		selStart:        nil,

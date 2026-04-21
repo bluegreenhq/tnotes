@@ -33,9 +33,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 	case tea.MouseMotionMsg:
 		return m, m.handleDrag(msg, now)
 	case tea.MouseReleaseMsg:
-		return m, m.handleRelease()
+		return m, m.handleRelease(msg, now)
 	case tea.MouseWheelMsg:
-		return m, m.handleWheel(msg, now)
+		return m, m.routeMouse(msg, now)
 	case tea.MouseMsg:
 		return m, m.handleHover(msg)
 	case tea.FocusMsg:
@@ -70,7 +70,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 	case clearInfoMsg:
 		return m, m.handleClearInfo(msg)
 	default:
-		return m, m.handleDefault(msg, now)
+		return m, m.routeFocus(msg, now)
 	}
 }
 
@@ -91,8 +91,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 		return cmd
 	}
 
-	// フォーカスベースの委譲
-	return m.handleFocusKey(msg, now)
+	// フォーカス先に委譲
+	cmd := m.routeFocus(msg, now)
+
+	return tea.Batch(cmd, m.resetFocusBlink())
 }
 
 func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
@@ -146,38 +148,42 @@ func (m *Model) handleGlobalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bo
 	return nil, false
 }
 
-func (m *Model) handleFocusKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
+// routeFocus はフォーカス先のコンポーネントに msg を委譲する。
+func (m *Model) routeFocus(msg tea.Msg, now time.Time) tea.Cmd {
 	switch m.Focus {
 	case FocusFolderList:
-		return m.handleFolderListKey(msg, now)
+		_, cmd := m.FolderList.Update(msg)
+
+		return m.processFolderListCmd(cmd, now)
 	case FocusNoteList:
-		return m.handleNoteListKey(msg, now)
+		_, cmd := m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
+
+		return m.processNoteListCmd(cmd, now)
 	case FocusEditor:
-		return m.handleEditorKey(msg, now)
+		_, cmd := m.Editor.Update(msg, now)
+
+		return m.processEditorCmd(cmd, now)
 	}
 
 	return nil
 }
 
-func (m *Model) handleNoteListKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
-	_, cmd := m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
+// resetFocusBlink はキー入力後にフォーカス先の blink をリセットする。
+func (m *Model) resetFocusBlink() tea.Cmd {
+	switch m.Focus { //nolint:exhaustive // NoteList にはカーソル blink がない
+	case FocusFolderList:
+		if m.FolderList.InputMode() || m.FolderList.RenameMode() {
+			return m.FolderList.blink.Reset()
+		}
+	case FocusEditor:
+		if m.Editor.Header.SearchFocused() {
+			return m.Editor.Header.ResetSearchBlink()
+		}
 
-	return m.processNoteListCmd(cmd, now)
-}
-
-func (m *Model) handleEditorKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
-	_, cmd := m.Editor.Update(msg, now)
-	editorCmd := m.processEditorCmd(cmd, now)
-
-	if m.Editor.Header.SearchFocused() {
-		blinkCmd := m.Editor.Header.ResetSearchBlink()
-
-		return tea.Batch(editorCmd, blinkCmd)
+		return m.Editor.resetBlink()
 	}
 
-	blinkCmd := m.Editor.resetBlink()
-
-	return tea.Batch(editorCmd, blinkCmd)
+	return nil
 }
 
 func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
@@ -225,16 +231,6 @@ func (m *Model) handleFocusRestore() tea.Cmd {
 func (m *Model) handleClearInfo(msg clearInfoMsg) tea.Cmd {
 	if msg.id == m.infoMsgID {
 		m.infoMsg = ""
-	}
-
-	return nil
-}
-
-func (m *Model) handleDefault(msg tea.Msg, now time.Time) tea.Cmd {
-	if m.Focus == FocusEditor {
-		_, cmd := m.Editor.Update(msg, now)
-
-		return cmd
 	}
 
 	return nil
@@ -381,7 +377,7 @@ func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd,
 func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	zone := m.layout.HitTest(msg.X, msg.Y)
 
-	switch zone { //nolint:exhaustive // EditorHeader/EditorBody は default で処理
+	switch zone { //nolint:exhaustive // コンポーネントゾーンは routeMouse で処理
 	case ZoneFooterLabel:
 		return m.handleFooterClick(msg.X, now)
 	case ZoneFooterBorder:
@@ -395,11 +391,11 @@ func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 
 		return nil
 	case ZoneFolderList:
-		return m.handleFolderListClick(msg, now)
-	case ZoneNoteList:
-		return m.handleNoteListClick(msg, now)
+		m.Focus = FocusFolderList
+
+		return m.routeMouse(msg, now)
 	default:
-		return m.handleEditorClick(msg)
+		return m.routeMouse(msg, now)
 	}
 }
 
@@ -409,114 +405,33 @@ func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
 	return m.processFooterCmd(m.Footer.HandleClick(x), now)
 }
 
-func (m *Model) handleNoteListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	// NoteList のトグルボタン（≡）クリック判定
-	nlOffset := m.layout.NoteListOffset()
-	if !m.FolderList.Visible() && msg.Y == 0 && msg.X >= nlOffset+1 && msg.X <= nlOffset+2 {
-		return m.toggleFolderList(now)
-	}
-
-	relX := m.layout.NoteListLocalX(msg.X)
-	idx := m.NoteList.HitTest(relX, msg.Y, now)
-
-	if idx >= 0 {
-		if !m.isTrashFolder() {
-			m.syncEditorToNote(now)
-		}
-
-		m.NoteList.SelectIndex(idx, now)
-		m.loadSelectedNote()
-	}
-
-	m.Focus = FocusNoteList
-	m.Editor.Blur()
-
-	return nil
+// mouseMsg はマウス位置を持つメッセージ。
+type mouseMsg interface {
+	Mouse() tea.Mouse
 }
 
-func (m *Model) handleEditorClick(msg tea.MouseClickMsg) tea.Cmd {
-	edX := m.layout.EditorLocalX(msg.X)
+// routeMouse はマウス位置に応じたコンポーネントに msg を委譲する。
+func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
+	var cmd tea.Cmd
 
-	// ヘッダー行のクリック
-	if msg.Y == 0 {
-		cmd := m.Editor.HandleClick(edX, 0)
-
-		if m.Editor.Header.SearchFocused() {
-			m.Focus = FocusEditor
-
-			blinkCmd := m.Editor.Header.searchBlink.Reset()
-
-			return tea.Batch(m.processEditorHeaderCmd(cmd, time.Now()), blinkCmd)
-		}
-
-		return m.processEditorHeaderCmd(cmd, time.Now())
-	}
-
-	if m.isTrashFolder() || m.Editor.NoteID() == "" {
-		return nil
-	}
-
-	m.Focus = FocusEditor
-	cmd := m.Editor.Focus()
-
-	// textarea 領域はヘッダー分だけ Y を補正
-	m.Editor.HandleTextAreaClick(edX, msg.Y-editorHeaderHeight, time.Now())
-
-	return cmd
-}
-
-func (m *Model) handleFolderListKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
-	_, cmd := m.FolderList.Update(msg)
-	folderCmd := m.processFolderListCmd(cmd, now)
-
-	if m.FolderList.InputMode() || m.FolderList.RenameMode() {
-		blinkCmd := m.FolderList.blink.Reset()
-
-		return tea.Batch(folderCmd, blinkCmd)
-	}
-
-	return folderCmd
-}
-
-func (m *Model) handleFolderListClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	cmd := m.FolderList.HandleClickLocal(msg.X, msg.Y)
-	m.Focus = FocusFolderList
-
-	return m.processFolderListCmd(cmd, now)
-}
-
-func (m *Model) handleWheel(msg tea.MouseWheelMsg, now time.Time) tea.Cmd {
-	mouse := msg.Mouse()
-
-	const scrollLines = 1
-
+	x := msg.Mouse().X
 	noteListStart := m.layout.NoteListOffset()
 	noteListEnd := m.layout.EditorStartX()
 
-	if mouse.X < noteListStart {
-		// フォルダ一覧領域 — スクロール不要（項目が少ないため）
-		return nil
+	switch {
+	case x < noteListStart:
+		m.FolderList, cmd = m.FolderList.Update(msg)
+
+		return m.processFolderListCmd(cmd, now)
+	case x < noteListEnd:
+		m.NoteList, cmd = m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
+
+		return m.processNoteListCmd(cmd, now)
+	default:
+		m.Editor, cmd = m.Editor.Update(msg, now)
+
+		return m.processEditorCmd(cmd, now)
 	}
-
-	if mouse.X < noteListEnd {
-		switch mouse.Button {
-		case tea.MouseWheelUp:
-			m.NoteList.ScrollUp(scrollLines, now)
-		case tea.MouseWheelDown:
-			m.NoteList.ScrollDown(scrollLines, now)
-		}
-
-		return nil
-	}
-
-	switch mouse.Button {
-	case tea.MouseWheelUp:
-		m.Editor.ScrollUp(scrollLines)
-	case tea.MouseWheelDown:
-		m.Editor.ScrollDown(scrollLines)
-	}
-
-	return nil
 }
 
 func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
@@ -551,8 +466,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	}
 
 	if m.Focus == FocusEditor && m.Editor.Selecting() {
-		edX := m.layout.EditorLocalX(mouse.X)
-		m.Editor.UpdateDragSelection(edX, mouse.Y-editorHeaderHeight)
+		m.Editor, _ = m.Editor.Update(msg, now)
 
 		return nil
 	}
@@ -588,7 +502,7 @@ func (m *Model) updateNoteListFolderBtnHover(mouse tea.Mouse) {
 	m.NoteList.SetHoverFolderBtn(mouse.Y == 0 && mouse.X == offset+1)
 }
 
-func (m *Model) handleRelease() tea.Cmd {
+func (m *Model) handleRelease(msg tea.MouseReleaseMsg, now time.Time) tea.Cmd {
 	if m.resizingFolder {
 		m.resizingFolder = false
 
@@ -601,9 +515,7 @@ func (m *Model) handleRelease() tea.Cmd {
 		return nil
 	}
 
-	if m.Editor.Selecting() {
-		m.Editor.StopDragSelection()
-	}
+	m.Editor, _ = m.Editor.Update(msg, now)
 
 	return nil
 }
@@ -731,6 +643,16 @@ func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //
 		m.loadSelectedNote()
 
 		return nil
+	case NoteListClickSelect:
+		if !m.isTrashFolder() {
+			m.syncEditorToNote(now)
+		}
+
+		m.loadSelectedNote()
+		m.Focus = FocusNoteList
+		m.Editor.Blur()
+
+		return nil
 	case NoteListCreate:
 		return m.createNote(now)
 	case NoteListTrash:
@@ -778,7 +700,7 @@ func (m *Model) openNoteListMenu(now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd { //nolint:cyclop // msg種別ごとの分岐
 	if cmd == nil {
 		return nil
 	}
@@ -800,7 +722,13 @@ func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 			m.Focus = FocusNoteList
 
 			return nil
+		case EditorClickBody:
+			m.Focus = FocusEditor
+
+			return m.Editor.Focus()
 		}
+	case EditorHeaderMsg:
+		return m.handleEditorHeaderMsg(msg, now)
 	case editorOpenURLMsg:
 		return openURLInBrowser(msg.URL)
 	default:
@@ -810,16 +738,7 @@ func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 	return nil
 }
 
-func (m *Model) processEditorHeaderCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
-	if cmd == nil {
-		return nil
-	}
-
-	msg, ok := cmd().(EditorHeaderMsg)
-	if !ok {
-		return cmd
-	}
-
+func (m *Model) handleEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cmd {
 	switch msg {
 	case EditorHeaderNew:
 		return m.createNote(now)
@@ -838,6 +757,19 @@ func (m *Model) processEditorHeaderCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m *Model) processEditorHeaderCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+
+	msg, ok := cmd().(EditorHeaderMsg)
+	if !ok {
+		return cmd
+	}
+
+	return m.handleEditorHeaderMsg(msg, now)
 }
 
 func (m *Model) processFooterCmd(cmd tea.Cmd, now time.Time) tea.Cmd {

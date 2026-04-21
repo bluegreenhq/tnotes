@@ -56,6 +56,7 @@ type FolderList struct {
 	selected   int
 	width      int
 	height     int
+	layout     *Layout
 	visible    bool
 	inputMode  bool            // インライン入力中かどうか（新規作成）
 	renameMode bool            // リネーム入力中かどうか
@@ -78,6 +79,7 @@ func NewFolderList(width, height int) FolderList {
 		selected:   0,
 		width:      width,
 		height:     height,
+		layout:     nil,
 		visible:    false,
 		inputMode:  false,
 		renameMode: false,
@@ -368,33 +370,16 @@ func (fl *FolderList) HitTestHeader(x, y int) string {
 
 // Update はメッセージに応じてフォルダ一覧の状態を更新する。
 func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return *fl, nil
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		cmd := fl.HandleClickLocal(msg.X, msg.Y)
+
+		return *fl, cmd
+	case tea.KeyPressMsg:
+		return fl.handleKeyMsg(msg)
 	}
 
-	// メニュー表示中
-	if fl.menuOpen {
-		if keyMsg.Code == tea.KeyEscape {
-			fl.CloseMenu()
-
-			return *fl, nil
-		}
-
-		fl.CloseMenu()
-	}
-
-	// リネーム入力モード
-	if fl.renameMode {
-		return fl.updateRename(keyMsg)
-	}
-
-	// インライン入力モード
-	if fl.inputMode {
-		return fl.updateInput(keyMsg)
-	}
-
-	return fl.handleKeyNav(keyMsg)
+	return *fl, nil
 }
 
 // SelectIndex はインデックスを指定して選択する。
@@ -699,4 +684,29 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd) 
 	}
 
 	return *fl, nil
+}
+
+func (fl *FolderList) handleKeyMsg(msg tea.KeyPressMsg) (FolderList, tea.Cmd) {
+	// メニュー表示中
+	if fl.menuOpen {
+		if msg.Code == tea.KeyEscape {
+			fl.CloseMenu()
+
+			return *fl, nil
+		}
+
+		fl.CloseMenu()
+	}
+
+	// リネーム入力モード
+	if fl.renameMode {
+		return fl.updateRename(msg)
+	}
+
+	// インライン入力モード
+	if fl.inputMode {
+		return fl.updateInput(msg)
+	}
+
+	return fl.handleKeyNav(msg)
 }

@@ -81,12 +81,37 @@ func (e *Editor) Clear() {
 // --- イベントハンドラ ---
 
 // Update はメッセージに応じて状態を更新する。
-func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) {
+func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // type switch dispatch
 	if e.readOnly {
 		return *e, nil
 	}
 
-	if msg, ok := msg.(tea.KeyPressMsg); ok {
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		return e.handleClickMsg(msg, now)
+	case tea.MouseMotionMsg:
+		if e.selecting {
+			localX := e.layout.EditorLocalX(msg.Mouse().X)
+			e.UpdateDragSelection(localX, msg.Mouse().Y-editorHeaderHeight)
+		}
+
+		return *e, nil
+	case tea.MouseReleaseMsg:
+		if e.selecting {
+			e.StopDragSelection()
+		}
+
+		return *e, nil
+	case tea.MouseWheelMsg:
+		switch msg.Mouse().Button {
+		case tea.MouseWheelUp:
+			e.ScrollUp(1)
+		case tea.MouseWheelDown:
+			e.ScrollDown(1)
+		}
+
+		return *e, nil
+	case tea.KeyPressMsg:
 		// 検索フィールドにフォーカスがある場合
 		if e.Header.SearchFocused() {
 			return e.handleSearchKey(msg)
@@ -536,6 +561,33 @@ func (e *Editor) moveCursorTo(pos SelectionAnchor) {
 }
 
 // --- クリック・ホバー ---
+
+// handleClickMsg は tea.MouseClickMsg を処理する。
+// layout を参照して絶対座標をローカル座標に変換し、ヘッダー/本文に振り分ける。
+func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, tea.Cmd) {
+	localX := e.layout.EditorLocalX(msg.X)
+
+	// ヘッダー行のクリック
+	if msg.Y == 0 {
+		cmd := e.HandleClick(localX, 0)
+
+		// 検索フォーカス中はエディタへのフォーカス取得も要求
+		if e.Header.SearchFocused() {
+			return *e, tea.Batch(cmd, EditorClickBody.Cmd())
+		}
+
+		return *e, cmd
+	}
+
+	// 本文クリック: readOnly またはノート未選択なら無視
+	if e.readOnly || e.noteID == "" {
+		return *e, nil
+	}
+
+	e.HandleTextAreaClick(localX, msg.Y-editorHeaderHeight, now)
+
+	return *e, EditorClickBody.Cmd()
+}
 
 // HandleClick はエディタ領域のクリックを処理する。
 // x, y はエディタ左上を原点とする相対座標。
