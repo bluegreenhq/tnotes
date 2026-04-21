@@ -7,8 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/bluegreenhq/dogubako/tui"
-
-	"github.com/bluegreenhq/tnotes/internal/app"
 )
 
 // View はターミナルに描画する内容を返す。
@@ -27,16 +25,6 @@ func (m *Model) renderView(now time.Time) string {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
-	// フォルダの件数を更新
-	m.updateFolderCounts()
-
-	// エディタの未保存状態をノートリストに反映
-	if m.Editor.Dirty() {
-		m.NoteList.SetDirtyNoteID(m.Editor.NoteID())
-	} else {
-		m.NoteList.SetDirtyNoteID("")
-	}
-
 	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now, m.FolderList.Visible())
 
 	var body string
@@ -48,7 +36,6 @@ func (m *Model) renderView(now time.Time) string {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())
 	}
 
-	m.rebuildFooterButtons()
 	footer, footerLines := m.Footer.View(m.errMsg, m.infoMsg, m.layout.width)
 
 	// bodyを正確に height-footerLines 行に切り詰め/パディング
@@ -67,24 +54,6 @@ func (m *Model) renderView(now time.Time) string {
 	m.applyOverlays(bodyLines)
 
 	return strings.Join(bodyLines, "\n") + "\n" + footer
-}
-
-func (m *Model) updateFolderCounts() {
-	notesCount := len(m.App.ListByFolder(app.DefaultFolder))
-
-	for i := range m.FolderList.folders {
-		switch m.FolderList.folders[i].Kind {
-		case FolderNotes:
-			m.FolderList.folders[i].Count = notesCount
-		case FolderTrash:
-			m.FolderList.folders[i].Count = len(m.App.ListTrashNotes())
-		case FolderUser:
-			count, err := m.App.FolderNoteCount(m.FolderList.folders[i].Name)
-			if err == nil {
-				m.FolderList.folders[i].Count = count
-			}
-		}
-	}
 }
 
 func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay dispatch
@@ -136,8 +105,6 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 
 // overlayHelpOverlay はショートカットヘルプをオーバーレイする。
 func (m *Model) overlayHelpOverlay(bodyLines []string) {
-	m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
-
 	g := m.helpOverlay.Geometry()
 	dialogLines := strings.Split(m.helpOverlay.View(), "\n")
 
@@ -199,8 +166,6 @@ func (m *Model) overlayMoveMenu(bodyLines []string, menuLines []string) {
 
 // overlayConfirmDialog はフォルダ削除確認ダイアログをオーバーレイする。
 func (m *Model) overlayConfirmDialog(bodyLines []string) {
-	m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
-
 	rendered := m.confirmDialog.View()
 	g := tui.CalcOverlayGeometry(rendered, m.layout.width, m.layout.BodyHeight(), 0, 0, 0)
 

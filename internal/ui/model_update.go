@@ -23,54 +23,84 @@ const (
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funlen // type switch dispatch
 	now := time.Now()
 
+	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		return m, m.handleResize(msg, now)
+		cmd = m.handleResize(msg, now)
 	case tea.KeyPressMsg:
-		return m, m.handleKey(msg, now)
+		cmd = m.handleKey(msg, now)
 	case tea.MouseClickMsg:
-		return m, m.handleClick(msg, now)
+		cmd = m.handleClick(msg, now)
 	case tea.MouseMotionMsg:
-		return m, m.handleDrag(msg, now)
+		cmd = m.handleDrag(msg, now)
 	case tea.MouseReleaseMsg:
-		return m, m.handleRelease(msg, now)
+		cmd = m.handleRelease(msg, now)
 	case tea.MouseWheelMsg:
-		return m, m.routeMouse(msg, now)
+		cmd = m.routeMouse(msg, now)
 	case tea.MouseMsg:
-		return m, m.handleHover(msg)
+		cmd = m.handleHover(msg)
 	case tea.FocusMsg:
-		return m, m.handleFocusRestore()
+		cmd = m.handleFocusRestore()
 	case tea.BlurMsg: // 他アプリへ切り替え時に編集中の内容を保存
 		m.syncEditorToNote(now)
-
-		return m, nil
 	case tui.CursorBlinkMsg:
 		switch msg.Owner {
 		case blinkOwnerEditor:
-			return m, m.Editor.HandleBlinkMsg(msg)
+			cmd = m.Editor.HandleBlinkMsg(msg)
 		case blinkOwnerFolderList:
-			return m, m.FolderList.blink.HandleMsg(msg)
+			cmd = m.FolderList.blink.HandleMsg(msg)
 		case blinkOwnerSearch:
-			return m, m.Editor.Header.searchBlink.HandleMsg(msg)
+			cmd = m.Editor.Header.searchBlink.HandleMsg(msg)
 		}
-
-		return m, nil
 	case searchDebounceMsg:
 		if msg.id != m.searchDebounceID {
 			return m, nil // 古いタイマーは無視
 		}
 
 		m.applySearchFilter(msg.query, now)
-
-		return m, nil
 	case searchClearedMsg:
 		m.applySearchFilter("", now)
-
-		return m, nil
 	case clearInfoMsg:
-		return m, m.handleClearInfo(msg)
+		cmd = m.handleClearInfo(msg)
 	default:
-		return m, m.routeFocus(msg, now)
+		cmd = m.routeFocus(msg, now)
+	}
+
+	m.syncViewState()
+
+	return m, cmd
+}
+
+// syncViewState は View() に必要な派生状態を同期する。
+// Update の最後に呼ばれ、View() の純粋性を保証する。
+func (m *Model) syncViewState() {
+	m.updateFolderCounts()
+
+	if m.Editor.Dirty() {
+		m.NoteList.SetDirtyNoteID(m.Editor.NoteID())
+	} else {
+		m.NoteList.SetDirtyNoteID("")
+	}
+
+	m.rebuildFooterButtons()
+}
+
+func (m *Model) updateFolderCounts() {
+	notesCount := len(m.App.ListByFolder(app.DefaultFolder))
+
+	for i := range m.FolderList.folders {
+		switch m.FolderList.folders[i].Kind {
+		case FolderNotes:
+			m.FolderList.folders[i].Count = notesCount
+		case FolderTrash:
+			m.FolderList.folders[i].Count = len(m.App.ListTrashNotes())
+		case FolderUser:
+			count, err := m.App.FolderNoteCount(m.FolderList.folders[i].Name)
+			if err == nil {
+				m.FolderList.folders[i].Count = count
+			}
+		}
 	}
 }
 
@@ -205,6 +235,14 @@ func (m *Model) handleResize(msg tea.WindowSizeMsg, now time.Time) tea.Cmd {
 
 	m.recalcLayout(now)
 	m.Footer.CloseMenu()
+
+	if m.helpOverlay != nil {
+		m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+	}
+
+	if m.confirmDialog != nil {
+		m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
+	}
 
 	return nil
 }

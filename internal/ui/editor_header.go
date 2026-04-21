@@ -207,12 +207,7 @@ func (h *EditorHeader) HandleClick(x int) tea.Cmd {
 	}
 
 	// 検索フィールド判定
-	focused, cleared := h.HandleSearchClick(x)
-	if cleared {
-		return func() tea.Msg { return searchClearedMsg{} }
-	}
-
-	if focused {
+	if h.handleSearchClick(x) {
 		return nil
 	}
 
@@ -250,7 +245,7 @@ func (h *EditorHeader) SetMenuHover(x, y int) {
 func (h *EditorHeader) SetHover(x int) {
 	h.hoverNew = !h.trashMode && x == newButtonX
 	h.hoverMore = h.hasNote && h.isMoreButtonX(x)
-	h.SetSearchHover(x)
+	h.setSearchHover(x)
 }
 
 // ClearHover はホバーをすべて解除する。
@@ -314,20 +309,6 @@ func (h *EditorHeader) ExecuteMoveMenuAction(idx int) tea.Cmd {
 	return noteMoveMsg{DestFolder: dest}.Cmd()
 }
 
-// MoveMenuHeight は移動先メニューの高さを返す。
-func (h *EditorHeader) MoveMenuHeight() int {
-	if !h.moveMenuOpen {
-		return 0
-	}
-
-	return h.MoveMenu.Height()
-}
-
-// SetMoveMenuHover は移動先メニューのホバーを更新する。
-func (h *EditorHeader) SetMoveMenuHover(x, y int) {
-	h.MoveMenu.SetHoverByPos(x, y)
-}
-
 // HandleSearchKey は検索フィールドのキー入力を処理する。
 // 戻り値: (handled bool, cmd tea.Cmd).
 func (h *EditorHeader) HandleSearchKey(msg tea.KeyPressMsg) (bool, tea.Cmd) {
@@ -345,27 +326,6 @@ func (h *EditorHeader) HandleSearchKey(msg tea.KeyPressMsg) (bool, tea.Cmd) {
 
 		return true, nil
 	}
-}
-
-// HandleSearchClick は検索フィールド領域のクリックを処理する。
-// x はヘッダー内の相対X座標。
-// 戻り値: focused=フォーカス取得, cleared=クリアボタン押下。
-func (h *EditorHeader) HandleSearchClick(x int) (bool, bool) {
-	searchStart := h.width - searchFieldWidth
-
-	if x < searchStart || x >= h.width {
-		return false, false
-	}
-
-	h.searchFocused = true
-
-	return true, false
-}
-
-// SetSearchHover は検索フィールド領域のホバーを更新する。
-func (h *EditorHeader) SetSearchHover(x int) {
-	searchStart := h.width - searchFieldWidth
-	h.hoverSearch = x >= searchStart && x < h.width
 }
 
 // View はヘッダー行を描画する。
@@ -450,4 +410,21 @@ func (h *EditorHeader) isMoreButtonX(x int) bool {
 	moreX := h.width - searchFieldWidth - moreButtonOffset
 
 	return x == moreX
+}
+
+func (h *EditorHeader) handleSearchClick(x int) bool {
+	searchStart := h.width - searchFieldWidth
+
+	if x < searchStart || x >= h.width {
+		return false
+	}
+
+	h.searchFocused = true
+
+	return true
+}
+
+func (h *EditorHeader) setSearchHover(x int) {
+	searchStart := h.width - searchFieldWidth
+	h.hoverSearch = x >= searchStart && x < h.width
 }

@@ -49,9 +49,6 @@ func NewFooter() Footer {
 	}
 }
 
-// Hover はホバーターゲットを返す。
-func (f *Footer) Hover() HoverTarget { return f.hover }
-
 // MenuOpen はメニューが開いているかを返す。
 func (f *Footer) MenuOpen() bool { return f.menuOpen }
 

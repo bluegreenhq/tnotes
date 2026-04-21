@@ -291,45 +291,12 @@ func (fl *FolderList) CancelRename() {
 	fl.clearRename()
 }
 
-// InputValue は入力中のフォルダ名を返す。
-func (fl *FolderList) InputValue() string { return fl.lineInput.Value() }
-
-// HandleClickLocal はローカル座標でクリックを処理し、アクションコマンドを返す。
-func (fl *FolderList) HandleClickLocal(x, y int) tea.Cmd {
-	// moreメニューが開いている場合
-	if fl.menuOpen {
-		return fl.handleMenuClick(x, y)
-	}
-
-	// ヘッダーのボタンクリック判定
-	if y < folderListHeaderLines {
-		hit := fl.HitTestHeader(x, y)
-
-		switch hit {
-		case headerHitClose:
-			return FolderListClose.Cmd()
-		case headerHitAdd:
-			return FolderListStartInput.Cmd()
-		}
-
-		return nil
-	}
-
-	// リスト項目クリック
-	idx := fl.HitTest(x, y)
-	if idx >= 0 {
-		return fl.SelectIndex(idx)
-	}
-
-	return nil
-}
-
 // HandleHoverLocal はローカル座標でホバーを処理する。
 func (fl *FolderList) HandleHoverLocal(x, y int) {
 	if x < fl.width && y == 0 {
-		fl.SetHeaderHover(x, y)
+		fl.setHeaderHover(x, y)
 	} else {
-		fl.ClearHeaderHover()
+		fl.clearHeaderHover()
 	}
 
 	if fl.menuOpen {
@@ -346,33 +313,11 @@ func (fl *FolderList) HandleHoverLocal(x, y int) {
 	}
 }
 
-// HitTestHeader はヘッダー領域のクリック判定を行う.
-// 戻り値: headerHitClose, headerHitAdd, "" (該当なし).
-func (fl *FolderList) HitTestHeader(x, y int) string {
-	if y != 0 {
-		return ""
-	}
-
-	contentWidth := max(fl.width-folderListBorderWidth, 0)
-
-	// ✕ ボタン (左端)
-	if x <= headerCloseBtnWidth {
-		return headerHitClose
-	}
-
-	// + ボタン (右端)
-	if x == contentWidth-headerAddBtnOffset {
-		return headerHitAdd
-	}
-
-	return ""
-}
-
 // Update はメッセージに応じてフォルダ一覧の状態を更新する。
 func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
-		cmd := fl.HandleClickLocal(msg.X, msg.Y)
+		cmd := fl.handleClickLocal(msg.X, msg.Y)
 
 		return *fl, cmd
 	case tea.KeyPressMsg:
@@ -397,34 +342,6 @@ func (fl *FolderList) SelectIndex(idx int) tea.Cmd {
 
 	return nil
 }
-
-// SetHeaderHover はヘッダーのホバー状態を更新する。
-func (fl *FolderList) SetHeaderHover(x, y int) {
-	fl.hoverClose = false
-	fl.hoverAdd = false
-
-	if y != 0 {
-		return
-	}
-
-	hit := fl.HitTestHeader(x, y)
-
-	switch hit {
-	case headerHitClose:
-		fl.hoverClose = true
-	case headerHitAdd:
-		fl.hoverAdd = true
-	}
-}
-
-// ClearHeaderHover はヘッダーのホバーをすべて解除する。
-func (fl *FolderList) ClearHeaderHover() {
-	fl.hoverClose = false
-	fl.hoverAdd = false
-}
-
-// HoverAdd は + ボタンがホバー中かを返す。
-func (fl *FolderList) HoverAdd() bool { return fl.hoverAdd }
 
 var folderListStyle = lipgloss.NewStyle().
 	BorderRight(true).
@@ -481,6 +398,80 @@ func (fl *FolderList) View(focused bool, hoverSeparator bool) string {
 	}
 
 	return style.Width(fl.width).Height(fl.height).Render(b.String())
+}
+
+func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
+	// moreメニューが開いている場合
+	if fl.menuOpen {
+		return fl.handleMenuClick(x, y)
+	}
+
+	// ヘッダーのボタンクリック判定
+	if y < folderListHeaderLines {
+		hit := fl.hitTestHeader(x, y)
+
+		switch hit {
+		case headerHitClose:
+			return FolderListClose.Cmd()
+		case headerHitAdd:
+			return FolderListStartInput.Cmd()
+		}
+
+		return nil
+	}
+
+	// リスト項目クリック
+	idx := fl.HitTest(x, y)
+	if idx >= 0 {
+		return fl.SelectIndex(idx)
+	}
+
+	return nil
+}
+
+// hitTestHeader はヘッダー領域のクリック判定を行う.
+// 戻り値: headerHitClose, headerHitAdd, "" (該当なし).
+func (fl *FolderList) hitTestHeader(x, y int) string {
+	if y != 0 {
+		return ""
+	}
+
+	contentWidth := max(fl.width-folderListBorderWidth, 0)
+
+	// ✕ ボタン (左端)
+	if x <= headerCloseBtnWidth {
+		return headerHitClose
+	}
+
+	// + ボタン (右端)
+	if x == contentWidth-headerAddBtnOffset {
+		return headerHitAdd
+	}
+
+	return ""
+}
+
+func (fl *FolderList) setHeaderHover(x, y int) {
+	fl.hoverClose = false
+	fl.hoverAdd = false
+
+	if y != 0 {
+		return
+	}
+
+	hit := fl.hitTestHeader(x, y)
+
+	switch hit {
+	case headerHitClose:
+		fl.hoverClose = true
+	case headerHitAdd:
+		fl.hoverAdd = true
+	}
+}
+
+func (fl *FolderList) clearHeaderHover() {
+	fl.hoverClose = false
+	fl.hoverAdd = false
 }
 
 var folderCountStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))

@@ -241,20 +241,6 @@ func (c *PopupCoordinator) TakeLastAnchor() *menuAnchor {
 	return a
 }
 
-// AnchoredMenuOrigin はアンカー付きメニューのクランプ済み描画左上座標を返す。
-func (c *PopupCoordinator) AnchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
-	menuLines := menu.View()
-	if len(menuLines) == 0 {
-		return c.anchor.x, c.anchor.y
-	}
-
-	return tui.ClampMenuOrigin(
-		lipgloss.Width(menuLines[0]), len(menuLines),
-		c.anchor.x, c.anchor.y,
-		c.layout.width, c.layout.BodyHeight(),
-	)
-}
-
 func (c *PopupCoordinator) executeAction(idx int, kind menuKind, now time.Time) tea.Cmd {
 	for i := range c.entries {
 		if c.entries[i].kind == kind {

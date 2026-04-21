@@ -105,9 +105,9 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 	case tea.MouseWheelMsg:
 		switch msg.Mouse().Button {
 		case tea.MouseWheelUp:
-			e.ScrollUp(1)
+			e.scrollUp(1)
 		case tea.MouseWheelDown:
-			e.ScrollDown(1)
+			e.scrollDown(1)
 		}
 
 		return *e, nil
@@ -569,7 +569,7 @@ func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, t
 
 	// ヘッダー行のクリック
 	if msg.Y == 0 {
-		cmd := e.HandleClick(localX, 0)
+		cmd := e.handleClick(localX, 0)
 
 		// 検索フォーカス中はエディタへのフォーカス取得も要求
 		if e.Header.SearchFocused() {
@@ -589,10 +589,7 @@ func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, t
 	return *e, EditorClickBody.Cmd()
 }
 
-// HandleClick はエディタ領域のクリックを処理する。
-// x, y はエディタ左上を原点とする相対座標。
-// メニューが開いている場合はメニューのクリック処理を行い、メニュー外なら閉じる。
-func (e *Editor) HandleClick(x, y int) tea.Cmd {
+func (e *Editor) handleClick(x, y int) tea.Cmd {
 	// メニューが開いている場合
 	if e.Header.MenuOpen() {
 		menuTopY := editorHeaderMenuTopY
@@ -641,20 +638,13 @@ func (e *Editor) HandleHover(x, y int) {
 	}
 }
 
-// IsHeaderMenuOpen はヘッダーメニューが開いているかを返す。
-func (e *Editor) IsHeaderMenuOpen() bool {
-	return e.Header.MenuOpen()
-}
-
 // --- スクロール ---
 
-// ScrollUp は表示を n 行上にスクロールする。カーソルは動かさない。
-func (e *Editor) ScrollUp(n int) {
+func (e *Editor) scrollUp(n int) {
 	e.textarea.ScrollUp(n)
 }
 
-// ScrollDown は表示を n 行下にスクロールする。カーソルは動かさない。
-func (e *Editor) ScrollDown(n int) {
+func (e *Editor) scrollDown(n int) {
 	e.textarea.ScrollDown(n)
 }
 
@@ -663,11 +653,6 @@ func (e *Editor) ScrollDown(n int) {
 // SaveSnapshot はエディタのスナップショットをデバウンス付きで保存する。
 func (e *Editor) SaveSnapshot(now time.Time) {
 	e.UndoMgr.MaybeSave(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()), now)
-}
-
-// ForceSaveSnapshot はデバウンスなしでスナップショットを保存する。
-func (e *Editor) ForceSaveSnapshot(now time.Time) {
-	e.UndoMgr.ForceSave(NewEditorSnapshot(e.textarea.Value(), e.textarea.Line(), e.textarea.Column()), now)
 }
 
 // Undo はエディタの状態を1つ前に戻す。
@@ -761,18 +746,6 @@ func (e *Editor) HandleContextMenuClick(x, y int) {
 		return
 	}
 
-	switch editorContextMsg(idx) {
-	case editorContextCopy:
-		_ = e.CopySelection()
-	case editorContextCut:
-		_ = e.CutSelection()
-	case editorContextPaste:
-		_ = e.PasteFromClipboard()
-	}
-}
-
-// ExecuteContextMenuAction はインデックスに対応するコンテキストメニューアクションを実行する。
-func (e *Editor) ExecuteContextMenuAction(idx int) {
 	switch editorContextMsg(idx) {
 	case editorContextCopy:
 		_ = e.CopySelection()
