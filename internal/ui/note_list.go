@@ -91,6 +91,11 @@ func (s *NoteList) SetDirtyNoteID(id note.NoteID) { s.dirtyNoteID = id }
 // SetHoverFolderBtn はフォルダボタンのホバー状態を設定する。
 func (s *NoteList) SetHoverFolderBtn(v bool) { s.hoverFolderBtn = v }
 
+// ClearHover はノート一覧の全 hover 状態をクリアする。
+func (s *NoteList) ClearHover() {
+	s.hoverFolderBtn = false
+}
+
 // SetSearchQuery は検索クエリを設定する。
 func (s *NoteList) SetSearchQuery(q string) { s.searchQuery = q }
 
@@ -203,6 +208,10 @@ func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList,
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		return s.handleClickMsg(msg, now)
+	case tea.MouseMotionMsg:
+		s.updateHover(msg.Mouse())
+
+		return *s, nil
 	case tea.MouseWheelMsg:
 		switch msg.Mouse().Button {
 		case tea.MouseWheelUp:
@@ -214,6 +223,10 @@ func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList,
 		return *s, nil
 	case tea.KeyPressMsg:
 		return s.handleKeyPress(msg, now, trashMode)
+	case tea.MouseMsg:
+		s.updateHover(msg.Mouse())
+
+		return *s, nil
 	}
 
 	return *s, nil
@@ -547,6 +560,10 @@ func findSelectedRow(rows []noteListRow, selected int) int {
 }
 
 func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteList, tea.Cmd) {
+	if msg.Button == tea.MouseRight {
+		return s.handleRightClick(msg, now)
+	}
+
 	nlOffset := s.layout.NoteListOffset()
 
 	// トグルボタン（≡）クリック判定
@@ -564,6 +581,34 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 	}
 
 	return *s, nil
+}
+
+func (s *NoteList) handleRightClick(msg tea.MouseClickMsg, now time.Time) (NoteList, tea.Cmd) {
+	relX := s.layout.NoteListLocalX(msg.X)
+	idx := s.HitTest(relX, msg.Y, now)
+
+	if idx < 0 {
+		return *s, nil
+	}
+
+	s.SelectIndex(idx, now)
+
+	return *s, NoteListRightClickMsg{
+		NoteIndex: idx,
+		AnchorX:   msg.X,
+		AnchorY:   msg.Y,
+	}.Cmd()
+}
+
+func (s *NoteList) updateHover(mouse tea.Mouse) {
+	if s.layout.folderVisible {
+		s.hoverFolderBtn = false
+
+		return
+	}
+
+	offset := s.layout.NoteListOffset()
+	s.hoverFolderBtn = mouse.Y == 0 && mouse.X == offset+1
 }
 
 func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {

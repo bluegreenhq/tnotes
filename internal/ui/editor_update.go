@@ -81,18 +81,25 @@ func (e *Editor) Clear() {
 // --- イベントハンドラ ---
 
 // Update はメッセージに応じて状態を更新する。
-func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // type switch dispatch
-	if e.readOnly {
-		return *e, nil
-	}
-
+func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop,funlen // type switch dispatch
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseRight {
+			return e.handleRightClickMsg(msg)
+		}
+
+		if e.readOnly {
+			return *e, nil
+		}
+
 		return e.handleClickMsg(msg, now)
 	case tea.MouseMotionMsg:
 		if e.selecting {
 			localX := e.layout.EditorLocalX(msg.Mouse().X)
 			e.UpdateDragSelection(localX, msg.Mouse().Y-editorHeaderHeight)
+		} else {
+			localX := e.layout.EditorLocalX(msg.Mouse().X)
+			e.HandleHover(localX, msg.Mouse().Y)
 		}
 
 		return *e, nil
@@ -112,12 +119,21 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 
 		return *e, nil
 	case tea.KeyPressMsg:
+		if e.readOnly {
+			return *e, nil
+		}
+
 		// 検索フィールドにフォーカスがある場合
 		if e.Header.SearchFocused() {
 			return e.handleSearchKey(msg)
 		}
 
 		return e.handleKey(msg, now)
+	case tea.MouseMsg:
+		localX := e.layout.EditorLocalX(msg.Mouse().X)
+		e.HandleHover(localX, msg.Mouse().Y)
+
+		return *e, nil
 	}
 
 	prevText := e.textarea.Value()
@@ -616,6 +632,11 @@ func (e *Editor) handleClick(x, y int) tea.Cmd {
 	return nil
 }
 
+// ClearHover はエディタの全 hover 状態をクリアする。
+func (e *Editor) ClearHover() {
+	e.Header.ClearHover()
+}
+
 // HandleHover はエディタ領域のホバーを処理する。
 // x, y はエディタ左上を原点とする相対座標。
 func (e *Editor) HandleHover(x, y int) {
@@ -704,6 +725,19 @@ func (e *Editor) urlAtCursor() string {
 	}
 
 	return ""
+}
+
+func (e *Editor) handleRightClickMsg(msg tea.MouseClickMsg) (Editor, tea.Cmd) {
+	if e.readOnly {
+		return *e, nil
+	}
+
+	e.OpenContextMenu()
+
+	return *e, EditorRightClickMsg{
+		AnchorX: msg.X,
+		AnchorY: msg.Y,
+	}.Cmd()
 }
 
 // OpenContextMenu はエディタのコンテキストメニューを開く。

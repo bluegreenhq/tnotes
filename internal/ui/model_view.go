@@ -25,12 +25,14 @@ func (m *Model) renderView(now time.Time) string {
 		return "Terminal too small — please resize to at least 80 columns"
 	}
 
-	noteListView := m.NoteList.View(m.Focus == FocusNoteList, m.hoverSeparator || m.resizing, now, m.FolderList.Visible())
+	noteSepActive := m.hoverSeparator || m.dragTarget == dragNoteSeparator
+	noteListView := m.NoteList.View(m.Focus == FocusNoteList, noteSepActive, now, m.FolderList.Visible())
 
 	var body string
 
 	if m.FolderList.Visible() {
-		folderView := m.FolderList.View(m.Focus == FocusFolderList, m.hoverFolderSep || m.resizingFolder)
+		folderSepActive := m.hoverFolderSep || m.dragTarget == dragFolderSeparator
+		folderView := m.FolderList.View(m.Focus == FocusFolderList, folderSepActive)
 		body = lipgloss.JoinHorizontal(lipgloss.Top, folderView, noteListView, m.Editor.View())
 	} else {
 		body = lipgloss.JoinHorizontal(lipgloss.Top, noteListView, m.Editor.View())

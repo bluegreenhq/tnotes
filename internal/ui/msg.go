@@ -41,6 +41,41 @@ const (
 	NoteListHelp
 )
 
+// NoteListRightClickMsg はノート一覧での右クリックを通知する。
+type NoteListRightClickMsg struct {
+	NoteIndex int
+	AnchorX   int
+	AnchorY   int
+}
+
+// Cmd は NoteListRightClickMsg を返す tea.Cmd を生成する。
+func (m NoteListRightClickMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
+// FolderListRightClickMsg はフォルダ一覧での右クリックを通知する。
+type FolderListRightClickMsg struct {
+	FolderIndex int
+	AnchorX     int
+	AnchorY     int
+}
+
+// Cmd は FolderListRightClickMsg を返す tea.Cmd を生成する。
+func (m FolderListRightClickMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
+// EditorRightClickMsg はエディタでの右クリックを通知する。
+type EditorRightClickMsg struct {
+	AnchorX int
+	AnchorY int
+}
+
+// Cmd は EditorRightClickMsg を返す tea.Cmd を生成する。
+func (m EditorRightClickMsg) Cmd() tea.Cmd {
+	return func() tea.Msg { return m }
+}
+
 // EditorMsg はエディタからモデルへの通知メッセージ。
 type EditorMsg int
 

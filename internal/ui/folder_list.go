@@ -317,11 +317,23 @@ func (fl *FolderList) HandleHoverLocal(x, y int) {
 func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseRight {
+			return fl.handleRightClick(msg)
+		}
+
 		cmd := fl.handleClickLocal(msg.X, msg.Y)
 
 		return *fl, cmd
+	case tea.MouseMotionMsg:
+		fl.HandleHoverLocal(msg.Mouse().X, msg.Mouse().Y)
+
+		return *fl, nil
 	case tea.KeyPressMsg:
 		return fl.handleKeyMsg(msg)
+	case tea.MouseMsg:
+		fl.HandleHoverLocal(msg.Mouse().X, msg.Mouse().Y)
+
+		return *fl, nil
 	}
 
 	return *fl, nil
@@ -400,6 +412,11 @@ func (fl *FolderList) View(focused bool, hoverSeparator bool) string {
 	return style.Width(fl.width).Height(fl.height).Render(b.String())
 }
 
+// ClearHover はフォルダ一覧の全 hover 状態をクリアする。
+func (fl *FolderList) ClearHover() {
+	fl.clearHeaderHover()
+}
+
 func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
 	// moreメニューが開いている場合
 	if fl.menuOpen {
@@ -427,6 +444,25 @@ func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (fl *FolderList) handleRightClick(msg tea.MouseClickMsg) (FolderList, tea.Cmd) {
+	idx := fl.HitTest(msg.X, msg.Y)
+	if idx >= 0 {
+		fl.SelectIndex(idx)
+	}
+
+	if !fl.IsUserFolder() {
+		return *fl, nil
+	}
+
+	fl.OpenMenu()
+
+	return *fl, FolderListRightClickMsg{
+		FolderIndex: fl.selected,
+		AnchorX:     msg.X,
+		AnchorY:     msg.Y,
+	}.Cmd()
 }
 
 // hitTestHeader はヘッダー領域のクリック判定を行う.

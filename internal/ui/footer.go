@@ -74,6 +74,11 @@ func (f *Footer) RebuildButtons() {
 // SetHover はホバーターゲットを設定する。
 func (f *Footer) SetHover(h HoverTarget) { f.hover = h }
 
+// ClearHover はフッターの全 hover 状態をクリアする。
+func (f *Footer) ClearHover() {
+	f.hover = HoverNone
+}
+
 // SetButtons はフッターに表示するボタンリストを設定する。
 func (f *Footer) SetButtons(buttons []FooterButton) { f.buttons = buttons }
 

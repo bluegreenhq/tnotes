@@ -136,3 +136,20 @@ func (l *Layout) HitTest(x, y int) HitZone { //nolint:cyclop // zone dispatch
 func (l *Layout) NoteListLocalX(screenX int) int {
 	return screenX - l.NoteListOffset()
 }
+
+// dragTarget はドラッグキャプチャ対象を表す。
+type dragTarget int
+
+const (
+	dragNone dragTarget = iota
+	dragFolderSeparator
+	dragNoteSeparator
+	dragFolderList
+	dragNoteList
+	dragEditor
+)
+
+// hoverClearer は hover 状態をクリアできるコンポーネント。
+type hoverClearer interface {
+	ClearHover()
+}

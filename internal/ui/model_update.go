@@ -39,7 +39,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop,funle
 	case tea.MouseWheelMsg:
 		cmd = m.routeMouse(msg, now)
 	case tea.MouseMsg:
-		cmd = m.handleHover(msg)
+		cmd = m.handleHover(msg, now)
 	case tea.FocusMsg:
 		cmd = m.handleFocusRestore()
 	case tea.BlurMsg: // 他アプリへ切り替え時に編集中の内容を保存
@@ -278,7 +278,9 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	m.errMsg = ""
 
 	if msg.Button == tea.MouseRight {
-		return m.handleRightClick(msg, now)
+		m.popup.CloseAll()
+
+		return m.routeMouse(msg, now)
 	}
 
 	if msg.Button != tea.MouseLeft {
@@ -300,72 +302,6 @@ func (m *Model) commitFolderLineInput() tea.Cmd {
 	if m.FolderList.RenameMode() {
 		return m.FolderList.CommitRename()
 	}
-
-	return nil
-}
-
-func (m *Model) handleRightClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	// 既存メニューをすべて閉じる
-	m.popup.CloseAll()
-
-	switch {
-	case m.layout.folderVisible && msg.X < m.layout.folderListWidth:
-		return m.rightClickFolderList(msg)
-	case msg.X < m.layout.EditorStartX():
-		return m.rightClickNoteList(msg, now)
-	default:
-		return m.rightClickEditor(msg)
-	}
-}
-
-func (m *Model) rightClickNoteList(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
-	// クリック位置のノートを選択
-	relX := m.layout.NoteListLocalX(msg.X)
-	idx := m.NoteList.HitTest(relX, msg.Y, now)
-
-	if idx < 0 {
-		return nil
-	}
-
-	if !m.isTrashFolder() {
-		m.syncEditorToNote(now)
-	}
-
-	m.NoteList.SelectIndex(idx, now)
-	m.loadSelectedNote()
-
-	// 既存の EditorHeader メニューをそのまま開く
-	m.Editor.Header.OpenMenu()
-	m.popup.SetAnchor(msg.X, msg.Y)
-
-	return nil
-}
-
-func (m *Model) rightClickFolderList(msg tea.MouseClickMsg) tea.Cmd {
-	// クリック位置のフォルダを選択
-	idx := m.FolderList.HitTest(msg.X, msg.Y)
-	if idx >= 0 {
-		m.FolderList.SelectIndex(idx)
-	}
-
-	if !m.FolderList.IsUserFolder() {
-		return nil
-	}
-
-	// 既存の FolderList メニューをそのまま開く
-	m.FolderList.OpenMenu()
-	m.popup.SetAnchor(msg.X, msg.Y)
-
-	return nil
-}
-
-func (m *Model) rightClickEditor(msg tea.MouseClickMsg) tea.Cmd {
-	if m.Editor.ReadOnly() {
-		return nil
-	}
-
-	m.Editor.OpenContextMenu()
-	m.popup.SetAnchor(msg.X, msg.Y)
 
 	return nil
 }
@@ -414,6 +350,7 @@ func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd,
 
 func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	zone := m.layout.HitTest(msg.X, msg.Y)
+	m.dragTarget = m.zoneToDragTarget(zone)
 
 	switch zone { //nolint:exhaustive // コンポーネントゾーンは routeMouse で処理
 	case ZoneFooterLabel:
@@ -421,12 +358,8 @@ func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	case ZoneFooterBorder:
 		return nil // フッターの罫線行
 	case ZoneFolderSeparator:
-		m.resizingFolder = true
-
 		return nil
 	case ZoneNoteSeparator:
-		m.resizing = true
-
 		return nil
 	case ZoneFolderList:
 		m.Focus = FocusFolderList
@@ -434,6 +367,24 @@ func (m *Model) handleZoneClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 		return m.routeMouse(msg, now)
 	default:
 		return m.routeMouse(msg, now)
+	}
+}
+
+// zoneToDragTarget は HitZone から dragTarget を算出する。
+func (m *Model) zoneToDragTarget(zone HitZone) dragTarget {
+	switch zone { //nolint:exhaustive // フッター等は dragTarget に対応しない
+	case ZoneFolderSeparator:
+		return dragFolderSeparator
+	case ZoneNoteSeparator:
+		return dragNoteSeparator
+	case ZoneFolderList:
+		return dragFolderList
+	case ZoneNoteList:
+		return dragNoteList
+	case ZoneEditorHeader, ZoneEditorBody:
+		return dragEditor
+	default:
+		return dragNone
 	}
 }
 
@@ -448,11 +399,75 @@ type mouseMsg interface {
 	Mouse() tea.Mouse
 }
 
-// routeMouse はマウス位置に応じたコンポーネントに msg を委譲する。
-func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
+// routeDragTarget はキャプチャ中の dragTarget に応じたコンポーネントに msg を委譲する。
+func (m *Model) routeDragTarget(msg mouseMsg, now time.Time) tea.Cmd {
 	var cmd tea.Cmd
 
-	x := msg.Mouse().X
+	switch m.dragTarget { //nolint:exhaustive // セパレーター・None は呼び出し元で処理済み
+	case dragFolderList:
+		m.FolderList, cmd = m.FolderList.Update(msg)
+
+		return m.processFolderListCmd(cmd, now)
+	case dragNoteList:
+		m.NoteList, cmd = m.NoteList.Update(msg, now, m.Editor.Header.TrashMode())
+
+		return m.processNoteListCmd(cmd, now)
+	case dragEditor:
+		m.Editor, cmd = m.Editor.Update(msg, now)
+
+		return m.processEditorCmd(cmd, now)
+	}
+
+	return nil
+}
+
+// calcHoverTarget はマウス座標から hover 対象コンポーネントを算出する。
+func (m *Model) calcHoverTarget(x, y int) hoverClearer { //nolint:ireturn // 複数の具象型を返すため
+	if y >= m.layout.FooterLabelY() {
+		return &m.Footer
+	}
+
+	noteListStart := m.layout.NoteListOffset()
+	noteListEnd := m.layout.EditorStartX()
+
+	switch {
+	case m.layout.folderVisible && x < noteListStart:
+		return &m.FolderList
+	case x < noteListEnd:
+		return &m.NoteList
+	default:
+		return &m.Editor
+	}
+}
+
+// updateHoverTarget は hover 対象が変わった場合に旧対象の hover をクリアする。
+func (m *Model) updateHoverTarget(target hoverClearer) {
+	if m.lastHovered == target {
+		return
+	}
+
+	if m.lastHovered != nil {
+		m.lastHovered.ClearHover()
+	}
+
+	m.lastHovered = target
+}
+
+// routeMouse はマウス位置に応じたコンポーネントに msg を委譲する。
+func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
+	mouse := msg.Mouse()
+
+	// フッター領域
+	if mouse.Y >= m.layout.FooterLabelY() {
+		m.rebuildFooterButtons()
+		m.Footer.SetHover(m.Footer.HitTest(mouse.X))
+
+		return nil
+	}
+
+	var cmd tea.Cmd
+
+	x := mouse.X
 	noteListStart := m.layout.NoteListOffset()
 	noteListEnd := m.layout.EditorStartX()
 
@@ -472,7 +487,7 @@ func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
 	}
 }
 
-func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
+func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd { //nolint:cyclop // dragTarget dispatch
 	mouse := msg.Mouse()
 
 	if m.helpOverlay != nil {
@@ -481,10 +496,12 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	m.hoverSeparator = m.resizing || m.layout.IsOnSeparator(mouse.X)
-	m.hoverFolderSep = m.resizingFolder || (m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X))
+	m.hoverSeparator = m.dragTarget == dragNoteSeparator || m.layout.IsOnSeparator(mouse.X)
+	m.hoverFolderSep = m.dragTarget == dragFolderSeparator ||
+		(m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X))
 
-	if m.resizingFolder {
+	switch m.dragTarget {
+	case dragFolderSeparator:
 		maxFolderWidth := m.layout.width - m.layout.noteListWidth - minEditorWidth
 		newWidth := max(mouse.X, minFolderListWidth)
 		newWidth = min(newWidth, maxFolderWidth)
@@ -492,73 +509,49 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 		m.recalcLayout(now)
 
 		return nil
-	}
-
-	if m.resizing {
+	case dragNoteSeparator:
 		newWidth := max(mouse.X-m.layout.NoteListOffset(), minNoteListWidth)
 		newWidth = min(newWidth, m.layout.MaxNoteListWidth())
 		m.layout.noteListWidth = newWidth
 		m.recalcLayout(now)
 
 		return nil
-	}
+	case dragFolderList, dragNoteList, dragEditor:
+		return m.routeDragTarget(msg, now)
+	case dragNone:
+		if m.confirmDialog != nil {
+			m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
+		}
 
-	if m.Focus == FocusEditor && m.Editor.Selecting() {
-		m.Editor, _ = m.Editor.Update(msg, now)
+		newTarget := m.calcHoverTarget(mouse.X, mouse.Y)
+		m.updateHoverTarget(newTarget)
+
+		if !m.popup.HandleHover(mouse) {
+			return m.routeMouse(msg, now)
+		}
 
 		return nil
 	}
 
-	if !m.popup.HandleHover(mouse) {
-		m.updateFolderListHeaderHover(mouse)
-		m.updateEditorHeaderHover(mouse)
-	}
-
-	m.updateConfirmDialogHover(mouse)
-	m.updateNoteListFolderBtnHover(mouse)
-	m.updateFooterHover(mouse)
-
 	return nil
-}
-
-func (m *Model) updateConfirmDialogHover(mouse tea.Mouse) {
-	if m.confirmDialog == nil {
-		return
-	}
-
-	m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
-}
-
-func (m *Model) updateNoteListFolderBtnHover(mouse tea.Mouse) {
-	if m.FolderList.Visible() {
-		m.NoteList.SetHoverFolderBtn(false)
-
-		return
-	}
-
-	offset := m.layout.NoteListOffset()
-	m.NoteList.SetHoverFolderBtn(mouse.Y == 0 && mouse.X == offset+1)
 }
 
 func (m *Model) handleRelease(msg tea.MouseReleaseMsg, now time.Time) tea.Cmd {
-	if m.resizingFolder {
-		m.resizingFolder = false
+	defer func() { m.dragTarget = dragNone }()
 
+	switch m.dragTarget {
+	case dragFolderSeparator, dragNoteSeparator:
+		return nil
+	case dragFolderList, dragNoteList, dragEditor:
+		return m.routeDragTarget(msg, now)
+	case dragNone:
 		return nil
 	}
-
-	if m.resizing {
-		m.resizing = false
-
-		return nil
-	}
-
-	m.Editor, _ = m.Editor.Update(msg, now)
 
 	return nil
 }
 
-func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
+func (m *Model) handleHover(msg tea.MouseMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 	m.hoverSeparator = m.layout.IsOnSeparator(mouse.X)
 	m.hoverFolderSep = m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X)
@@ -569,42 +562,18 @@ func (m *Model) handleHover(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 
-	if !m.popup.HandleHover(mouse) {
-		m.updateFolderListHeaderHover(mouse)
-		m.updateEditorHeaderHover(mouse)
+	if m.confirmDialog != nil {
+		m.confirmDialog.HandleMotionAbs(mouse.X, mouse.Y)
 	}
 
-	m.updateConfirmDialogHover(mouse)
-	m.updateNoteListFolderBtnHover(mouse)
-	m.updateFooterHover(mouse)
+	newTarget := m.calcHoverTarget(mouse.X, mouse.Y)
+	m.updateHoverTarget(newTarget)
+
+	if !m.popup.HandleHover(mouse) {
+		return m.routeMouse(msg, now)
+	}
 
 	return nil
-}
-
-func (m *Model) updateFolderListHeaderHover(mouse tea.Mouse) {
-	if !m.FolderList.Visible() {
-		return
-	}
-
-	m.FolderList.HandleHoverLocal(mouse.X, mouse.Y)
-}
-
-func (m *Model) updateEditorHeaderHover(mouse tea.Mouse) {
-	editorStartX := m.layout.EditorStartX()
-	if mouse.X >= editorStartX {
-		m.Editor.HandleHover(mouse.X-editorStartX, mouse.Y)
-	} else {
-		m.Editor.Header.ClearHover()
-	}
-}
-
-func (m *Model) updateFooterHover(mouse tea.Mouse) {
-	if mouse.Y == m.layout.FooterLabelY() {
-		m.rebuildFooterButtons()
-		m.Footer.SetHover(m.Footer.HitTest(mouse.X))
-	} else {
-		m.Footer.SetHover(HoverNone)
-	}
 }
 
 func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
@@ -623,6 +592,10 @@ func (m *Model) processFolderListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return m.handleFolderCreate(msg)
 	case folderRenameMsg:
 		return m.handleFolderRename(msg)
+	case FolderListRightClickMsg:
+		m.popup.SetAnchor(msg.AnchorX, msg.AnchorY)
+
+		return nil
 	default:
 		return cmd
 	}
@@ -667,12 +640,28 @@ func (m *Model) processNoteListCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	msg, ok := cmd().(NoteListMsg)
-	if !ok {
+	rawMsg := cmd()
+
+	switch msg := rawMsg.(type) {
+	case NoteListMsg:
+		return m.dispatchNoteListMsg(msg, now)
+	case NoteListRightClickMsg:
+		return m.handleNoteListRightClick(msg, now)
+	default:
 		return cmd
 	}
+}
 
-	return m.dispatchNoteListMsg(msg, now)
+func (m *Model) handleNoteListRightClick(msg NoteListRightClickMsg, now time.Time) tea.Cmd {
+	if !m.isTrashFolder() {
+		m.syncEditorToNote(now)
+	}
+
+	m.loadSelectedNote()
+	m.Editor.Header.OpenMenu()
+	m.popup.SetAnchor(msg.AnchorX, msg.AnchorY)
+
+	return nil
 }
 
 func (m *Model) dispatchNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // msg種別ごとの分岐
@@ -767,6 +756,10 @@ func (m *Model) processEditorCmd(cmd tea.Cmd, now time.Time) tea.Cmd { //nolint:
 		}
 	case EditorHeaderMsg:
 		return m.handleEditorHeaderMsg(msg, now)
+	case EditorRightClickMsg:
+		m.popup.SetAnchor(msg.AnchorX, msg.AnchorY)
+
+		return nil
 	case editorOpenURLMsg:
 		return openURLInBrowser(msg.URL)
 	default:

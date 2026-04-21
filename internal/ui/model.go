@@ -46,10 +46,10 @@ type Model struct {
 	Focus               FocusArea
 	FolderList          FolderList
 	layout              Layout
-	resizingFolder      bool
+	dragTarget          dragTarget
 	hoverFolderSep      bool
-	resizing            bool
 	hoverSeparator      bool
+	lastHovered         hoverClearer
 	errMsg              string
 	infoMsg             string
 	infoMsgID           int
@@ -73,10 +73,10 @@ func InitialModel(a *app.App, noWrap bool) *Model {
 		Focus:               FocusNoteList,
 		FolderList:          NewFolderList(defaultFolderListW, defaultHeight),
 		layout:              NewLayout(defaultFolderListW, defaultNoteListW),
-		resizingFolder:      false,
+		dragTarget:          dragNone,
 		hoverFolderSep:      false,
-		resizing:            false,
 		hoverSeparator:      false,
+		lastHovered:         nil,
 		errMsg:              "",
 		infoMsg:             "",
 		infoMsgID:           0,
