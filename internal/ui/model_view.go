@@ -138,12 +138,10 @@ func (m *Model) applyOverlays(bodyLines []string) { //nolint:cyclop // overlay d
 func (m *Model) overlayHelpOverlay(bodyLines []string) {
 	m.helpOverlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 
-	rendered := m.helpOverlay.View()
-	dialogLines := strings.Split(rendered, "\n")
+	g := m.helpOverlay.Geometry()
+	dialogLines := strings.Split(m.helpOverlay.View(), "\n")
 
-	startX, startY := m.helpOverlay.Origin()
-
-	tui.OverlayLines(bodyLines, dialogLines, startX, startY)
+	tui.OverlayLines(bodyLines, dialogLines, g.StartX, g.StartY)
 }
 
 // overlayAtAnchor はメニューを指定座標にオーバーレイする。
@@ -154,7 +152,7 @@ func (m *Model) overlayAtAnchor(bodyLines []string, menuLines []string, anchor *
 	}
 
 	menuWidth := lipgloss.Width(menuLines[0])
-	x, y := m.popup.ClampAnchor(anchor, menuWidth, len(menuLines))
+	x, y := tui.ClampMenuOrigin(menuWidth, len(menuLines), anchor.x, anchor.y, m.layout.width, m.layout.BodyHeight())
 
 	tui.OverlayLines(bodyLines, menuLines, x, y)
 }
@@ -204,14 +202,9 @@ func (m *Model) overlayConfirmDialog(bodyLines []string) {
 	m.confirmDialog.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 
 	rendered := m.confirmDialog.View()
-	dialogLines := strings.Split(rendered, "\n")
+	g := tui.CalcOverlayGeometry(rendered, m.layout.width, m.layout.BodyHeight(), 0, 0, 0)
 
-	const centerDivisor = 2
-
-	startY := max((len(bodyLines)-len(dialogLines))/centerDivisor, 0)
-	startX := max((m.layout.width-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
-
-	tui.OverlayLines(bodyLines, dialogLines, startX, startY)
+	tui.OverlayLines(bodyLines, strings.Split(rendered, "\n"), g.StartX, g.StartY)
 }
 
 // overlayMenu はノート一覧領域にメニューをオーバーレイする。

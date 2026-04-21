@@ -241,32 +241,6 @@ func (c *PopupCoordinator) TakeLastAnchor() *menuAnchor {
 	return a
 }
 
-// ClampAnchor はアンカー座標を画面内にクランプする。overlayAtAnchor と同じロジック。
-func (c *PopupCoordinator) ClampAnchor(anchor *menuAnchor, menuWidth, menuHeight int) (int, int) {
-	bodyHeight := c.layout.BodyHeight()
-
-	x := anchor.x
-	y := anchor.y
-
-	if x+menuWidth > c.layout.width {
-		x = c.layout.width - menuWidth
-	}
-
-	if x < 0 {
-		x = 0
-	}
-
-	if y+menuHeight > bodyHeight {
-		y = bodyHeight - menuHeight
-	}
-
-	if y < 0 {
-		y = 0
-	}
-
-	return x, y
-}
-
 // AnchoredMenuOrigin はアンカー付きメニューのクランプ済み描画左上座標を返す。
 func (c *PopupCoordinator) AnchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
 	menuLines := menu.View()
@@ -274,7 +248,11 @@ func (c *PopupCoordinator) AnchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
 		return c.anchor.x, c.anchor.y
 	}
 
-	return c.ClampAnchor(c.anchor, lipgloss.Width(menuLines[0]), len(menuLines))
+	return tui.ClampMenuOrigin(
+		lipgloss.Width(menuLines[0]), len(menuLines),
+		c.anchor.x, c.anchor.y,
+		c.layout.width, c.layout.BodyHeight(),
+	)
 }
 
 func (c *PopupCoordinator) executeAction(idx int, kind menuKind, now time.Time) tea.Cmd {
@@ -303,5 +281,9 @@ func (c *PopupCoordinator) anchoredMenuOrigin(menu *tui.PopupMenu) (int, int) {
 		return c.anchor.x, c.anchor.y
 	}
 
-	return c.ClampAnchor(c.anchor, lipgloss.Width(menuLines[0]), len(menuLines))
+	return tui.ClampMenuOrigin(
+		lipgloss.Width(menuLines[0]), len(menuLines),
+		c.anchor.x, c.anchor.y,
+		c.layout.width, c.layout.BodyHeight(),
+	)
 }

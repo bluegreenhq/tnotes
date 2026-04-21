@@ -1,10 +1,6 @@
 package ui
 
-import (
-	"strings"
-
-	"charm.land/lipgloss/v2"
-)
+import "github.com/bluegreenhq/dogubako/tui"
 
 // HelpItem はショートカット1件を表す。
 type HelpItem struct {
@@ -50,37 +46,26 @@ func (h *HelpOverlay) SetScreenSize(screenWidth, bodyHeight int) {
 	h.bodyHeight = bodyHeight
 }
 
-// Origin はオーバーレイの画面左上座標を返す。
-func (h *HelpOverlay) Origin() (int, int) {
-	rendered := h.View()
-	dialogLines := strings.Split(rendered, "\n")
+// Geometry はオーバーレイの画面上の配置情報を返す。
+func (h *HelpOverlay) Geometry() tui.OverlayGeometry {
+	const (
+		borderW = 1
+		padLeft = helpOverlayPaddingH
+		padTop  = 1
+	)
 
-	if len(dialogLines) == 0 {
-		return 0, 0
-	}
-
-	const centerDivisor = 2
-
-	startY := max((h.bodyHeight-len(dialogLines))/centerDivisor, 0)
-	startX := max((h.screenWidth-lipgloss.Width(dialogLines[0]))/centerDivisor, 0)
-
-	return startX, startY
+	return tui.CalcOverlayGeometry(h.View(), h.screenWidth, h.bodyHeight, borderW, padLeft, padTop)
 }
 
 // CloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
 func (h *HelpOverlay) CloseButtonHit(absX, absY int) bool {
-	rendered := h.View()
-	dialogLines := strings.Split(rendered, "\n")
-
-	if len(dialogLines) == 0 {
+	g := h.Geometry()
+	if g.OverlayW == 0 {
 		return false
 	}
 
-	startX, startY := h.Origin()
-	dialogWidth := lipgloss.Width(dialogLines[0])
-
-	btnY := startY + helpCloseBtnRow
-	btnX := startX + dialogWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
+	btnY := g.StartY + helpCloseBtnRow
+	btnX := g.StartX + g.OverlayW - 3 //nolint:mnd // border右(1) + padding右(1) の内側
 
 	return absX == btnX && absY == btnY
 }
