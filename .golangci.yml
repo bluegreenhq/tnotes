@@ -93,7 +93,7 @@ linters:
           disabled: true
         - name: file-length-limit
           arguments:
-            - max: 1000
+            - max: 1500
   exclusions:
     generated: lax
     rules:

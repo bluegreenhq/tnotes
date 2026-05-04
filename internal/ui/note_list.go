@@ -311,6 +311,15 @@ func (s *NoteList) RefreshKeepSelection(kind FolderKind, name string, selectedNo
 	s.SelectIndex(selectIdx, now)
 }
 
+// UpdatePane は PaneComponent インターフェース実装。
+func (s *NoteList) UpdatePane(msg tea.Msg, ctx PaneContext) tea.Cmd {
+	var cmd tea.Cmd
+
+	*s, cmd = s.Update(msg, ctx.Now, ctx.TrashMode)
+
+	return cmd
+}
+
 // Update はメッセージに応じてノート一覧の状態を更新する。
 // trashMode はゴミ箱モードかどうかを示す。
 // ナビゲーション（カーソル移動）は自身で処理し、
@@ -507,15 +516,15 @@ func (s *NoteList) clampScrollOffset(now time.Time) {
 func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case msg.Code == 'q' && msg.Mod == 0:
-		return NoteListQuit.Cmd(), true
+		return func() tea.Msg { return QuitMsg{} }, true
 	case msg.Code == tea.KeyTab:
 		return NoteListEdit.Cmd(), true
 	case msg.Code == tea.KeyEscape:
 		return NoteListFocusPrev.Cmd(), true
 	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0:
-		return NoteListToggleFolder.Cmd(), true
+		return func() tea.Msg { return ToggleFolderListMsg{} }, true
 	case msg.Code == '?' && msg.Mod == 0:
-		return NoteListHelp.Cmd(), true
+		return func() tea.Msg { return OpenHelpMsg{} }, true
 	}
 
 	return nil, false
@@ -679,7 +688,7 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 
 	// トグルボタン（≡）クリック判定
 	if !s.layout.folderVisible && msg.Y == 0 && msg.X >= nlOffset+1 && msg.X <= nlOffset+2 {
-		return *s, NoteListToggleFolder.Cmd()
+		return *s, func() tea.Msg { return ToggleFolderListMsg{} }
 	}
 
 	relX := s.layout.NoteListLocalX(msg.X)

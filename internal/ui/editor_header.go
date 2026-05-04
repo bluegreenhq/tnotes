@@ -112,6 +112,11 @@ func (h *EditorHeader) SearchBlinkVisible() bool { return h.searchBlink.Visible(
 // ResetSearchBlink は検索カーソルの blink をリセットする。
 func (h *EditorHeader) ResetSearchBlink() tea.Cmd { return h.searchBlink.Reset() }
 
+// HandleBlinkMsg は BlinkHandler インターフェース実装（検索カーソル用）。
+func (h *EditorHeader) HandleBlinkMsg(msg tui.CursorBlinkMsg) tea.Cmd {
+	return h.searchBlink.HandleMsg(msg)
+}
+
 // MenuLeftX はメニュー左端のヘッダー相対X座標を返す。
 func (h *EditorHeader) MenuLeftX() int {
 	return h.width - searchFieldWidth - h.PopupMenu.Width()
@@ -197,13 +202,7 @@ func (h *EditorHeader) HandleClick(x int) tea.Cmd {
 
 	// ⋯ ボタン判定（検索フィールドより優先）
 	if h.hasNote && h.isMoreButtonX(x) {
-		if h.menuOpen {
-			h.CloseMenu()
-		} else {
-			h.OpenMenu()
-		}
-
-		return nil
+		return func() tea.Msg { return EditorHeaderOpenMenuMsg{} }
 	}
 
 	// 検索フィールド判定

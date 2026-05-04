@@ -16,21 +16,10 @@ func TestFooterClickMore(t *testing.T) {
 
 	// [More] は x=1 から "[More]" の6文字
 	cmd := f.HandleClick(1)
-	assert.Nil(t, cmd)
-	assert.True(t, f.MenuOpen())
-}
-
-func TestFooterClickMoreToggle(t *testing.T) {
-	t.Parallel()
-
-	f := ui.NewFooter()
-	f.RebuildButtons()
-
-	f.HandleClick(1) // open
-	assert.True(t, f.MenuOpen())
-
-	f.HandleClick(1) // close
-	assert.False(t, f.MenuOpen())
+	assert.NotNil(t, cmd)
+	msg := cmd()
+	_, ok := msg.(ui.FooterToggleMenuMsg)
+	assert.True(t, ok, "expected FooterToggleMenuMsg")
 }
 
 func TestFooterClickMenuItem(t *testing.T) {
@@ -44,7 +33,8 @@ func TestFooterClickMenuItem(t *testing.T) {
 	cmd := f.HandleMenuClick(2, 3)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterQuit, msg)
+	_, ok := msg.(ui.QuitMsg)
+	assert.True(t, ok, "expected QuitMsg")
 	assert.False(t, f.MenuOpen())
 }
 
@@ -59,7 +49,8 @@ func TestFooterClickMenuItemShortcuts(t *testing.T) {
 	cmd := f.HandleMenuClick(2, 1)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterHelp, msg)
+	_, ok := msg.(ui.OpenHelpMsg)
+	assert.True(t, ok, "expected OpenHelpMsg")
 	assert.False(t, f.MenuOpen())
 }
 
@@ -74,7 +65,8 @@ func TestFooterClickMenuItemTrash(t *testing.T) {
 	cmd := f.HandleMenuClick(2, 3)
 	assert.NotNil(t, cmd)
 	msg := cmd()
-	assert.Equal(t, ui.FooterQuit, msg)
+	_, ok := msg.(ui.QuitMsg)
+	assert.True(t, ok, "expected QuitMsg")
 }
 
 func TestFooterViewClosed(t *testing.T) {

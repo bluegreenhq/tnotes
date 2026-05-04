@@ -87,20 +87,10 @@ func TestEditorHeaderClickMore(t *testing.T) {
 	// "⋯" は検索フィールドの左側: width - searchFieldWidth(20) - moreButtonOffset(2)
 	moreX := h.Width() - 22
 	cmd := h.HandleClick(moreX)
-	assert.Nil(t, cmd) // メニューを開くだけ、Cmd は返さない
-	assert.True(t, h.MenuOpen())
-}
-
-func TestEditorHeaderClickMoreToggle(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	moreX := h.Width() - 22
-	h.HandleClick(moreX) // open
-	assert.True(t, h.MenuOpen())
-	h.HandleClick(moreX) // close
-	assert.False(t, h.MenuOpen())
+	assert.NotNil(t, cmd)
+	msg := cmd()
+	_, ok := msg.(ui.EditorHeaderOpenMenuMsg)
+	assert.True(t, ok, "expected EditorHeaderOpenMenuMsg")
 }
 
 func TestEditorHeaderMenuClickTrash(t *testing.T) {

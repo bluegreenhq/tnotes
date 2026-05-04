@@ -1,6 +1,9 @@
 package ui
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+	"github.com/bluegreenhq/dogubako/tui"
+)
 
 // NoteListMsg はノート一覧からモデルへの通知メッセージ。
 type NoteListMsg int
@@ -31,14 +34,8 @@ const (
 	NoteListDuplicate
 	// NoteListMenu はコンテキストメニュー表示を要求する。
 	NoteListMenu
-	// NoteListQuit は終了を要求する。
-	NoteListQuit
 	// NoteListFocusPrev はフォルダ一覧へのフォーカス移動を要求する。
 	NoteListFocusPrev
-	// NoteListToggleFolder はフォルダ一覧の表示切り替えを要求する。
-	NoteListToggleFolder
-	// NoteListHelp はショートカットヘルプ表示を要求する。
-	NoteListHelp
 )
 
 // NoteListRightClickMsg はノート一覧での右クリックを通知する。
@@ -66,7 +63,9 @@ func (m FolderListRightClickMsg) Cmd() tea.Cmd {
 }
 
 // EditorRightClickMsg はエディタでの右クリックを通知する。
+// Menu は右クリック時点で構築されたコンテキストメニュー。Editor はこのメニューを保持しない。
 type EditorRightClickMsg struct {
+	Menu    *tui.PopupMenu
 	AnchorX int
 	AnchorY int
 }
@@ -130,14 +129,8 @@ const (
 	FolderListFocusNext
 	// FolderListMenu はコンテキストメニュー表示を要求する。
 	FolderListMenu
-	// FolderListClose はフォルダ一覧を閉じることを要求する。
-	FolderListClose
 	// FolderListStartInput はフォルダ新規作成入力の開始を要求する。
 	FolderListStartInput
-	// FolderListQuit は終了を要求する。
-	FolderListQuit
-	// FolderListHelp はショートカットヘルプ表示を要求する。
-	FolderListHelp
 )
 
 // folderMenuActionMsg はフォルダメニューのアクション実行を運ぶメッセージ。
@@ -158,23 +151,6 @@ type actionResultMsg struct {
 func (m actionResultMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
-
-// FooterMsg はフッターからモデルへの通知メッセージ。
-type FooterMsg int
-
-// Cmd は FooterMsg を返す tea.Cmd を生成する。
-func (m FooterMsg) Cmd() tea.Cmd {
-	return func() tea.Msg { return m }
-}
-
-const (
-	// FooterQuit は終了ボタンがクリックされたことを通知する。
-	FooterQuit FooterMsg = iota
-	// FooterMore はMoreボタンがクリックされたことを通知する。
-	FooterMore
-	// FooterHelp はショートカットヘルプ表示を通知する。
-	FooterHelp
-)
 
 // EditorHeaderMsg はエディタヘッダーからモデルへの通知メッセージ。
 type EditorHeaderMsg int
@@ -218,3 +194,60 @@ type noteMoveMsg struct {
 func (m noteMoveMsg) Cmd() tea.Cmd {
 	return func() tea.Msg { return m }
 }
+
+// HelpOverlayCloseMsg はヘルプオーバーレイを閉じることを要求する。
+type HelpOverlayCloseMsg struct{}
+
+// HelpOverlayQuitMsg はヘルプオーバーレイ表示中にアプリ終了が要求されたことを通知する。
+type HelpOverlayQuitMsg struct{}
+
+// PopupKind はポップアップメニューの種類を表す。
+type PopupKind int
+
+const (
+	// PopupKindNone は不明/未指定。
+	PopupKindNone PopupKind = iota
+	// PopupKindEditorContext はエディタの右クリックコンテキストメニュー。
+	PopupKindEditorContext
+	// PopupKindEditorHeader はエディタヘッダーの「…」メニュー。
+	PopupKindEditorHeader
+	// PopupKindMoveMenu はエディタヘッダーの移動先メニュー。
+	PopupKindMoveMenu
+	// PopupKindFolderList はフォルダ一覧の moreメニュー。
+	PopupKindFolderList
+	// PopupKindFooter はフッターのメニュー。
+	PopupKindFooter
+)
+
+// PopupMenuSelectedMsg はポップアップメニューで項目が選択されたことを通知する。
+type PopupMenuSelectedMsg struct {
+	Kind  PopupKind
+	Index int
+}
+
+// PopupMenuClosedMsg はポップアップメニューが選択無しで閉じられたことを通知する。
+type PopupMenuClosedMsg struct {
+	Kind PopupKind
+}
+
+// EditorHeaderOpenMenuMsg はエディタヘッダーの「…」ボタンクリックでメニューを開くことを要求する。
+type EditorHeaderOpenMenuMsg struct{}
+
+// FooterToggleMenuMsg はフッターメニューの開閉トグルを要求する。
+type FooterToggleMenuMsg struct{}
+
+// OpenConfirmDeleteFolderMsg はフォルダ削除確認ダイアログの表示を要求する。
+type OpenConfirmDeleteFolderMsg struct {
+	Name      string
+	NoteCount int
+}
+
+// QuitMsg はアプリケーション終了を要求する。
+// 各 pane / フッターから emit され、Model 側で同期保存後に tea.Quit を返す。
+type QuitMsg struct{}
+
+// OpenHelpMsg はショートカットヘルプ表示を要求する。
+type OpenHelpMsg struct{}
+
+// ToggleFolderListMsg はフォルダ一覧の表示切り替えを要求する。
+type ToggleFolderListMsg struct{}

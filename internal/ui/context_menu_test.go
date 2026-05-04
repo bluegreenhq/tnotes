@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
 func TestRightClickEditorOpensContextMenu(t *testing.T) {
@@ -29,7 +31,7 @@ func TestRightClickEditorOpensContextMenu(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.True(t, m.Editor.IsContextMenuOpen())
+	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 }
 
 func TestRightClickEditorNoSelectionOpensMenu(t *testing.T) {
@@ -44,9 +46,9 @@ func TestRightClickEditorNoSelectionOpensMenu(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.True(t, m.Editor.IsContextMenuOpen())
+	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 	// Copy と Cut は Disabled
-	items := m.Editor.ContextMenu.Items()
+	items := m.OverlayMenu().Items()
 	assert.True(t, items[0].Disabled, "Copy should be disabled without selection")
 	assert.True(t, items[1].Disabled, "Cut should be disabled without selection")
 	assert.False(t, items[2].Disabled, "Paste should be enabled")
@@ -88,14 +90,14 @@ func TestRightClickClosedByLeftClick(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.True(t, m.Editor.IsContextMenuOpen())
+	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 
 	// 左クリックで閉じる
 	ret, _ = m.Update(tea.MouseClickMsg{
 		X: 0, Y: 0, Button: tea.MouseLeft,
 	})
 	m = mustModel(t, ret)
-	assert.False(t, m.Editor.IsContextMenuOpen())
+	assert.NotEqual(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 }
 
 func TestContextMenuOverlayWidthWithJapanese(t *testing.T) {
@@ -118,7 +120,7 @@ func TestContextMenuOverlayWidthWithJapanese(t *testing.T) {
 		X: 40, Y: 1, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.True(t, m.Editor.IsContextMenuOpen())
+	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 
 	// コンテキストメニュー表示時のView幅を取得
 	view := m.View()
@@ -149,10 +151,10 @@ func TestRightClickClosedByEscape(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.True(t, m.Editor.IsContextMenuOpen())
+	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 
 	// Escape で閉じる
 	ret, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = mustModel(t, ret)
-	assert.False(t, m.Editor.IsContextMenuOpen())
+	assert.NotEqual(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
 }

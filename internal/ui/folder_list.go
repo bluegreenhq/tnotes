@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -56,26 +55,22 @@ func NewFolder(name string, kind FolderKind, count int) Folder {
 
 // FolderList はフォルダ一覧の状態を表す。
 type FolderList struct {
-	app                 *app.App
-	folders             []Folder
-	selected            int
-	width               int
-	height              int
-	layout              *Layout
-	visible             bool
-	inputMode           bool            // インライン入力中かどうか（新規作成）
-	renameMode          bool            // リネーム入力中かどうか
-	renameName          string          // リネーム元のフォルダ名
-	lineInput           tui.LineInput   // インライン入力の状態
-	blink               tui.CursorBlink // カーソル点滅状態
-	menuOpen            bool            // moreメニュー表示中かどうか
-	PopupMenu           *tui.PopupMenu
-	hoverClose          bool
-	hoverAdd            bool
-	confirmDialog       *tui.ConfirmDialog // フォルダ削除確認ダイアログ（nil = 非表示）
-	confirmDeleteFolder string             // 削除確認中のフォルダ名
-	screenWidth         int                // ダイアログ配置用の画面幅
-	screenHeight        int                // ダイアログ配置用の画面高さ
+	app        *app.App
+	folders    []Folder
+	selected   int
+	width      int
+	height     int
+	layout     *Layout
+	visible    bool
+	inputMode  bool            // インライン入力中かどうか（新規作成）
+	renameMode bool            // リネーム入力中かどうか
+	renameName string          // リネーム元のフォルダ名
+	lineInput  tui.LineInput   // インライン入力の状態
+	blink      tui.CursorBlink // カーソル点滅状態
+	menuOpen   bool            // moreメニュー表示中かどうか
+	PopupMenu  *tui.PopupMenu
+	hoverClose bool
+	hoverAdd   bool
 }
 
 // NewFolderList は新しい FolderList を生成する。
@@ -86,24 +81,20 @@ func NewFolderList(a *app.App, width, height int) FolderList {
 			NewFolder("Notes", FolderNotes, 0),
 			NewFolder("Trash", FolderTrash, 0),
 		},
-		selected:            0,
-		width:               width,
-		height:              height,
-		layout:              nil,
-		visible:             false,
-		inputMode:           false,
-		renameMode:          false,
-		renameName:          "",
-		lineInput:           tui.NewLineInput(),
-		blink:               tui.NewCursorBlink(blinkOwnerFolderList),
-		menuOpen:            false,
-		PopupMenu:           tui.NewPopupMenu(nil),
-		hoverClose:          false,
-		hoverAdd:            false,
-		confirmDialog:       nil,
-		confirmDeleteFolder: "",
-		screenWidth:         0,
-		screenHeight:        0,
+		selected:   0,
+		width:      width,
+		height:     height,
+		layout:     nil,
+		visible:    false,
+		inputMode:  false,
+		renameMode: false,
+		renameName: "",
+		lineInput:  tui.NewLineInput(),
+		blink:      tui.NewCursorBlink(blinkOwnerFolderList),
+		menuOpen:   false,
+		PopupMenu:  tui.NewPopupMenu(nil),
+		hoverClose: false,
+		hoverAdd:   false,
 	}
 }
 
@@ -173,16 +164,6 @@ func (fl *FolderList) Width() int { return fl.width }
 func (fl *FolderList) SetSize(width, height int) {
 	fl.width = width
 	fl.height = height
-}
-
-// SetScreenSize はダイアログ配置用の画面サイズを設定する。
-func (fl *FolderList) SetScreenSize(width, height int) {
-	fl.screenWidth = width
-	fl.screenHeight = height
-
-	if fl.confirmDialog != nil {
-		fl.confirmDialog.SetScreenSize(width, height)
-	}
 }
 
 // InputMode はインライン入力中かどうかを返す（新規作成）。
@@ -448,6 +429,20 @@ func (fl *FolderList) HandleHoverLocal(x, y int) {
 	}
 }
 
+// UpdatePane は PaneComponent インターフェース実装。
+func (fl *FolderList) UpdatePane(msg tea.Msg, _ PaneContext) tea.Cmd {
+	var cmd tea.Cmd
+
+	*fl, cmd = fl.Update(msg)
+
+	return cmd
+}
+
+// HandleBlinkMsg は BlinkHandler インターフェース実装。
+func (fl *FolderList) HandleBlinkMsg(msg tui.CursorBlinkMsg) tea.Cmd {
+	return fl.blink.HandleMsg(msg)
+}
+
 // Update はメッセージに応じてフォルダ一覧の状態を更新する。
 func (fl *FolderList) Update(msg tea.Msg) (FolderList, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -552,23 +547,9 @@ func (fl *FolderList) ClearHover() {
 	fl.clearHeaderHover()
 }
 
-// ConfirmDialogVisible は確認ダイアログが表示中かを返す。
-func (fl *FolderList) ConfirmDialogVisible() bool {
-	return fl.confirmDialog != nil
-}
-
-// ConfirmDialogView は確認ダイアログの描画結果を返す。
-func (fl *FolderList) ConfirmDialogView() string {
-	if fl.confirmDialog == nil {
-		return ""
-	}
-
-	return fl.confirmDialog.View()
-}
-
 // TryDeleteFolder はフォルダ削除を試行する。
 // 空フォルダなら即時削除して actionResultMsg を返す。
-// ノートが存在する場合は確認ダイアログを表示し、確定後に actionResultMsg を返す。
+// ノートが存在する場合は OpenConfirmDeleteFolderMsg を返して Model にダイアログ表示を委ねる。
 func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	count, err := fl.app.FolderNoteCount(name)
 	if err != nil {
@@ -576,13 +557,11 @@ func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	}
 
 	if count > 0 {
-		fl.confirmDeleteFolder = name
-		detail := fmt.Sprintf("%d note(s) will be moved to Trash.", count)
-		dialog := tui.NewConfirmDialog(fmt.Sprintf("Delete %q?", name), detail)
-		dialog.SetScreenSize(fl.screenWidth, fl.screenHeight)
-		fl.confirmDialog = &dialog
+		noteCount := count
 
-		return nil
+		return func() tea.Msg {
+			return OpenConfirmDeleteFolderMsg{Name: name, NoteCount: noteCount}
+		}
 	}
 
 	// 空フォルダは即時削除
@@ -592,50 +571,6 @@ func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	}
 
 	return actionResultMsg{Err: nil, Info: "Deleted: " + name}.Cmd()
-}
-
-// HandleConfirmKey は確認ダイアログのキー入力を処理する。
-func (fl *FolderList) HandleConfirmKey(msg tea.KeyPressMsg) tea.Cmd {
-	return fl.applyConfirmResult(fl.confirmDialog.Update(msg))
-}
-
-// HandleConfirmClick は確認ダイアログのクリック入力を処理する。
-func (fl *FolderList) HandleConfirmClick(msg tea.MouseClickMsg) tea.Cmd {
-	return fl.applyConfirmResult(fl.confirmDialog.HandleClickAbs(msg.X, msg.Y))
-}
-
-// HandleConfirmMotion は確認ダイアログのマウスモーション入力を処理する。
-func (fl *FolderList) HandleConfirmMotion(x, y int) {
-	if fl.confirmDialog != nil {
-		fl.confirmDialog.HandleMotionAbs(x, y)
-	}
-}
-
-func (fl *FolderList) applyConfirmResult(result tui.ConfirmResult) tea.Cmd {
-	switch result {
-	case tui.ConfirmYes:
-		name := fl.confirmDeleteFolder
-		fl.confirmDialog = nil
-		fl.confirmDeleteFolder = ""
-
-		deleted, err := fl.DeleteFolder(name)
-		if err != nil {
-			return actionResultMsg{Err: err, Info: ""}.Cmd()
-		}
-
-		info := "Deleted: " + name + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
-
-		return actionResultMsg{Err: nil, Info: info}.Cmd()
-	case tui.ConfirmNo:
-		fl.confirmDialog = nil
-		fl.confirmDeleteFolder = ""
-
-		return nil
-	case tui.ConfirmContinue:
-		return nil
-	}
-
-	return nil
 }
 
 func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
@@ -650,7 +585,7 @@ func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
 
 		switch hit {
 		case headerHitClose:
-			return FolderListClose.Cmd()
+			return func() tea.Msg { return ToggleFolderListMsg{} }
 		case headerHitAdd:
 			return FolderListStartInput.Cmd()
 		}
@@ -859,9 +794,9 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 	case tea.KeyEnter, tea.KeyTab:
 		return *fl, FolderListFocusNext.Cmd()
 	case 'q':
-		return *fl, FolderListQuit.Cmd()
+		return *fl, func() tea.Msg { return QuitMsg{} }
 	case '?':
-		return *fl, FolderListHelp.Cmd()
+		return *fl, func() tea.Msg { return OpenHelpMsg{} }
 	}
 
 	return *fl, nil
@@ -874,7 +809,7 @@ func (fl *FolderList) handleCtrlKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.
 	case 'n':
 		return fl.moveDown()
 	case 'b':
-		return *fl, FolderListClose.Cmd()
+		return *fl, func() tea.Msg { return ToggleFolderListMsg{} }
 	}
 
 	return *fl, nil

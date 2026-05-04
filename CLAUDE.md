@@ -17,8 +17,6 @@ store → note
 
 `internal/ui/` 配下のコンポーネントは原則として1ファイル（`xxx.go`）に統一する。
 
-ただし1000行を超える大きなコンポーネントは `xxx.go` / `xxx_update.go` / `xxx_view.go` の3ファイルに分割してよい。現在 `model` と `editor` が該当する。
-
 ## 主要構造体の責務
 
 ### note パッケージ

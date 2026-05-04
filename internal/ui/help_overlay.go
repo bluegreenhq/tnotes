@@ -28,6 +28,17 @@ type HelpOverlay struct {
 	bodyHeight  int // ボディ領域の高さ
 }
 
+var _ OverlayComponent = (*HelpOverlay)(nil)
+
+// helpCloseBtnRow は✕ボタンを配置する行（0始まり）。border上(0) の1つ下 = paddingTop行。
+const helpCloseBtnRow = 1
+
+const (
+	helpOverlayWidth    = 42
+	helpOverlayPaddingH = 2
+	helpKeyMinWidth     = 15
+)
+
 // NewHelpOverlay はフォーカスに応じた HelpOverlay を生成する。
 func NewHelpOverlay(focus FocusArea) *HelpOverlay {
 	var sections []HelpSection
@@ -52,8 +63,80 @@ func (h *HelpOverlay) SetScreenSize(screenWidth, bodyHeight int) {
 	h.bodyHeight = bodyHeight
 }
 
-// Geometry はオーバーレイの画面上の配置情報を返す。
-func (h *HelpOverlay) Geometry() tui.OverlayGeometry {
+// Update はメッセージに応じて状態を更新し、副作用 Cmd を返す。
+func (h *HelpOverlay) Update(msg tea.Msg) tea.Cmd {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		return h.handleKey(msg)
+	case tea.MouseClickMsg:
+		if msg.Button == tea.MouseLeft && h.closeButtonHit(msg.X, msg.Y) {
+			return func() tea.Msg { return HelpOverlayCloseMsg{} }
+		}
+	case tea.MouseMsg:
+		mouse := msg.Mouse()
+		h.closeHover = h.closeButtonHit(mouse.X, mouse.Y)
+	}
+
+	return nil
+}
+
+// RenderOn はベース画面上にヘルプオーバーレイを合成する。
+func (h *HelpOverlay) RenderOn(base string, _, _ int) string {
+	bodyLines := strings.Split(base, "\n")
+	overlayLines := strings.Split(h.View(), "\n")
+	g := h.geometry()
+	tui.OverlayLines(bodyLines, overlayLines, g.StartX, g.StartY)
+
+	return strings.Join(bodyLines, "\n")
+}
+
+// View はオーバーレイの描画内容を返す。
+func (h *HelpOverlay) View() string {
+	var b strings.Builder
+
+	titleStyle := lipgloss.NewStyle().Bold(true)
+	b.WriteString(titleStyle.Render("Shortcuts"))
+	b.WriteString("\n")
+
+	sectionTitleStyle := lipgloss.NewStyle().Bold(true)
+	hintStyle := lipgloss.NewStyle().Faint(true)
+
+	for i, section := range h.sections {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+
+		b.WriteString("\n")
+		b.WriteString(sectionTitleStyle.Render(section.Title))
+		b.WriteString("\n")
+
+		keyWidth := h.keyWidth(section)
+
+		for _, item := range section.Items {
+			padded := item.Key + strings.Repeat(" ", keyWidth-lipgloss.Width(item.Key))
+			b.WriteString(padded + item.Description + "\n")
+		}
+	}
+
+	b.WriteString("\n")
+	b.WriteString(hintStyle.Render("Press Esc/?/Ctrl+Shift+/ to close"))
+
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		PaddingTop(1).
+		PaddingBottom(1).
+		PaddingLeft(helpOverlayPaddingH).
+		PaddingRight(helpOverlayPaddingH).
+		Width(helpOverlayWidth)
+
+	rendered := boxStyle.Render(b.String())
+
+	return h.overlayCloseButton(rendered)
+}
+
+// geometry はオーバーレイの画面上の配置情報を返す。
+func (h *HelpOverlay) geometry() tui.OverlayGeometry {
 	const (
 		borderW = 1
 		padLeft = helpOverlayPaddingH
@@ -63,9 +146,9 @@ func (h *HelpOverlay) Geometry() tui.OverlayGeometry {
 	return tui.CalcOverlayGeometry(h.View(), h.screenWidth, h.bodyHeight, borderW, padLeft, padTop)
 }
 
-// CloseButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
-func (h *HelpOverlay) CloseButtonHit(absX, absY int) bool {
-	g := h.Geometry()
+// closeButtonHit は✕ボタンがクリック/ホバーされたかを判定する。
+func (h *HelpOverlay) closeButtonHit(absX, absY int) bool {
+	g := h.geometry()
 	if g.OverlayW == 0 {
 		return false
 	}
@@ -74,6 +157,59 @@ func (h *HelpOverlay) CloseButtonHit(absX, absY int) bool {
 	btnX := g.StartX + g.OverlayW - 3 //nolint:mnd // border右(1) + padding右(1) の内側
 
 	return absX == btnX && absY == btnY
+}
+
+func (h *HelpOverlay) handleKey(msg tea.KeyPressMsg) tea.Cmd {
+	switch {
+	case msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0:
+		return func() tea.Msg { return HelpOverlayQuitMsg{} }
+	case msg.Code == tea.KeyEscape:
+		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+	case msg.Code == '?' && msg.Mod == 0:
+		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
+		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+	}
+
+	return nil
+}
+
+// overlayCloseButton はレンダリング済みオーバーレイの右上（paddingTop行、border右の直前）に✕を重ねる。
+func (h *HelpOverlay) overlayCloseButton(rendered string) string {
+	lines := strings.Split(rendered, "\n")
+	if len(lines) <= helpCloseBtnRow {
+		return rendered
+	}
+
+	style := buttonStyle
+	if h.closeHover {
+		style = buttonHoverStyle
+	}
+
+	closeStr := style.Render("✕")
+	lineWidth := lipgloss.Width(lines[helpCloseBtnRow])
+	// border右(1文字) の直前に✕を配置
+	btnX := lineWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
+
+	lines[helpCloseBtnRow] = tui.ComposeLine(lines[helpCloseBtnRow], closeStr, btnX, 1)
+
+	return strings.Join(lines, "\n")
+}
+
+// keyWidth はセクション内のキー列の表示幅を返す。
+func (h *HelpOverlay) keyWidth(section HelpSection) int {
+	maxLen := 0
+
+	for _, item := range section.Items {
+		w := lipgloss.Width(item.Key)
+		if w > maxLen {
+			maxLen = w
+		}
+	}
+
+	const keyGap = 2
+
+	return max(maxLen+keyGap, helpKeyMinWidth)
 }
 
 func noteListHelpSection() HelpSection {
@@ -146,134 +282,4 @@ func globalHelpSection() HelpSection {
 			{"Tab", "Next pane"},
 		},
 	}
-}
-
-// HelpResult はヘルプオーバーレイの操作結果を表す。
-type HelpResult int
-
-const (
-	// HelpContinue はオーバーレイ継続中。
-	HelpContinue HelpResult = iota
-	// HelpClose はオーバーレイを閉じる。
-	HelpClose
-	// HelpQuit はアプリケーション終了を要求する。
-	HelpQuit
-)
-
-// SetCloseHover は閉じるボタンのホバー状態を設定する。
-func (h *HelpOverlay) SetCloseHover(hovered bool) {
-	h.closeHover = hovered
-}
-
-// Update はキー入力に応じてオーバーレイの状態を更新する。
-func (h *HelpOverlay) Update(msg tea.Msg) HelpResult {
-	keyMsg, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return HelpContinue
-	}
-
-	switch {
-	case keyMsg.Code == 'q' && keyMsg.Mod&tea.ModCtrl != 0:
-		return HelpQuit
-	case keyMsg.Code == tea.KeyEscape:
-		return HelpClose
-	case keyMsg.Code == '?' && keyMsg.Mod == 0:
-		return HelpClose
-	case keyMsg.Code == '/' && keyMsg.Mod == (tea.ModCtrl|tea.ModShift):
-		return HelpClose
-	}
-
-	return HelpContinue
-}
-
-// helpCloseBtnRow は✕ボタンを配置する行（0始まり）。border上(0) の1つ下 = paddingTop行。
-const helpCloseBtnRow = 1
-
-const (
-	helpOverlayWidth    = 42
-	helpOverlayPaddingH = 2
-	helpKeyMinWidth     = 15
-)
-
-// View はオーバーレイの描画内容を返す。
-func (h *HelpOverlay) View() string {
-	var b strings.Builder
-
-	titleStyle := lipgloss.NewStyle().Bold(true)
-	b.WriteString(titleStyle.Render("Shortcuts"))
-	b.WriteString("\n")
-
-	sectionTitleStyle := lipgloss.NewStyle().Bold(true)
-	hintStyle := lipgloss.NewStyle().Faint(true)
-
-	for i, section := range h.sections {
-		if i > 0 {
-			b.WriteString("\n")
-		}
-
-		b.WriteString("\n")
-		b.WriteString(sectionTitleStyle.Render(section.Title))
-		b.WriteString("\n")
-
-		keyWidth := h.keyWidth(section)
-
-		for _, item := range section.Items {
-			padded := item.Key + strings.Repeat(" ", keyWidth-lipgloss.Width(item.Key))
-			b.WriteString(padded + item.Description + "\n")
-		}
-	}
-
-	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Press Esc/?/Ctrl+Shift+/ to close"))
-
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("12")).
-		PaddingTop(1).
-		PaddingBottom(1).
-		PaddingLeft(helpOverlayPaddingH).
-		PaddingRight(helpOverlayPaddingH).
-		Width(helpOverlayWidth)
-
-	rendered := boxStyle.Render(b.String())
-
-	return h.overlayCloseButton(rendered)
-}
-
-// overlayCloseButton はレンダリング済みオーバーレイの右上（paddingTop行、border右の直前）に✕を重ねる。
-func (h *HelpOverlay) overlayCloseButton(rendered string) string {
-	lines := strings.Split(rendered, "\n")
-	if len(lines) <= helpCloseBtnRow {
-		return rendered
-	}
-
-	style := buttonStyle
-	if h.closeHover {
-		style = buttonHoverStyle
-	}
-
-	closeStr := style.Render("✕")
-	lineWidth := lipgloss.Width(lines[helpCloseBtnRow])
-	// border右(1文字) の直前に✕を配置
-	btnX := lineWidth - 3 //nolint:mnd // border右(1) + padding右(1) の内側
-
-	lines[helpCloseBtnRow] = tui.ComposeLine(lines[helpCloseBtnRow], closeStr, btnX, 1)
-
-	return strings.Join(lines, "\n")
-}
-
-// keyWidth はセクション内のキー列の表示幅を返す。
-func (h *HelpOverlay) keyWidth(section HelpSection) int {
-	maxLen := 0
-
-	for _, item := range section.Items {
-		w := lipgloss.Width(item.Key)
-		if w > maxLen {
-			maxLen = w
-		}
-	}
-
-	const keyGap = 2
-
-	return max(maxLen+keyGap, helpKeyMinWidth)
 }

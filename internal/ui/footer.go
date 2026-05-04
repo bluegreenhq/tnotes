@@ -35,7 +35,7 @@ type Footer struct {
 	buttons   []FooterButton
 	menuOpen  bool
 	PopupMenu *tui.PopupMenu
-	menuMsgs  []FooterMsg // menuItems[i] に対応する FooterMsg
+	menuCmds  []tea.Cmd // menuItems[i] に対応する Cmd
 }
 
 // NewFooter は新しい Footer を生成する。
@@ -45,7 +45,7 @@ func NewFooter() Footer {
 		buttons:   nil,
 		menuOpen:  false,
 		PopupMenu: tui.NewPopupMenu(nil),
-		menuMsgs:  nil,
+		menuCmds:  nil,
 	}
 }
 
@@ -64,7 +64,10 @@ func (f *Footer) RebuildButtons() {
 		tui.NewMenuItem("Quit"),
 	}
 
-	f.menuMsgs = []FooterMsg{FooterHelp, FooterQuit}
+	f.menuCmds = []tea.Cmd{
+		func() tea.Msg { return OpenHelpMsg{} },
+		func() tea.Msg { return QuitMsg{} },
+	}
 
 	prevHover := f.PopupMenu.Hover()
 	f.PopupMenu = tui.NewPopupMenu(menuItems)
@@ -130,25 +133,16 @@ func (f *Footer) HitTest(x int) HoverTarget {
 }
 
 // HandleClick はフッター行のクリックを処理する。
-// [More] クリックでメニュー開閉をトグルし、他のボタンはコマンドを返す。
+// [More] クリックでメニュー開閉トグル要求 Msg を返し、他のボタンはコマンドを返す。
 func (f *Footer) HandleClick(x int) tea.Cmd {
 	target := f.HitTest(x)
 
 	if target == HoverMore {
-		if f.menuOpen {
-			f.CloseMenu()
-		} else {
-			f.OpenMenu()
-		}
-
-		return nil
+		return func() tea.Msg { return FooterToggleMenuMsg{} }
 	}
 
-	switch target {
-	case HoverQuit:
-		return FooterQuit.Cmd()
-	case HoverNone, HoverMore:
-		return nil
+	if target == HoverQuit {
+		return func() tea.Msg { return QuitMsg{} }
 	}
 
 	return nil
@@ -160,20 +154,20 @@ func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
 	idx, hit := f.PopupMenu.HandleClick(x, y)
 	f.CloseMenu()
 
-	if !hit || idx < 0 || idx >= len(f.menuMsgs) {
+	if !hit || idx < 0 || idx >= len(f.menuCmds) {
 		return nil
 	}
 
-	return f.menuMsgs[idx].Cmd()
+	return f.menuCmds[idx]
 }
 
 // ExecuteMenuAction はインデックスに対応するメニューアクションのコマンドを返す。
 func (f *Footer) ExecuteMenuAction(idx int) tea.Cmd {
-	if idx < 0 || idx >= len(f.menuMsgs) {
+	if idx < 0 || idx >= len(f.menuCmds) {
 		return nil
 	}
 
-	return f.menuMsgs[idx].Cmd()
+	return f.menuCmds[idx]
 }
 
 // SetMenuHover はメニュー領域のホバーを更新する。
