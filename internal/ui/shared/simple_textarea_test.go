@@ -1,4 +1,4 @@
-package ui //nolint:testpackage // 内部フィールドへの直接アクセスが必要
+package shared //nolint:testpackage // 内部フィールドへの直接アクセスが必要
 
 import (
 	"strings"
@@ -11,7 +11,7 @@ import (
 func TestSimpleTextArea_SetValueAndValue(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetValue("Hello\nWorld")
 	assert.Equal(t, "Hello\nWorld", ta.Value())
 	assert.Equal(t, 1, ta.Line())
@@ -21,7 +21,7 @@ func TestSimpleTextArea_SetValueAndValue(t *testing.T) {
 func TestSimpleTextArea_InsertText(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -39,7 +39,7 @@ func TestSimpleTextArea_InsertText(t *testing.T) {
 func TestSimpleTextArea_Backspace(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -53,7 +53,7 @@ func TestSimpleTextArea_Backspace(t *testing.T) {
 func TestSimpleTextArea_BackspaceAtLineStart(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -70,7 +70,7 @@ func TestSimpleTextArea_BackspaceAtLineStart(t *testing.T) {
 func TestSimpleTextArea_Delete(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -85,7 +85,7 @@ func TestSimpleTextArea_Delete(t *testing.T) {
 func TestSimpleTextArea_DeleteAtLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -100,7 +100,7 @@ func TestSimpleTextArea_DeleteAtLineEnd(t *testing.T) {
 func TestSimpleTextArea_Enter(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -117,7 +117,7 @@ func TestSimpleTextArea_Enter(t *testing.T) {
 func TestSimpleTextArea_CursorMovement(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -158,7 +158,7 @@ func TestSimpleTextArea_CursorMovement(t *testing.T) {
 func TestSimpleTextArea_HomeEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -177,7 +177,7 @@ func TestSimpleTextArea_HomeEnd(t *testing.T) {
 func TestSimpleTextArea_ScrollIndependent(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(3)
 
@@ -198,7 +198,7 @@ func TestSimpleTextArea_ScrollIndependent(t *testing.T) {
 func TestSimpleTextArea_EnsureVisible(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -226,7 +226,7 @@ func TestSimpleTextArea_EnsureVisible(t *testing.T) {
 func TestSimpleTextArea_UnfocusedIgnoresInput(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -238,7 +238,7 @@ func TestSimpleTextArea_UnfocusedIgnoresInput(t *testing.T) {
 func TestSimpleTextArea_LineCount(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	assert.Equal(t, 1, ta.LineCount())
 
 	ta.SetValue("a\nb\nc")
@@ -248,7 +248,7 @@ func TestSimpleTextArea_LineCount(t *testing.T) {
 func TestSimpleTextArea_MoveToBegin(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetValue("Hello\nWorld")
 	assert.Equal(t, 1, ta.Line())
 
@@ -260,7 +260,7 @@ func TestSimpleTextArea_MoveToBegin(t *testing.T) {
 func TestSimpleTextArea_SetCursorColumn(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetValue("Hello")
 	ta.row = 0
 
@@ -277,7 +277,7 @@ func TestSimpleTextArea_SetCursorColumn(t *testing.T) {
 func TestSimpleTextArea_CtrlA_MoveToLineStart(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -293,7 +293,7 @@ func TestSimpleTextArea_CtrlA_MoveToLineStart(t *testing.T) {
 func TestSimpleTextArea_CtrlE_MoveToLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -309,7 +309,7 @@ func TestSimpleTextArea_CtrlE_MoveToLineEnd(t *testing.T) {
 func TestSimpleTextArea_CtrlFB_CursorLeftRight(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -340,7 +340,7 @@ func TestSimpleTextArea_CtrlFB_CursorLeftRight(t *testing.T) {
 func TestSimpleTextArea_CtrlNP_CursorUpDown(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -363,7 +363,7 @@ func TestSimpleTextArea_CtrlNP_CursorUpDown(t *testing.T) {
 func TestSimpleTextArea_CtrlD_Delete(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -380,7 +380,7 @@ func TestSimpleTextArea_CtrlD_Delete(t *testing.T) {
 func TestSimpleTextArea_CtrlD_DeleteAtLineEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -396,7 +396,7 @@ func TestSimpleTextArea_CtrlD_DeleteAtLineEnd(t *testing.T) {
 func TestSimpleTextArea_CtrlK_KillLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -413,7 +413,7 @@ func TestSimpleTextArea_CtrlK_KillLine(t *testing.T) {
 func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -431,7 +431,7 @@ func TestSimpleTextArea_CtrlK_KillLineAtEnd(t *testing.T) {
 func TestSimpleTextArea_InsertText_SingleLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -447,7 +447,7 @@ func TestSimpleTextArea_InsertText_SingleLine(t *testing.T) {
 func TestSimpleTextArea_InsertText_MultiLine(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -464,7 +464,7 @@ func TestSimpleTextArea_InsertText_MultiLine(t *testing.T) {
 func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(80)
 	ta.SetHeight(10)
 
@@ -480,7 +480,7 @@ func TestSimpleTextArea_CursorUpClampsCol(t *testing.T) {
 func TestSimpleTextArea_HorizontalScroll(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(true)
+	ta := NewSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -512,7 +512,7 @@ func TestSimpleTextArea_HorizontalScroll(t *testing.T) {
 func TestSimpleTextArea_HorizontalScrollLeftMovement(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(true)
+	ta := NewSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -534,7 +534,7 @@ func TestSimpleTextArea_HorizontalScrollLeftMovement(t *testing.T) {
 func TestSimpleTextArea_HorizontalScrollWithInsert(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(true)
+	ta := NewSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()
@@ -555,7 +555,7 @@ func TestSimpleTextArea_HorizontalScrollWithInsert(t *testing.T) {
 func TestSimpleTextArea_SetCursorColumnUpdatesScrollX(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(true)
+	ta := NewSimpleTextArea(true)
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 
@@ -571,7 +571,7 @@ func TestSimpleTextArea_SetCursorColumnUpdatesScrollX(t *testing.T) {
 func TestSimpleTextArea_SoftWrap_ViewWrapsText(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false) // soft wrap
+	ta := NewSimpleTextArea(false) // soft wrap
 	ta.SetWidth(5)
 	ta.SetHeight(10)
 
@@ -588,7 +588,7 @@ func TestSimpleTextArea_SoftWrap_ViewWrapsText(t *testing.T) {
 func TestSimpleTextArea_SoftWrap_CursorUpDown(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(5)
 	ta.SetHeight(10)
 	ta.Focus()
@@ -614,7 +614,7 @@ func TestSimpleTextArea_SoftWrap_CursorUpDown(t *testing.T) {
 func TestSimpleTextArea_SoftWrap_FullWidth(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(5)
 	ta.SetHeight(10)
 
@@ -633,7 +633,7 @@ func TestSimpleTextArea_SoftWrap_FullWidth(t *testing.T) {
 func TestSimpleTextArea_SoftWrap_ScrollYVisualBased(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false)
+	ta := NewSimpleTextArea(false)
 	ta.SetWidth(5)
 	ta.SetHeight(2)
 
@@ -649,7 +649,7 @@ func TestSimpleTextArea_SoftWrap_ScrollYVisualBased(t *testing.T) {
 func TestSimpleTextArea_SoftWrap_ScrollXAlwaysZero(t *testing.T) {
 	t.Parallel()
 
-	ta := newSimpleTextArea(false) // soft wrap
+	ta := NewSimpleTextArea(false) // soft wrap
 	ta.SetWidth(5)
 	ta.SetHeight(3)
 	ta.Focus()

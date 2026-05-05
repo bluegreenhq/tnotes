@@ -1,4 +1,4 @@
-package ui
+package shared
 
 import (
 	"strings"
@@ -9,9 +9,9 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
-// simpleTextArea は独自テキストエリア。
+// SimpleTextArea は独自テキストエリア。
 // カーソルとスクロールオフセットを完全独立管理する。
-type simpleTextArea struct {
+type SimpleTextArea struct {
 	lines   [][]rune
 	row     int
 	col     int
@@ -24,7 +24,7 @@ type simpleTextArea struct {
 	killBuf []rune // Ctrl+K で削除した内容を保持（Ctrl+Y でペースト）
 }
 
-func newSimpleTextArea(noWrap bool) simpleTextArea {
+func NewSimpleTextArea(noWrap bool) SimpleTextArea {
 	var lo lineLayout
 	if noWrap {
 		lo = newNoWrapLayout()
@@ -32,7 +32,7 @@ func newSimpleTextArea(noWrap bool) simpleTextArea {
 		lo = newSoftWrapLayout()
 	}
 
-	return simpleTextArea{
+	return SimpleTextArea{
 		lines:   [][]rune{{}},
 		row:     0,
 		col:     0,
@@ -47,7 +47,7 @@ func newSimpleTextArea(noWrap bool) simpleTextArea {
 }
 
 // Value は全テキストを返す。
-func (t *simpleTextArea) Value() string {
+func (t *SimpleTextArea) Value() string {
 	parts := make([]string, len(t.lines))
 	for i, line := range t.lines {
 		parts[i] = string(line)
@@ -57,44 +57,44 @@ func (t *simpleTextArea) Value() string {
 }
 
 // Line はカーソルの行番号を返す。
-func (t *simpleTextArea) Line() int { return t.row }
+func (t *SimpleTextArea) Line() int { return t.row }
 
 // Column はカーソルの列番号（ルーンインデックス）を返す。
-func (t *simpleTextArea) Column() int { return t.col }
+func (t *SimpleTextArea) Column() int { return t.col }
 
 // LineCount は行数を返す。
-func (t *simpleTextArea) LineCount() int { return len(t.lines) }
+func (t *SimpleTextArea) LineCount() int { return len(t.lines) }
 
 // ScrollYOffset は表示先頭行を返す。
-func (t *simpleTextArea) ScrollYOffset() int { return t.scrollY }
+func (t *SimpleTextArea) ScrollYOffset() int { return t.scrollY }
 
 // ScrollXOffset は表示先頭列（セル単位）を返す。
-func (t *simpleTextArea) ScrollXOffset() int { return t.scrollX }
+func (t *SimpleTextArea) ScrollXOffset() int { return t.scrollX }
 
 // SetWidth は表示幅を設定する。
-func (t *simpleTextArea) SetWidth(w int) {
+func (t *SimpleTextArea) SetWidth(w int) {
 	t.width = w
 	t.layout.rebuild(t.lines, t.width)
 }
 
 // SetHeight は表示高さを設定する。
-func (t *simpleTextArea) SetHeight(h int) { t.height = h }
+func (t *SimpleTextArea) SetHeight(h int) { t.height = h }
 
 // Focus はフォーカスを設定する。
-func (t *simpleTextArea) Focus() tea.Cmd {
+func (t *SimpleTextArea) Focus() tea.Cmd {
 	t.focused = true
 
 	return nil
 }
 
 // Blur はフォーカスを解除する。
-func (t *simpleTextArea) Blur() { t.focused = false }
+func (t *SimpleTextArea) Blur() { t.focused = false }
 
 // Focused はフォーカス状態を返す。
-func (t *simpleTextArea) Focused() bool { return t.focused }
+func (t *SimpleTextArea) Focused() bool { return t.focused }
 
 // SetValue はテキストを設定し、カーソルを末尾に移動する。
-func (t *simpleTextArea) SetValue(s string) {
+func (t *SimpleTextArea) SetValue(s string) {
 	raw := strings.Split(s, "\n")
 	t.lines = make([][]rune, len(raw))
 
@@ -113,7 +113,7 @@ func (t *simpleTextArea) SetValue(s string) {
 }
 
 // SetCursorColumn はカーソル列を設定する。
-func (t *simpleTextArea) SetCursorColumn(col int) {
+func (t *SimpleTextArea) SetCursorColumn(col int) {
 	maxCol := len(t.lines[t.row])
 
 	if col < 0 {
@@ -129,7 +129,7 @@ func (t *simpleTextArea) SetCursorColumn(col int) {
 }
 
 // InsertText はカーソル位置にテキストを挿入する。改行を含むテキストにも対応する。
-func (t *simpleTextArea) InsertText(s string) {
+func (t *SimpleTextArea) InsertText(s string) {
 	lines := strings.Split(s, "\n")
 	for i, l := range lines {
 		if i > 0 {
@@ -143,7 +143,7 @@ func (t *simpleTextArea) InsertText(s string) {
 }
 
 // MoveToBegin はカーソルをテキスト先頭に移動する。
-func (t *simpleTextArea) MoveToBegin() {
+func (t *SimpleTextArea) MoveToBegin() {
 	t.row = 0
 	t.col = 0
 	t.ensureVisible()
@@ -151,7 +151,7 @@ func (t *simpleTextArea) MoveToBegin() {
 
 // Update はキー入力に応じてテキストを編集する。
 // ポインタレシーバのため再代入不要。
-func (t *simpleTextArea) Update(msg tea.Msg) tea.Cmd {
+func (t *SimpleTextArea) Update(msg tea.Msg) tea.Cmd {
 	if !t.focused {
 		return nil
 	}
@@ -165,18 +165,18 @@ func (t *simpleTextArea) Update(msg tea.Msg) tea.Cmd {
 }
 
 // ScrollUp はカーソルを動かさずに表示を n 行上にスクロールする。
-func (t *simpleTextArea) ScrollUp(n int) {
+func (t *SimpleTextArea) ScrollUp(n int) {
 	t.scrollY = max(t.scrollY-n, 0)
 }
 
 // ScrollDown はカーソルを動かさずに表示を n 行下にスクロールする。
-func (t *simpleTextArea) ScrollDown(n int) {
+func (t *SimpleTextArea) ScrollDown(n int) {
 	maxScroll := max(t.layout.totalVisualLines()-t.height, 0)
 	t.scrollY = min(t.scrollY+n, maxScroll)
 }
 
 // CursorUp はカーソルを1つ上の視覚行に移動する。
-func (t *simpleTextArea) CursorUp() {
+func (t *SimpleTextArea) CursorUp() {
 	newRow, newCol, moved := t.layout.moveCursorUp(t.row, t.col)
 	if !moved {
 		return
@@ -188,7 +188,7 @@ func (t *simpleTextArea) CursorUp() {
 }
 
 // CursorDown はカーソルを1つ下の視覚行に移動する。
-func (t *simpleTextArea) CursorDown() {
+func (t *SimpleTextArea) CursorDown() {
 	newRow, newCol, moved := t.layout.moveCursorDown(t.row, t.col)
 	if !moved {
 		return
@@ -200,7 +200,7 @@ func (t *simpleTextArea) CursorDown() {
 }
 
 // MoveTo はカーソルを指定の論理行・列に移動する。
-func (t *simpleTextArea) MoveTo(line, col int) {
+func (t *SimpleTextArea) MoveTo(line, col int) {
 	line = max(line, 0)
 	line = min(line, len(t.lines)-1)
 	t.row = line
@@ -214,7 +214,7 @@ func (t *simpleTextArea) MoveTo(line, col int) {
 
 // View はテキストエリアの描画内容をプレーンテキストで返す。
 // ANSIエスケープは含まない。カーソル表示は呼び出し側の責務。
-func (t *simpleTextArea) View() string {
+func (t *SimpleTextArea) View() string {
 	var b strings.Builder
 
 	totalVisual := t.layout.totalVisualLines()
@@ -236,11 +236,57 @@ func (t *simpleTextArea) View() string {
 	return b.String()
 }
 
-func (t *simpleTextArea) ensureVisible() {
+// Lines は行バッファへの読取参照を返す。呼び出し側は内容を変更してはならない。
+func (t *SimpleTextArea) Lines() [][]rune { return t.lines }
+
+// PositionFromCell は視覚行・セル列から論理行・ルーン列を返す。
+// 視覚行が範囲外の場合はクランプする。
+func (t *SimpleTextArea) PositionFromCell(visualRow, cellCol int) (int, int) {
+	total := t.layout.totalVisualLines()
+	if total == 0 {
+		return 0, 0
+	}
+
+	if visualRow >= total {
+		visualRow = total - 1
+	}
+
+	return t.layout.viewCellToLogical(visualRow, cellCol)
+}
+
+// VisualLineLength は指定視覚行のルーン数を返す。
+func (t *SimpleTextArea) VisualLineLength(visualRow int) int {
+	logLine, startRune := t.layout.visualToLogical(visualRow)
+	for _, v := range t.layout.visualLinesFor(logLine) {
+		if v.startRune == startRune {
+			return v.length
+		}
+	}
+
+	return 0
+}
+
+// LogicalToVisual は論理行・列から視覚行インデックスを返す。
+func (t *SimpleTextArea) LogicalToVisual(line, col int) int {
+	return t.layout.logicalToVisual(line, col)
+}
+
+// VisualLinesCountFor は論理行 line に対応する視覚行数を返す。
+func (t *SimpleTextArea) VisualLinesCountFor(line int) int {
+	return len(t.layout.visualLinesFor(line))
+}
+
+// ViewLineStartRune は視覚行の論理行と表示開始ルーンオフセットを返す。
+// 内部の scrollX を用いる。
+func (t *SimpleTextArea) ViewLineStartRune(visualRow int) (int, int) {
+	return t.layout.viewLineStartRune(visualRow, t.scrollX)
+}
+
+func (t *SimpleTextArea) ensureVisible() {
 	t.scrollY, t.scrollX = t.layout.adjustScroll(t.row, t.col, t.scrollY, t.scrollX, t.width, t.height)
 }
 
-func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop,gocyclo,funlen // キーバインド分岐
+func (t *SimpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclop,gocyclo,funlen // キーバインド分岐
 	switch {
 	case msg.Code == 'a' && msg.Mod == tea.ModCtrl:
 		t.col = 0
@@ -287,7 +333,7 @@ func (t *simpleTextArea) handleKey(msg tea.KeyPressMsg) tea.Cmd { //nolint:cyclo
 	return nil
 }
 
-func (t *simpleTextArea) insertText(s string) {
+func (t *SimpleTextArea) insertText(s string) {
 	runes := []rune(s)
 	line := t.lines[t.row]
 	newLine := make([]rune, 0, len(line)+len(runes))
@@ -299,7 +345,7 @@ func (t *simpleTextArea) insertText(s string) {
 	t.layout.rebuild(t.lines, t.width)
 }
 
-func (t *simpleTextArea) insertNewline() {
+func (t *SimpleTextArea) insertNewline() {
 	line := t.lines[t.row]
 	before := make([]rune, t.col)
 	copy(before, line[:t.col])
@@ -318,7 +364,7 @@ func (t *simpleTextArea) insertNewline() {
 	t.ensureVisible()
 }
 
-func (t *simpleTextArea) backspace() {
+func (t *SimpleTextArea) backspace() {
 	if t.col > 0 {
 		line := t.lines[t.row]
 		t.lines[t.row] = append(line[:t.col-1], line[t.col:]...)
@@ -335,7 +381,7 @@ func (t *simpleTextArea) backspace() {
 	}
 }
 
-func (t *simpleTextArea) delete() {
+func (t *SimpleTextArea) delete() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
 		t.lines[t.row] = append(line[:t.col], line[t.col+1:]...)
@@ -347,7 +393,7 @@ func (t *simpleTextArea) delete() {
 	}
 }
 
-func (t *simpleTextArea) killLine() {
+func (t *SimpleTextArea) killLine() {
 	line := t.lines[t.row]
 	if t.col < len(line) {
 		killed := make([]rune, len(line)-t.col)
@@ -363,7 +409,7 @@ func (t *simpleTextArea) killLine() {
 	}
 }
 
-func (t *simpleTextArea) yank() {
+func (t *SimpleTextArea) yank() {
 	if len(t.killBuf) == 0 {
 		return
 	}
@@ -377,7 +423,7 @@ func (t *simpleTextArea) yank() {
 	}
 }
 
-func (t *simpleTextArea) cursorLeft() {
+func (t *SimpleTextArea) cursorLeft() {
 	if t.col > 0 {
 		t.col--
 	} else if t.row > 0 {
@@ -387,7 +433,7 @@ func (t *simpleTextArea) cursorLeft() {
 	}
 }
 
-func (t *simpleTextArea) cursorRight() {
+func (t *SimpleTextArea) cursorRight() {
 	if t.col < len(t.lines[t.row]) {
 		t.col++
 	} else if t.row < len(t.lines)-1 {
@@ -395,33 +441,6 @@ func (t *simpleTextArea) cursorRight() {
 		t.col = 0
 		t.ensureVisible()
 	}
-}
-
-// positionFromCell は視覚行・セル列から論理行・ルーン列を返す。
-// 視覚行が範囲外の場合はクランプする。
-func (t *simpleTextArea) positionFromCell(visualRow, cellCol int) (int, int) {
-	total := t.layout.totalVisualLines()
-	if total == 0 {
-		return 0, 0
-	}
-
-	if visualRow >= total {
-		visualRow = total - 1
-	}
-
-	return t.layout.viewCellToLogical(visualRow, cellCol)
-}
-
-// visualLineLength は指定視覚行のルーン数を返す。
-func (t *simpleTextArea) visualLineLength(visualRow int) int {
-	logLine, startRune := t.layout.visualToLogical(visualRow)
-	for _, v := range t.layout.visualLinesFor(logLine) {
-		if v.startRune == startRune {
-			return v.length
-		}
-	}
-
-	return 0
 }
 
 // truncateLineWithScroll は水平スクロール位置から幅分のテキストを返す。

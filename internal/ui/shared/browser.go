@@ -1,4 +1,4 @@
-package ui
+package shared
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// openURLInBrowser は URL をデフォルトブラウザで開く tea.Cmd を返す。
-func openURLInBrowser(url string) tea.Cmd {
+// OpenURL は URL をデフォルトブラウザで開く tea.Cmd を返す。
+func OpenURL(url string) tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
 

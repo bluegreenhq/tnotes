@@ -5,13 +5,15 @@
 `internal/` 配下のパッケージ依存は以下の方向のみ許可する。depguard でも import レベルで強制している。
 
 ```
-ui  → app, note
+ui  → app, note, ui/shared
+ui/shared → （internal の他パッケージに依存しない。dogubako/tui や標準ライブラリのみ）
 app → store, note
 store → note
 ```
 
 - 上記以外の依存は禁止（import だけでなく、公開APIの引数・返り値の型としても露出させない）
 - 許可されていないパッケージの機能が必要な場合は、依存可能な中間層にメソッドを追加して経由する
+- `internal/ui/shared` は dogubako/tui への昇格候補のステージング層。internal の他パッケージに依存できない（depguard で強制）
 
 ## UIコンポーネントのファイル分割ルール
 

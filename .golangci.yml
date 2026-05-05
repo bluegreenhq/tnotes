@@ -85,6 +85,18 @@ linters:
           deny:
             - pkg: "github.com/bluegreenhq/tnotes/internal/store"
               desc: "ui パッケージは app, note のみに依存できます（store は app 経由で利用）"
+        shared:
+          files:
+            - "**/internal/ui/shared/**"
+          deny:
+            - pkg: "github.com/bluegreenhq/tnotes/internal/note"
+              desc: "shared は internal の他パッケージに依存できない"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/store"
+              desc: "shared は internal の他パッケージに依存できない"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/app"
+              desc: "shared は internal の他パッケージに依存できない"
+            - pkg: "github.com/bluegreenhq/tnotes/internal/ui"
+              desc: "shared は ui に依存できない（昇格候補のため）"
     revive:
       rules:
         - name: package-comments

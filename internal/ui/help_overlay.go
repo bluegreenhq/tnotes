@@ -6,6 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/bluegreenhq/dogubako/tui"
+
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // HelpItem はショートカット1件を表す。
@@ -28,7 +30,7 @@ type HelpOverlay struct {
 	bodyHeight  int // ボディ領域の高さ
 }
 
-var _ OverlayComponent = (*HelpOverlay)(nil)
+var _ shared.OverlayComponent = (*HelpOverlay)(nil)
 
 // helpCloseBtnRow は✕ボタンを配置する行（0始まり）。border上(0) の1つ下 = paddingTop行。
 const helpCloseBtnRow = 1

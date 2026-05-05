@@ -1,4 +1,4 @@
-package ui
+package shared
 
 // lineLayout は論理行と視覚行のマッピングを提供する。
 type lineLayout interface { //nolint:interfacebloat // マッピング5+操作6、分割すると実装側が複雑化する

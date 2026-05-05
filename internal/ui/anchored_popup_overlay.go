@@ -6,6 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/bluegreenhq/dogubako/tui"
+
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // AnchoredPopupOverlay は右クリックで開くアンカー位置に追従するポップアップメニュー。
@@ -19,8 +21,8 @@ type AnchoredPopupOverlay struct {
 }
 
 var (
-	_ OverlayComponent = (*AnchoredPopupOverlay)(nil)
-	_ AnchoredOverlay  = (*AnchoredPopupOverlay)(nil)
+	_ shared.OverlayComponent = (*AnchoredPopupOverlay)(nil)
+	_ shared.AnchoredOverlay  = (*AnchoredPopupOverlay)(nil)
 )
 
 // NewAnchoredPopupOverlay は AnchoredPopupOverlay を生成する。

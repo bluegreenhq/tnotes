@@ -1,4 +1,4 @@
-package ui //nolint:testpackage // 内部フィールドへの直接アクセスが必要
+package shared //nolint:testpackage // 内部フィールドへの直接アクセスが必要
 
 import (
 	"testing"

@@ -11,6 +11,7 @@ import (
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // Model はUIの状態を表す。
@@ -30,9 +31,9 @@ type Model struct {
 	infoMsg          string
 	infoMsgID        int
 	indexModTime     time.Time
-	overlay          OverlayComponent // オーバーレイ（ヘルプ / ポップアップメニュー等、nil = 非表示）
-	lastPopupAnchor  *menuAnchor      // 直前のアンカー付きポップアップの位置（サブメニュー復元用）
-	searchDebounceID int              // デバウンスタイマーの世代ID
+	overlay          shared.OverlayComponent // オーバーレイ（ヘルプ / ポップアップメニュー等、nil = 非表示）
+	lastPopupAnchor  *menuAnchor             // 直前のアンカー付きポップアップの位置（サブメニュー復元用）
+	searchDebounceID int                     // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -866,7 +867,7 @@ func (m *Model) processPaneCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 
 		return nil
 	case editorOpenURLMsg:
-		return openURLInBrowser(msg.URL)
+		return shared.OpenURL(msg.URL)
 
 	// ---- Footer ----
 	case FooterToggleMenuMsg:

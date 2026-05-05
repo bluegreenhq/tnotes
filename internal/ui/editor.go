@@ -12,6 +12,7 @@ import (
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 	"github.com/bluegreenhq/tnotes/internal/utils"
 )
 
@@ -19,7 +20,7 @@ import (
 type Editor struct {
 	Header        *EditorHeader
 	app           *app.App
-	textarea      simpleTextArea
+	textarea      shared.SimpleTextArea
 	noteID        note.NoteID
 	original      string
 	width         int
@@ -39,7 +40,7 @@ type Editor struct {
 
 // NewEditor は新しい Editor を生成する。
 func NewEditor(width, height int, noWrap bool) Editor {
-	ta := newSimpleTextArea(noWrap)
+	ta := shared.NewSimpleTextArea(noWrap)
 	ta.SetWidth(width - editorPadding)
 	ta.SetHeight(height - editorHeaderHeight)
 
@@ -328,7 +329,7 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 // SelectWord はワード選択を行う。
 // line, col は論理行・列（rune 単位）。
 func (e *Editor) SelectWord(line, col int) {
-	lines := e.textarea.lines
+	lines := e.textarea.Lines()
 	if line < 0 || line >= len(lines) {
 		return
 	}
@@ -366,7 +367,7 @@ func (e *Editor) SelectWord(line, col int) {
 
 // SelectLine は論理行全体を選択する。
 func (e *Editor) SelectLine(line int) {
-	lines := e.textarea.lines
+	lines := e.textarea.Lines()
 	if line < 0 || line >= len(lines) {
 		return
 	}
@@ -840,7 +841,7 @@ func (e *Editor) positionFromMouse(x, y int) SelectionAnchor {
 	cellCol := max(x-1, 0) // padding分を差し引き
 	visualRow := y + e.textarea.ScrollYOffset()
 
-	logLine, runeCol := e.textarea.positionFromCell(visualRow, cellCol)
+	logLine, runeCol := e.textarea.PositionFromCell(visualRow, cellCol)
 
 	return NewSelectionAnchor(logLine, runeCol)
 }
@@ -924,11 +925,11 @@ func (e *Editor) saveSnapshotBefore(prevText string, prevLine, prevCol int, forc
 // urlAtCursor はカーソル位置にある URL を返す。URL 上にない場合は空文字列を返す。
 func (e *Editor) urlAtCursor() string {
 	line := e.textarea.Line()
-	if line >= len(e.textarea.lines) {
+	if line >= len(e.textarea.Lines()) {
 		return ""
 	}
 
-	logicalText := string(e.textarea.lines[line])
+	logicalText := string(e.textarea.Lines()[line])
 	cursorByte := len(string([]rune(logicalText)[:e.textarea.Column()]))
 
 	for _, loc := range urlPattern.FindAllStringIndex(logicalText, -1) {
@@ -983,7 +984,7 @@ func (e *Editor) applyTitleBold(raw string) string {
 	scrollOffset := e.textarea.ScrollYOffset()
 
 	// タイトル行（論理行0）が表示する視覚行数を取得
-	titleVisualLines := len(e.textarea.layout.visualLinesFor(0))
+	titleVisualLines := e.textarea.VisualLinesCountFor(0)
 	if titleVisualLines == 0 {
 		titleVisualLines = 1
 	}
@@ -1004,7 +1005,7 @@ func (e *Editor) applyTitleBold(raw string) string {
 	for i := range boldCount {
 		line := viewLines[i]
 		// 内部のリセットシーケンス後に太字を再適用する
-		line = strings.ReplaceAll(line, ansiReset, ansiReset+editorBoldOn)
+		line = strings.ReplaceAll(line, shared.AnsiReset, shared.AnsiReset+editorBoldOn)
 		viewLines[i] = editorBoldOn + line + editorBoldOff
 	}
 
@@ -1019,20 +1020,20 @@ func (e *Editor) applyURLStyle(raw string) string {
 
 	for i, line := range viewLines {
 		visualRow := i + scrollOffset
-		logLine, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+		logLine, startRuneOff := e.textarea.ViewLineStartRune(visualRow)
 
-		if logLine >= len(e.textarea.lines) {
+		if logLine >= len(e.textarea.Lines()) {
 			continue
 		}
 
-		logicalText := string(e.textarea.lines[logLine])
+		logicalText := string(e.textarea.Lines()[logLine])
 		locs := urlPattern.FindAllStringIndex(logicalText, -1)
 
 		if len(locs) == 0 {
 			continue
 		}
 
-		visLen := e.textarea.visualLineLength(visualRow)
+		visLen := e.textarea.VisualLineLength(visualRow)
 		styled := styleURLsInLine([]rune(line), logicalText, locs, startRuneOff, visLen)
 
 		if styled != "" {
@@ -1046,10 +1047,10 @@ func (e *Editor) applyURLStyle(raw string) string {
 // applyCursor はカーソル位置の文字を反転表示する。
 // ANSI エスケープシーケンスをスキップして可視ルーン位置を計算する。
 func (e *Editor) applyCursor(raw string) string {
-	visualRow := e.textarea.layout.logicalToVisual(e.textarea.Line(), e.textarea.Column())
+	visualRow := e.textarea.LogicalToVisual(e.textarea.Line(), e.textarea.Column())
 	cursorViewRow := visualRow - e.textarea.ScrollYOffset()
 
-	_, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+	_, startRuneOff := e.textarea.ViewLineStartRune(visualRow)
 	cursorCol := e.textarea.Column() - startRuneOff
 
 	viewLines := strings.Split(raw, "\n")
@@ -1059,7 +1060,7 @@ func (e *Editor) applyCursor(raw string) string {
 
 	line := viewLines[cursorViewRow]
 
-	byteStart, byteEnd := visibleRuneByteRange(line, cursorCol)
+	byteStart, byteEnd := shared.VisibleRuneByteRange(line, cursorCol)
 	if byteStart < 0 {
 		// カーソルが行末の場合
 		viewLines[cursorViewRow] = line + editorCursorOn + " " + editorCursorOff
@@ -1085,14 +1086,14 @@ func (e *Editor) applySearchHighlight(raw string) string {
 
 	for i, line := range viewLines {
 		visualRow := i + scrollOffset
-		logLine, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+		logLine, startRuneOff := e.textarea.ViewLineStartRune(visualRow)
 
-		if logLine >= len(e.textarea.lines) {
+		if logLine >= len(e.textarea.Lines()) {
 			continue
 		}
 
-		logicalText := string(e.textarea.lines[logLine])
-		visLen := e.textarea.visualLineLength(visualRow)
+		logicalText := string(e.textarea.Lines()[logLine])
+		visLen := e.textarea.VisualLineLength(visualRow)
 
 		styled := highlightSearchInLine([]rune(line), logicalText, lowerQuery, startRuneOff, visLen)
 		if styled != "" {
@@ -1115,13 +1116,13 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 
 	for i, line := range viewLines {
 		visualRow := i + scrollOffset
-		logLine, startRuneOff := e.textarea.layout.viewLineStartRune(visualRow, e.textarea.scrollX)
+		logLine, startRuneOff := e.textarea.ViewLineStartRune(visualRow)
 
 		if logLine < start.Line || logLine > end.Line {
 			continue
 		}
 
-		visibleCount := countVisibleRunes(line)
+		visibleCount := shared.CountVisibleRunes(line)
 
 		var colStart, colEnd int
 		if logLine == start.Line {
@@ -1141,8 +1142,8 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 			continue
 		}
 
-		byteStart, _ := visibleRuneByteRange(line, colStart)
-		_, byteEnd := visibleRuneByteRange(line, colEnd-1)
+		byteStart, _ := shared.VisibleRuneByteRange(line, colStart)
+		_, byteEnd := shared.VisibleRuneByteRange(line, colEnd-1)
 
 		if byteStart < 0 || byteEnd < 0 {
 			continue
@@ -1156,7 +1157,7 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 		middle = strings.ReplaceAll(middle, editorSearchHighlightOn, "")
 		middle = strings.ReplaceAll(middle, editorSearchHighlightOff, "")
 
-		restore := collectANSIState(line, byteEnd)
+		restore := shared.CollectANSIState(line, byteEnd)
 		viewLines[i] = before + editorSelectionOn + middle + editorSelectionOff + restore + after
 	}
 

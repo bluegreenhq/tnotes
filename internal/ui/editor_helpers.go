@@ -8,6 +8,8 @@ import (
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
+
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 const editorPadding = 2 // lipgloss Padding(0,1) の左右合計
@@ -164,8 +166,8 @@ func highlightSearchInLine(runes []rune, logicalText, lowerQuery string, startRu
 			continue
 		}
 
-		byteStart, _ := visibleRuneByteRange(line, colStart)
-		_, byteEnd := visibleRuneByteRange(line, colEnd-1)
+		byteStart, _ := shared.VisibleRuneByteRange(line, colStart)
+		_, byteEnd := shared.VisibleRuneByteRange(line, colEnd-1)
 
 		if byteStart < 0 || byteEnd < 0 || byteStart < pos {
 			continue

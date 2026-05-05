@@ -5,6 +5,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/bluegreenhq/dogubako/tui"
+
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // FixedPopupOverlay は UI 要素から決まる固定位置に表示されるポップアップメニュー。
@@ -17,7 +19,7 @@ type FixedPopupOverlay struct {
 	screenHeight int
 }
 
-var _ OverlayComponent = (*FixedPopupOverlay)(nil)
+var _ shared.OverlayComponent = (*FixedPopupOverlay)(nil)
 
 // NewFixedPopupOverlay は FixedPopupOverlay を生成する。
 func NewFixedPopupOverlay(menu *tui.PopupMenu, origin func() (int, int), kind PopupKind) *FixedPopupOverlay {

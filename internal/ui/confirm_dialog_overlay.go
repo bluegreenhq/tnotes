@@ -6,6 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/bluegreenhq/dogubako/tui"
+
+	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // ConfirmTarget は確認ダイアログの対象を表す。
@@ -33,7 +35,7 @@ type ConfirmDialogOverlay struct {
 	folderName string
 }
 
-var _ OverlayComponent = (*ConfirmDialogOverlay)(nil)
+var _ shared.OverlayComponent = (*ConfirmDialogOverlay)(nil)
 
 // NewConfirmDeleteFolderDialog はフォルダ削除確認用の ConfirmDialogOverlay を生成する。
 func NewConfirmDeleteFolderDialog(name string, noteCount int) *ConfirmDialogOverlay {
