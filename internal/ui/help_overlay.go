@@ -41,6 +41,12 @@ const (
 	helpKeyMinWidth     = 15
 )
 
+const (
+	helpDescMoveDown = "Move down"
+	helpDescMoveUp   = "Move up"
+	helpDescQuit     = "Quit"
+)
+
 // NewHelpOverlay はフォーカスに応じた HelpOverlay を生成する。
 func NewHelpOverlay(focus FocusArea) *HelpOverlay {
 	var sections []HelpSection
@@ -218,8 +224,8 @@ func noteListHelpSection() HelpSection {
 	return HelpSection{
 		Title: "Note List",
 		Items: []HelpItem{
-			{"j/↓/Ctrl+N", "Move down"},
-			{"k/↑/Ctrl+P", "Move up"},
+			{"j/↓/Ctrl+N", helpDescMoveDown},
+			{"k/↑/Ctrl+P", helpDescMoveUp},
 			{"n", "New note"},
 			{"d/Del", "Delete note"},
 			{"m", "Menu"},
@@ -228,7 +234,7 @@ func noteListHelpSection() HelpSection {
 			{"Ctrl+D", "Duplicate note"},
 			{"Ctrl+Z", "Undo"},
 			{"Ctrl+Shift+Z", "Redo"},
-			{"q", "Quit"},
+			{"q", helpDescQuit},
 		},
 	}
 }
@@ -237,11 +243,11 @@ func folderListHelpSection() HelpSection {
 	return HelpSection{
 		Title: "Folder List",
 		Items: []HelpItem{
-			{"j/↓/Ctrl+N", "Move down"},
-			{"k/↑/Ctrl+P", "Move up"},
+			{"j/↓/Ctrl+N", helpDescMoveDown},
+			{"k/↑/Ctrl+P", helpDescMoveUp},
 			{"m", "Menu"},
 			{"Enter/Tab", "Next pane"},
-			{"q", "Quit"},
+			{"q", helpDescQuit},
 		},
 	}
 }
@@ -262,8 +268,8 @@ func editorHelpSection() HelpSection {
 			{"Ctrl+E", "End of line"},
 			{"Ctrl+F", "Move right"},
 			{"Ctrl+B", "Move left"},
-			{"Ctrl+N", "Move down"},
-			{"Ctrl+P", "Move up"},
+			{"Ctrl+N", helpDescMoveDown},
+			{"Ctrl+P", helpDescMoveUp},
 			{"Ctrl+D", "Delete character"},
 			{"Ctrl+K", "Kill to end of line"},
 			{"Ctrl+Y", "Yank"},

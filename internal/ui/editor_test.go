@@ -12,15 +12,22 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
+const (
+	testBodyHello       = "Hello"
+	testBodyTwoLines    = "Hello\nWorld"
+	testBodyThreeLines  = "Hello\nWorld\nFoo"
+	testBodyHelloSpaced = "Hello World"
+)
+
 func TestEditorLoadNote(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	assert.Equal(t, note.NoteID("1"), ed.NoteID())
-	assert.Equal(t, "Hello\nWorld", ed.Value())
+	assert.Equal(t, testBodyTwoLines, ed.Value())
 }
 
 func TestEditorEmpty(t *testing.T) {
@@ -69,7 +76,7 @@ func TestEditorSelectionBasic(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyThreeLines}
 	ed.LoadNote(n)
 
 	assert.False(t, ed.HasSelection())
@@ -87,7 +94,7 @@ func TestEditorSelectionNormalize(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 1, Column: 3}, ui.SelectionAnchor{Line: 0, Column: 1})
@@ -101,7 +108,7 @@ func TestEditorClearSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 0}, ui.SelectionAnchor{Line: 0, Column: 3})
@@ -116,7 +123,7 @@ func TestEditorSelectedText(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyThreeLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 1}, ui.SelectionAnchor{Line: 0, Column: 4})
@@ -134,7 +141,7 @@ func TestEditorSelectedTextNoSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed.LoadNote(n)
 
 	assert.Empty(t, ed.SelectedText())
@@ -145,7 +152,7 @@ func TestEditorDeleteSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyThreeLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 1}, ui.SelectionAnchor{Line: 0, Column: 4})
@@ -159,7 +166,7 @@ func TestEditorDeleteSelectionMultiLine(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyThreeLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 3}, ui.SelectionAnchor{Line: 2, Column: 1})
@@ -173,13 +180,13 @@ func TestEditorCopySelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 0}, ui.SelectionAnchor{Line: 0, Column: 5})
 	err := ed.CopySelection()
 	require.NoError(t, err)
-	assert.Equal(t, "Hello\nWorld", ed.Value())
+	assert.Equal(t, testBodyTwoLines, ed.Value())
 	assert.False(t, ed.HasSelection())
 }
 
@@ -188,7 +195,7 @@ func TestEditorCutSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed.LoadNote(n)
 
 	ed.SetSelection(ui.SelectionAnchor{Line: 0, Column: 0}, ui.SelectionAnchor{Line: 0, Column: 5})
@@ -203,7 +210,7 @@ func TestEditorShiftArrowSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed.LoadNote(n)
 	ed.Focus()
 
@@ -220,7 +227,7 @@ func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed.LoadNote(n)
 	ed.Focus()
 
@@ -236,7 +243,7 @@ func TestEditorViewHasHighlight(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed.LoadNote(n)
 	ed.Focus()
 
@@ -252,7 +259,7 @@ func TestEditorBlinkReset(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	ed.Focus()
@@ -264,7 +271,7 @@ func TestEditorBlinkStopsOnBlur(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	ed.Focus()
@@ -277,7 +284,7 @@ func TestEditorBlinkResetsOnKeyPress(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 	ed.Focus()
@@ -290,13 +297,13 @@ func TestEditorSelectWord(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
-	ed.SelectWord(0, 1) // "Hello" の中
+	ed.SelectWord(0, 1) // testBodyHello の中
 	assert.True(t, ed.HasSelection())
-	assert.Equal(t, "Hello", ed.SelectedText())
+	assert.Equal(t, testBodyHello, ed.SelectedText())
 }
 
 func TestEditorSelectWordPunct(t *testing.T) {
@@ -341,13 +348,13 @@ func TestEditorSelectWordAtEnd(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
 	ed.SelectWord(0, 5) // 行末（len == 5）
 	assert.True(t, ed.HasSelection())
-	assert.Equal(t, "Hello", ed.SelectedText())
+	assert.Equal(t, testBodyHello, ed.SelectedText())
 }
 
 func TestEditorSelectWordUnderscore(t *testing.T) {
@@ -367,7 +374,7 @@ func TestEditorSelectLine(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld\nFoo"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyThreeLines}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -392,20 +399,20 @@ func TestEditorSelectLineFirst(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello\nWorld"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyTwoLines}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
 	ed.SelectLine(0)
 	assert.True(t, ed.HasSelection())
-	assert.Equal(t, "Hello", ed.SelectedText())
+	assert.Equal(t, testBodyHello, ed.SelectedText())
 }
 
 func TestEditorHandleTextAreaClickSingle(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -417,7 +424,7 @@ func TestEditorHandleTextAreaClickDouble(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -425,7 +432,7 @@ func TestEditorHandleTextAreaClickDouble(t *testing.T) {
 	ed.StopDragSelection()
 	ed.HandleTextAreaClick(1, 0, now.Add(100*time.Millisecond)) // 2回目（100ms後）
 	assert.True(t, ed.HasSelection())
-	assert.Equal(t, "Hello", ed.SelectedText())
+	assert.Equal(t, testBodyHello, ed.SelectedText())
 	assert.False(t, ed.Selecting(), "should not be in drag mode after word select")
 }
 
@@ -442,14 +449,14 @@ func TestEditorHandleTextAreaClickTriple(t *testing.T) {
 	ed.HandleTextAreaClick(1, 0, now.Add(100*time.Millisecond))
 	ed.HandleTextAreaClick(1, 0, now.Add(200*time.Millisecond))
 	assert.True(t, ed.HasSelection())
-	assert.Equal(t, "Hello World", ed.SelectedText())
+	assert.Equal(t, testBodyHelloSpaced, ed.SelectedText())
 }
 
 func TestEditorHandleTextAreaClickQuadResets(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -465,7 +472,7 @@ func TestEditorHandleTextAreaClickTimeout(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -480,7 +487,7 @@ func TestEditorHandleTextAreaClickDiffPos(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello World"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHelloSpaced}
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
@@ -550,8 +557,8 @@ func TestEditorSelectWordMixed(t *testing.T) {
 	ed := ui.NewEditor(60, 20, false)
 	ed.LoadNote(n)
 
-	ed.SelectWord(0, 0) // "H" → ASCII "Hello"
-	assert.Equal(t, "Hello", ed.SelectedText())
+	ed.SelectWord(0, 0) // "H" → ASCII testBodyHello
+	assert.Equal(t, testBodyHello, ed.SelectedText())
 
 	ed.SelectWord(0, 5) // "世" → 漢字 "世界"
 	assert.Equal(t, "世界", ed.SelectedText())

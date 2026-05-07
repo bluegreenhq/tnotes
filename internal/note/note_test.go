@@ -10,6 +10,8 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/note"
 )
 
+const cachedPreview = "Cached preview"
+
 func TestNew(t *testing.T) {
 	t.Parallel()
 
@@ -59,8 +61,8 @@ func TestPreview(t *testing.T) {
 		{"skip empty lines", "Title\n\n\nActual preview", "", "Actual preview"},
 		{"skip whitespace lines", "Title\n  \n\t\nVisible line", "", "Visible line"},
 		{"only title", "Only title", "", ""},
-		{"empty body with metadata", "", "Cached preview", "Cached preview"},
-		{"only blank lines after title with metadata", "Title\n\n\n", "Cached preview", "Cached preview"},
+		{"empty body with metadata", "", cachedPreview, cachedPreview},
+		{"only blank lines after title with metadata", "Title\n\n\n", cachedPreview, cachedPreview},
 		{"empty body no metadata", "", "", ""},
 		{"long preview truncated", "Title\n" + longLine(90), "", longLine(80) + "…"},
 	}

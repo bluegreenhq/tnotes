@@ -18,12 +18,33 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/store"
 )
 
+const (
+	cmdName        = "tnotes"
+	cmdList        = "list"
+	cmdGet         = "get"
+	cmdCreate      = "create"
+	cmdExport      = "export"
+	cmdImport      = "import"
+	cmdFolder      = "folder"
+	cmdMove        = "move"
+	cmdSearch      = "search"
+	cmdUpdate      = "update"
+	cmdDelete      = "delete"
+	cmdPurge       = "purge"
+	cmdUnknown     = "unknown"
+	cmdNonexistent = "nonexistent"
+	flagFolder     = "--folder"
+	flagJSON       = "--json"
+	flagForce      = "--force"
+	folderWork     = "Work"
+)
+
 func TestRun_NoArgs_ReturnsFalse(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes"}, nil, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName}, nil, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.False(t, got)
 }
@@ -33,7 +54,7 @@ func TestRun_UnknownCommand_PrintsError(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "unknown"}, nil, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdUnknown}, nil, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, buf.String(), "unknown command")
@@ -44,7 +65,7 @@ func TestRun_Help_PrintsUsage(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "help"}, nil, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, "help"}, nil, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Usage:")
@@ -71,7 +92,7 @@ func TestRun_List_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "No notes")
@@ -86,7 +107,7 @@ func TestRun_List_WithNotes(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
@@ -100,7 +121,7 @@ func TestRun_Get_MissingID(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "get"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdGet}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, buf.String(), "Usage: tnotes get <id>")
@@ -113,7 +134,7 @@ func TestRun_Get_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "get", "nonexistent"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdGet, cmdNonexistent}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	assert.Error(t, err)
 }
@@ -127,7 +148,7 @@ func TestRun_Get_Found(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "get", string(result.Note.ID)}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdGet, string(result.Note.ID)}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "My Title")
@@ -143,7 +164,7 @@ func TestRun_Create_FromStdin(t *testing.T) {
 
 	stdin := strings.NewReader("Hello from stdin\nBody line")
 
-	got, err := cli.Run([]string{"tnotes", "create"}, a, stdin, &buf)
+	got, err := cli.Run([]string{cmdName, cmdCreate}, a, stdin, &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -154,7 +175,7 @@ func TestRun_Create_FromStdin(t *testing.T) {
 	// ノートが保存されていることを確認
 	var getBuf bytes.Buffer
 
-	_, _ = cli.Run([]string{"tnotes", "get", id}, a, strings.NewReader(""), &getBuf)
+	_, _ = cli.Run([]string{cmdName, cmdGet, id}, a, strings.NewReader(""), &getBuf)
 	assert.Contains(t, getBuf.String(), "Hello from stdin")
 	assert.Contains(t, getBuf.String(), "Body line")
 }
@@ -171,7 +192,7 @@ func TestRun_Create_FromFile(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, createErr := cli.Run([]string{"tnotes", "create", tmpFile}, a, strings.NewReader(""), &buf)
+	got, createErr := cli.Run([]string{cmdName, cmdCreate, tmpFile}, a, strings.NewReader(""), &buf)
 	require.NoError(t, createErr)
 	assert.True(t, got)
 
@@ -180,7 +201,7 @@ func TestRun_Create_FromFile(t *testing.T) {
 
 	var getBuf bytes.Buffer
 
-	_, _ = cli.Run([]string{"tnotes", "get", id}, a, strings.NewReader(""), &getBuf)
+	_, _ = cli.Run([]string{cmdName, cmdGet, id}, a, strings.NewReader(""), &getBuf)
 	assert.Contains(t, getBuf.String(), "File note title")
 	assert.Contains(t, getBuf.String(), "File body")
 }
@@ -192,7 +213,7 @@ func TestRun_Create_EmptyInput(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "create"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdCreate}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty input")
@@ -205,7 +226,7 @@ func TestRun_Create_FileNotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "create", "/nonexistent/file.md"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdCreate, "/nonexistent/file.md"}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	assert.Error(t, err)
 }
@@ -217,7 +238,7 @@ func TestRun_Export_MissingArg(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "export"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdExport}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, buf.String(), "Usage: tnotes export")
@@ -235,7 +256,7 @@ func TestRun_Export_Success(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "export", outPath}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdExport, outPath}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -281,7 +302,7 @@ func TestRun_Export_WithTrash(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "export", outPath}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdExport, outPath}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -314,7 +335,7 @@ func TestRun_Export_FileExists(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, runErr := cli.Run([]string{"tnotes", "export", outPath}, a, strings.NewReader(""), &buf)
+	got, runErr := cli.Run([]string{cmdName, cmdExport, outPath}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, runErr)
 }
@@ -326,7 +347,7 @@ func TestRun_Import_MissingArg(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "import"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdImport}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, buf.String(), "Usage: tnotes import")
@@ -345,7 +366,7 @@ func TestRun_Import_DataExists(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "import", zipPath}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdImport, zipPath}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "data directory is not empty")
@@ -364,7 +385,7 @@ func TestRun_Import_Success(t *testing.T) {
 
 	var exportBuf bytes.Buffer
 
-	_, exportErr := cli.Run([]string{"tnotes", "export", zipPath}, srcApp, strings.NewReader(""), &exportBuf)
+	_, exportErr := cli.Run([]string{cmdName, cmdExport, zipPath}, srcApp, strings.NewReader(""), &exportBuf)
 	require.NoError(t, exportErr)
 
 	// 空のAppにimport
@@ -374,7 +395,7 @@ func TestRun_Import_Success(t *testing.T) {
 
 	var importBuf bytes.Buffer
 
-	got, importErr := cli.Run([]string{"tnotes", "import", zipPath}, dstApp, strings.NewReader(""), &importBuf)
+	got, importErr := cli.Run([]string{cmdName, cmdImport, zipPath}, dstApp, strings.NewReader(""), &importBuf)
 	require.NoError(t, importErr)
 	assert.True(t, got)
 
@@ -408,7 +429,7 @@ func TestRun_Purge_Force(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "purge", "--force"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdPurge, flagForce}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "1")
@@ -421,7 +442,7 @@ func TestRun_Purge_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "purge", "--force"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdPurge, flagForce}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Trash is empty")
@@ -438,7 +459,7 @@ func TestRun_Purge_ConfirmYes(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("y\n"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdPurge}, a, strings.NewReader("y\n"), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "1")
@@ -455,7 +476,7 @@ func TestRun_Purge_ConfirmNo(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("n\n"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdPurge}, a, strings.NewReader("n\n"), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Cancelled")
@@ -476,7 +497,7 @@ func TestRun_Purge_ConfirmEmpty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "purge"}, a, strings.NewReader("\n"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdPurge}, a, strings.NewReader("\n"), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Cancelled")
@@ -492,7 +513,7 @@ func TestRun_List_WithFolderFlag(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list", "--folder", "Notes"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList, flagFolder, "Notes"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Default note")
@@ -502,11 +523,11 @@ func TestRun_List_WithFolderFlag_Empty(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list", "--folder", "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList, flagFolder, folderWork}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "No notes")
@@ -519,7 +540,7 @@ func TestRun_Folder_List_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "list"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdList}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Notes")
@@ -533,15 +554,15 @@ func TestRun_Folder_Create(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "create", "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdCreate, folderWork}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Created folder: Work")
 
 	var listBuf bytes.Buffer
 
-	_, _ = cli.Run([]string{"tnotes", "folder", "list"}, a, strings.NewReader(""), &listBuf)
-	assert.Contains(t, listBuf.String(), "Work")
+	_, _ = cli.Run([]string{cmdName, cmdFolder, cmdList}, a, strings.NewReader(""), &listBuf)
+	assert.Contains(t, listBuf.String(), folderWork)
 }
 
 func TestRun_Folder_Create_MissingName(t *testing.T) {
@@ -551,7 +572,7 @@ func TestRun_Folder_Create_MissingName(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "create"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdCreate}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -560,11 +581,11 @@ func TestRun_Folder_Delete_Empty(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "delete", "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdDelete, folderWork}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Deleted folder: Work")
@@ -577,7 +598,7 @@ func TestRun_Folder_Delete_MissingName(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "delete"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdDelete}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -586,11 +607,11 @@ func TestRun_Folder_Delete_Force(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "delete", "Work", "--force"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdDelete, folderWork, flagForce}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Deleted folder: Work")
@@ -603,7 +624,7 @@ func TestRun_List_WithFolderFlag_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list", "--folder", "unknown"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList, flagFolder, cmdUnknown}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "folder not found")
@@ -613,15 +634,15 @@ func TestRun_Create_WithFolder(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "create", "--folder", "Work"}, a, strings.NewReader("work note\nbody"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdCreate, flagFolder, folderWork}, a, strings.NewReader("work note\nbody"), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
-	workNotes := a.ListByFolder("Work")
+	workNotes := a.ListByFolder(folderWork)
 	assert.Len(t, workNotes, 1)
 }
 
@@ -632,7 +653,7 @@ func TestRun_Create_WithFolder_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "create", "--folder", "unknown"}, a, strings.NewReader("test\nbody"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdCreate, flagFolder, cmdUnknown}, a, strings.NewReader("test\nbody"), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "folder not found")
@@ -642,7 +663,7 @@ func TestRun_Move_Success(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	now := time.Now()
 	result, _ := a.CreateNote(now, "")
@@ -650,12 +671,12 @@ func TestRun_Move_Success(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "move", string(result.Note.ID), "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdMove, string(result.Note.ID), folderWork}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Moved")
 
-	workNotes := a.ListByFolder("Work")
+	workNotes := a.ListByFolder(folderWork)
 	assert.Len(t, workNotes, 1)
 }
 
@@ -666,7 +687,7 @@ func TestRun_Move_MissingArgs(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "move"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdMove}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -675,11 +696,11 @@ func TestRun_Move_NoteNotFound(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "move", "nonexistent", "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdMove, cmdNonexistent, folderWork}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -694,7 +715,7 @@ func TestRun_Move_FolderNotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "move", string(result.Note.ID), "unknown"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdMove, string(result.Note.ID), cmdUnknown}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -706,7 +727,7 @@ func TestRun_Folder_NoSubcommand(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -716,7 +737,7 @@ func TestRun_Version_PrintsVersion(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "version"}, nil, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, "version"}, nil, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "tnotes version ")
@@ -732,7 +753,7 @@ func TestRun_List_JSON(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list", "--json"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList, flagJSON}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -750,7 +771,7 @@ func TestRun_List_JSON_Empty(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "list", "--json"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdList, flagJSON}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -769,7 +790,7 @@ func TestRun_Get_JSON(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "get", string(result.Note.ID), "--json"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdGet, string(result.Note.ID), flagJSON}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -784,18 +805,18 @@ func TestRun_Folder_List_JSON(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "folder", "list", "--json"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdFolder, cmdList, flagJSON}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
 	var folders []string
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &folders))
 	assert.Contains(t, folders, "Notes")
-	assert.Contains(t, folders, "Work")
+	assert.Contains(t, folders, folderWork)
 }
 
 func TestRun_Search_Found(t *testing.T) {
@@ -808,7 +829,7 @@ func TestRun_Search_Found(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "meeting"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "meeting"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
@@ -824,7 +845,7 @@ func TestRun_Search_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "nonexistent"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, cmdNonexistent}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "No matches")
@@ -840,7 +861,7 @@ func TestRun_Search_JSON(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "json", "--json"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "json", flagJSON}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 
@@ -865,7 +886,7 @@ func TestRun_Search_BodyMatch(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "keyword"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "keyword"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
@@ -884,7 +905,7 @@ func TestRun_Search_CaseInsensitive(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "uppercase"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "uppercase"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
@@ -894,17 +915,17 @@ func TestRun_Search_WithFolder(t *testing.T) {
 	t.Parallel()
 
 	a := newTestApp(t)
-	require.NoError(t, a.CreateFolder("Work"))
+	require.NoError(t, a.CreateFolder(folderWork))
 
 	now := time.Now()
-	r1, _ := a.CreateNote(now, "Work")
+	r1, _ := a.CreateNote(now, folderWork)
 	_, _ = a.SaveNote(r1.Note.ID, "Work note\nBody", now)
 	r2, _ := a.CreateNote(now, "")
 	_, _ = a.SaveNote(r2.Note.ID, "Default note\nBody", now)
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search", "note", "--folder", "Work"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "note", flagFolder, folderWork}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(r1.Note.ID))
@@ -922,7 +943,7 @@ func TestRun_Search_Context(t *testing.T) {
 	var buf bytes.Buffer
 
 	// context=2 で前後2文字のみ
-	got, err := cli.Run([]string{"tnotes", "search", "target", "--context", "2"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "target", "--context", "2"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	// "...A target BB..." のようなスニ���ット
@@ -941,7 +962,7 @@ func TestRun_Search_Snippet_NoEllipsis(t *testing.T) {
 	var buf bytes.Buffer
 
 	// context が十分大きければ ... がつかない
-	got, err := cli.Run([]string{"tnotes", "search", "short", "--context", "100"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch, "short", "--context", "100"}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "short match")
@@ -955,7 +976,7 @@ func TestRun_Search_MissingQuery(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "search"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdSearch}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -970,7 +991,7 @@ func TestRun_Update_Success(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "update", string(result.Note.ID)}, a, strings.NewReader("New title\nNew body"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdUpdate, string(result.Note.ID)}, a, strings.NewReader("New title\nNew body"), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), string(result.Note.ID))
@@ -978,7 +999,7 @@ func TestRun_Update_Success(t *testing.T) {
 	// 更新された内容を確認
 	var getBuf bytes.Buffer
 
-	_, _ = cli.Run([]string{"tnotes", "get", string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
+	_, _ = cli.Run([]string{cmdName, cmdGet, string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
 	assert.Contains(t, getBuf.String(), "New title")
 	assert.Contains(t, getBuf.String(), "New body")
 }
@@ -997,13 +1018,13 @@ func TestRun_Update_FromFile(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, runErr := cli.Run([]string{"tnotes", "update", string(result.Note.ID), tmpFile}, a, strings.NewReader(""), &buf)
+	got, runErr := cli.Run([]string{cmdName, cmdUpdate, string(result.Note.ID), tmpFile}, a, strings.NewReader(""), &buf)
 	require.NoError(t, runErr)
 	assert.True(t, got)
 
 	var getBuf bytes.Buffer
 
-	_, _ = cli.Run([]string{"tnotes", "get", string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
+	_, _ = cli.Run([]string{cmdName, cmdGet, string(result.Note.ID)}, a, strings.NewReader(""), &getBuf)
 	assert.Contains(t, getBuf.String(), "Updated from file")
 }
 
@@ -1014,7 +1035,7 @@ func TestRun_Update_MissingID(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "update"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdUpdate}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -1026,7 +1047,7 @@ func TestRun_Update_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "update", "nonexistent"}, a, strings.NewReader("new body"), &buf)
+	got, err := cli.Run([]string{cmdName, cmdUpdate, cmdNonexistent}, a, strings.NewReader("new body"), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -1041,7 +1062,7 @@ func TestRun_Update_EmptyInput(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "update", string(result.Note.ID)}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdUpdate, string(result.Note.ID)}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -1056,7 +1077,7 @@ func TestRun_Delete_Success(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "delete", string(result.Note.ID)}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdDelete, string(result.Note.ID)}, a, strings.NewReader(""), &buf)
 	require.NoError(t, err)
 	assert.True(t, got)
 	assert.Contains(t, buf.String(), "Deleted")
@@ -1074,7 +1095,7 @@ func TestRun_Delete_MissingID(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "delete"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdDelete}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }
@@ -1086,7 +1107,7 @@ func TestRun_Delete_NotFound(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	got, err := cli.Run([]string{"tnotes", "delete", "nonexistent"}, a, strings.NewReader(""), &buf)
+	got, err := cli.Run([]string{cmdName, cmdDelete, cmdNonexistent}, a, strings.NewReader(""), &buf)
 	assert.True(t, got)
 	require.Error(t, err)
 }

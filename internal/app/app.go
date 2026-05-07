@@ -117,7 +117,7 @@ func (a *App) CreateNote(now time.Time, folder string) (NoteResult, error) {
 		Note:        n,
 		Notes:       a.Notes,
 		SelectIdx:   0,
-		InfoHint:    "Undo: Ctrl+Z",
+		InfoHint:    undoHintMsg,
 		FocusEditor: true,
 		LoadNote:    true,
 	}, nil
@@ -146,7 +146,7 @@ func (a *App) DuplicateNote(id note.NoteID) (NoteResult, error) {
 		Note:        dup,
 		Notes:       a.Notes,
 		SelectIdx:   insertIdx,
-		InfoHint:    "Undo: Ctrl+Z",
+		InfoHint:    undoHintMsg,
 		FocusEditor: false,
 		LoadNote:    false,
 	}, nil
@@ -169,7 +169,7 @@ func (a *App) TrashNote(id note.NoteID) (NoteResult, error) {
 
 	a.NoteUndo.Push(&TrashAction{NoteID: id, OriginalFolder: originalFolder})
 
-	return NoteResult{Notes: a.Notes, SelectIdx: -1, InfoHint: "Undo: Ctrl+Z"}, nil //nolint:exhaustruct // Noteはゴミ箱移動で不要
+	return NoteResult{Notes: a.Notes, SelectIdx: -1, InfoHint: undoHintMsg}, nil //nolint:exhaustruct // Noteはゴミ箱移動で不要
 }
 
 // RefreshTrashNotes はストアからノートを再読み込みする（ゴミ箱表示切替時）。
@@ -458,6 +458,9 @@ func (a *App) FolderNoteCount(name string) (int, error) {
 
 // DefaultFolder はデフォルトのノートフォルダ名。
 const DefaultFolder = "Notes"
+
+// undoHintMsg はノート操作後にフッターへ表示する undo 案内メッセージ。
+const undoHintMsg = "Undo: Ctrl+Z"
 
 // ListByFolder は指定フォルダに属するノート一覧を返す。
 func (a *App) ListByFolder(folderName string) []note.Note {

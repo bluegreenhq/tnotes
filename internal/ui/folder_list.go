@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -704,7 +705,7 @@ func truncateForCount(name, count string, contentWidth int) string {
 
 	const ellipsis = "…"
 
-	for i := len(runes) - 1; i >= 0; i-- {
+	for i := range slices.Backward(runes) {
 		candidate := string(runes[:i]) + ellipsis
 		if lipgloss.Width(candidate) <= maxNameW {
 			return candidate

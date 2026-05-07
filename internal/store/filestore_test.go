@@ -15,6 +15,8 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/store"
 )
 
+const folderWork = "Work"
+
 func TestFileStore_SaveAndLoad(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -575,12 +577,12 @@ func TestFileStore_ListFolders(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Work"), 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, folderWork), 0o750))
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Personal"), 0o750))
 
 	folders, err := s.ListFolders()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Personal", "Work"}, folders)
+	assert.Equal(t, []string{"Personal", folderWork}, folders)
 }
 
 func TestFileStore_ListFolders_ExcludesSystem(t *testing.T) {
@@ -590,11 +592,11 @@ func TestFileStore_ListFolders_ExcludesSystem(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".hidden"), 0o750))
-	require.NoError(t, os.MkdirAll(filepath.Join(dir, "Work"), 0o750))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, folderWork), 0o750))
 
 	folders, err := s.ListFolders()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Work"}, folders)
+	assert.Equal(t, []string{folderWork}, folders)
 }
 
 func TestFileStore_CreateFolder(t *testing.T) {
@@ -603,16 +605,16 @@ func TestFileStore_CreateFolder(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	err = s.CreateFolder("Work")
+	err = s.CreateFolder(folderWork)
 	require.NoError(t, err)
 
-	info, err := os.Stat(filepath.Join(dir, "Work"))
+	info, err := os.Stat(filepath.Join(dir, folderWork))
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 
 	folders, err := s.ListFolders()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Work"}, folders)
+	assert.Equal(t, []string{folderWork}, folders)
 }
 
 func TestFileStore_CreateFolder_AlreadyExists(t *testing.T) {
@@ -621,8 +623,8 @@ func TestFileStore_CreateFolder_AlreadyExists(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, s.CreateFolder("Work"))
-	err = s.CreateFolder("Work")
+	require.NoError(t, s.CreateFolder(folderWork))
+	err = s.CreateFolder(folderWork)
 	assert.Error(t, err)
 }
 
@@ -645,12 +647,12 @@ func TestFileStore_DeleteFolder_Empty(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, s.CreateFolder("Work"))
+	require.NoError(t, s.CreateFolder(folderWork))
 
-	err = s.DeleteFolder("Work")
+	err = s.DeleteFolder(folderWork)
 	require.NoError(t, err)
 
-	_, err = os.Stat(filepath.Join(dir, "Work"))
+	_, err = os.Stat(filepath.Join(dir, folderWork))
 	assert.True(t, os.IsNotExist(err))
 
 	folders, err := s.ListFolders()
@@ -684,17 +686,17 @@ func TestFileStore_DeleteFolder_WithEmptySubdirs(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, s.CreateFolder("Work"))
+	require.NoError(t, s.CreateFolder(folderWork))
 
 	// サブディレクトリを手動作成（日付ディレクトリを模倣）
-	subdir := filepath.Join(dir, "Work", "20260410")
+	subdir := filepath.Join(dir, folderWork, "20260410")
 	require.NoError(t, os.MkdirAll(subdir, 0o700))
 
 	// 空サブディレクトリありでも削除できる
-	err = s.DeleteFolder("Work")
+	err = s.DeleteFolder(folderWork)
 	require.NoError(t, err)
 
-	_, err = os.Stat(filepath.Join(dir, "Work"))
+	_, err = os.Stat(filepath.Join(dir, folderWork))
 	assert.True(t, os.IsNotExist(err))
 }
 
@@ -704,12 +706,12 @@ func TestFileStore_DeleteFolder_WithFiles(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, s.CreateFolder("Work"))
+	require.NoError(t, s.CreateFolder(folderWork))
 
 	// ファイルが残っている場合はエラー
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Work", "orphan.md"), []byte("test"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, folderWork, "orphan.md"), []byte("test"), 0o600))
 
-	err = s.DeleteFolder("Work")
+	err = s.DeleteFolder(folderWork)
 	assert.Error(t, err)
 }
 
@@ -762,15 +764,15 @@ func TestFileStore_MoveNote(t *testing.T) {
 	}
 	require.NoError(t, s.Save(n))
 
-	require.NoError(t, s.CreateFolder("Work"))
+	require.NoError(t, s.CreateFolder(folderWork))
 
-	err = s.MoveNote("move1", "Work")
+	err = s.MoveNote("move1", folderWork)
 	require.NoError(t, err)
 
 	_, err = os.Stat(filepath.Join(dir, "Notes", "20260404", "move1.md"))
 	assert.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(filepath.Join(dir, "Work", "20260404", "move1.md"))
+	_, err = os.Stat(filepath.Join(dir, folderWork, "20260404", "move1.md"))
 	require.NoError(t, err)
 
 	s2, err := store.NewFileStore(dir)
@@ -792,7 +794,7 @@ func TestFileStore_MoveNote_NotFound(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	err = s.MoveNote("nonexistent", "Work")
+	err = s.MoveNote("nonexistent", folderWork)
 	assert.Error(t, err)
 }
 
@@ -802,7 +804,7 @@ func TestFileStore_MoveNote_ToNotes(t *testing.T) {
 	s, err := store.NewFileStore(dir)
 	require.NoError(t, err)
 
-	require.NoError(t, s.CreateFolder("Work"))
+	require.NoError(t, s.CreateFolder(folderWork))
 
 	now := time.Date(2026, 4, 4, 10, 0, 0, 0, time.UTC)
 	n := note.Note{

@@ -109,20 +109,20 @@ func TestEditorUndoRestore(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed.LoadNote(n)
 
 	// 変更前の状態をスナップショットとして保存
 	ed.SaveSnapshot(now)
-	ed.SetValue("Hello World")
+	ed.SetValue(testBodyHelloSpaced)
 
-	// Undo: "Hello" に戻る
+	// Undo: testBodyHello に戻る
 	ed.Undo()
-	assert.Equal(t, "Hello", ed.Value())
+	assert.Equal(t, testBodyHello, ed.Value())
 
-	// Redo: "Hello World" に戻る
+	// Redo: testBodyHelloSpaced に戻る
 	ed.Redo()
-	assert.Equal(t, "Hello World", ed.Value())
+	assert.Equal(t, testBodyHelloSpaced, ed.Value())
 }
 
 func TestEditorAutoSnapshotOnTextChange(t *testing.T) {
@@ -143,7 +143,7 @@ func TestEditorAutoSnapshotOnNewline(t *testing.T) {
 
 	ed := ui.NewEditor(60, 20, false)
 	now := time.Now()
-	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "Hello"}
+	n := note.Note{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: testBodyHello}
 	ed.LoadNote(n)
 	ed.Focus()
 

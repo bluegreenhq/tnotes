@@ -15,11 +15,11 @@ func TestSearchByFolder_MatchesTitle(t *testing.T) {
 	t.Parallel()
 
 	a := newSearchTestApp(t, []testNote{
-		{body: "Meeting Notes\nDiscuss Q2 plan", folder: "Notes"},
-		{body: "Shopping List\nMilk, Eggs", folder: "Notes"},
+		{body: "Meeting Notes\nDiscuss Q2 plan", folder: app.DefaultFolder},
+		{body: "Shopping List\nMilk, Eggs", folder: app.DefaultFolder},
 	})
 
-	results := a.SearchByFolder("Notes", "meeting")
+	results := a.SearchByFolder(app.DefaultFolder, "meeting")
 	assert.Len(t, results, 1)
 	assert.Equal(t, "Meeting Notes", results[0].Title())
 }
@@ -28,11 +28,11 @@ func TestSearchByFolder_MatchesBody(t *testing.T) {
 	t.Parallel()
 
 	a := newSearchTestApp(t, []testNote{
-		{body: "Meeting Notes\nDiscuss Q2 plan", folder: "Notes"},
-		{body: "Shopping List\nMilk, Eggs", folder: "Notes"},
+		{body: "Meeting Notes\nDiscuss Q2 plan", folder: app.DefaultFolder},
+		{body: "Shopping List\nMilk, Eggs", folder: app.DefaultFolder},
 	})
 
-	results := a.SearchByFolder("Notes", "eggs")
+	results := a.SearchByFolder(app.DefaultFolder, "eggs")
 	assert.Len(t, results, 1)
 	assert.Equal(t, "Shopping List", results[0].Title())
 }
@@ -41,10 +41,10 @@ func TestSearchByFolder_CaseInsensitive(t *testing.T) {
 	t.Parallel()
 
 	a := newSearchTestApp(t, []testNote{
-		{body: "Hello World\nSome content", folder: "Notes"},
+		{body: "Hello World\nSome content", folder: app.DefaultFolder},
 	})
 
-	results := a.SearchByFolder("Notes", "HELLO")
+	results := a.SearchByFolder(app.DefaultFolder, "HELLO")
 	assert.Len(t, results, 1)
 }
 
@@ -52,11 +52,11 @@ func TestSearchByFolder_EmptyQuery(t *testing.T) {
 	t.Parallel()
 
 	a := newSearchTestApp(t, []testNote{
-		{body: "Note A\nBody A", folder: "Notes"},
-		{body: "Note B\nBody B", folder: "Notes"},
+		{body: "Note A\nBody A", folder: app.DefaultFolder},
+		{body: "Note B\nBody B", folder: app.DefaultFolder},
 	})
 
-	results := a.SearchByFolder("Notes", "")
+	results := a.SearchByFolder(app.DefaultFolder, "")
 	assert.Len(t, results, 2)
 }
 
@@ -65,7 +65,7 @@ func TestSearchByFolder_FolderScope(t *testing.T) {
 
 	a := newSearchTestApp(t, []testNote{
 		{body: "Work Note\nWork body", folder: "Work"},
-		{body: "Personal Note\nPersonal body", folder: "Notes"},
+		{body: "Personal Note\nPersonal body", folder: app.DefaultFolder},
 	})
 
 	results := a.SearchByFolder("Work", "note")

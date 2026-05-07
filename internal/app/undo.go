@@ -106,7 +106,7 @@ func (a *App) RedoNote() (NoteResult, error) {
 		selectIdx = 0
 	}
 
-	return NoteResult{Notes: a.Notes, SelectIdx: selectIdx, InfoHint: "Undo: Ctrl+Z"}, nil //nolint:exhaustruct // redo結果にNoteは不要
+	return NoteResult{Notes: a.Notes, SelectIdx: selectIdx, InfoHint: undoHintMsg}, nil //nolint:exhaustruct // redo結果にNoteは不要
 }
 
 // CreateAction はノート作成操作を表す。
