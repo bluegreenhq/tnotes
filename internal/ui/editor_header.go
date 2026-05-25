@@ -138,30 +138,30 @@ func (h *EditorHeader) RebuildMenu() {
 		menuItems = []tui.MenuItem{
 			tui.NewMenuItem("Move to…"),
 		}
-		h.menuActions = []ModelAction{editorHeaderMoveAction{}}
+		h.menuActions = []ModelAction{openNoteMoveMenu}
 	} else {
 		menuItems = []tui.MenuItem{
 			tui.NewMenuItem("Delete Note"),
 		}
-		h.menuActions = []ModelAction{editorHeaderTrashAction{}}
+		h.menuActions = []ModelAction{trashSelectedNote}
 
 		if h.pinned {
 			menuItems = append(menuItems, tui.NewMenuItem("Unpin Note"))
-			h.menuActions = append(h.menuActions, editorHeaderUnpinAction{})
+			h.menuActions = append(h.menuActions, unpinNote)
 		} else {
 			menuItems = append(menuItems, tui.NewMenuItem("Pin Note"))
-			h.menuActions = append(h.menuActions, editorHeaderPinAction{})
+			h.menuActions = append(h.menuActions, pinNote)
 		}
 
 		menuItems = append(menuItems, tui.NewMenuItem("Move to…"))
-		h.menuActions = append(h.menuActions, editorHeaderMoveAction{})
+		h.menuActions = append(h.menuActions, openNoteMoveMenu)
 
 		menuItems = append(menuItems, tui.NewMenuItem("Duplicate"))
-		h.menuActions = append(h.menuActions, editorHeaderDuplicateAction{})
+		h.menuActions = append(h.menuActions, duplicateSelectedNote)
 
 		if h.hasContent {
 			menuItems = append(menuItems, tui.NewMenuItem("Copy Note"))
-			h.menuActions = append(h.menuActions, editorHeaderCopyAction{})
+			h.menuActions = append(h.menuActions, copyNoteToClipboard)
 		}
 	}
 
@@ -194,28 +194,26 @@ func (h *EditorHeader) MenuHeight() int {
 
 // HandleClick はヘッダー行のクリックを処理する。
 // x はヘッダー内の相対 X 座標。
-func (h *EditorHeader) HandleClick(x int) tea.Cmd {
+func (h *EditorHeader) HandleClick(x int) ModelAction {
 	// + ボタン判定
 	if !h.trashMode && x == newButtonX {
-		return actionCmd(editorHeaderNewAction{})
+		return createNote
 	}
 
 	// ⋯ ボタン判定（検索フィールドより優先）
 	if h.hasNote && h.isMoreButtonX(x) {
-		return actionCmd(editorHeaderOpenMenuAction{})
+		return openEditorHeaderMenu
 	}
 
 	// 検索フィールド判定
-	if h.handleSearchClick(x) {
-		return nil
-	}
+	h.handleSearchClick(x)
 
 	return nil
 }
 
 // HandleMenuClick はメニュー領域のクリックを処理する。
 // x, y はメニュー左上を原点とする相対座標。
-func (h *EditorHeader) HandleMenuClick(x, y int) tea.Cmd {
+func (h *EditorHeader) HandleMenuClick(x, y int) ModelAction {
 	idx, hit := h.PopupMenu.HandleClick(x, y)
 	h.CloseMenu()
 
@@ -223,16 +221,16 @@ func (h *EditorHeader) HandleMenuClick(x, y int) tea.Cmd {
 		return nil
 	}
 
-	return actionCmd(h.menuActions[idx])
+	return h.menuActions[idx]
 }
 
-// ExecuteMenuAction はインデックスに対応するメニューアクションのコマンドを返す。
-func (h *EditorHeader) ExecuteMenuAction(idx int) tea.Cmd {
+// ExecuteMenuAction はインデックスに対応するメニューアクションを返す。
+func (h *EditorHeader) ExecuteMenuAction(idx int) ModelAction {
 	if idx < 0 || idx >= len(h.menuActions) {
 		return nil
 	}
 
-	return actionCmd(h.menuActions[idx])
+	return h.menuActions[idx]
 }
 
 // SetMenuHover はメニュー領域のホバーを更新する。
@@ -284,7 +282,7 @@ func (h *EditorHeader) CloseMoveMenu() {
 }
 
 // HandleMoveMenuClick は移動先メニューのクリックを処理する。
-func (h *EditorHeader) HandleMoveMenuClick(x, y int) tea.Cmd {
+func (h *EditorHeader) HandleMoveMenuClick(x, y int) ModelAction {
 	idx, hit := h.MoveMenu.HandleClick(x, y)
 	h.CloseMoveMenu()
 
@@ -292,16 +290,16 @@ func (h *EditorHeader) HandleMoveMenuClick(x, y int) tea.Cmd {
 		return nil
 	}
 
-	return actionCmd(noteMoveAction{DestFolder: h.moveFolders[idx]})
+	return moveNoteTo(h.moveFolders[idx])
 }
 
-// ExecuteMoveMenuAction はインデックスに対応する移動先フォルダのコマンドを返す。
-func (h *EditorHeader) ExecuteMoveMenuAction(idx int) tea.Cmd {
+// ExecuteMoveMenuAction はインデックスに対応する移動先フォルダのアクションを返す。
+func (h *EditorHeader) ExecuteMoveMenuAction(idx int) ModelAction {
 	if idx < 0 || idx >= len(h.moveFolders) {
 		return nil
 	}
 
-	return actionCmd(noteMoveAction{DestFolder: h.moveFolders[idx]})
+	return moveNoteTo(h.moveFolders[idx])
 }
 
 // HandleSearchKey は検索フィールドのキー入力を処理する。
@@ -426,85 +424,32 @@ func (h *EditorHeader) setSearchHover(x int) {
 
 // --- EditorHeader → Model アクション ---
 
-// editorHeaderNewAction は新規ノート作成を Model に要求する。
-type editorHeaderNewAction struct{}
-
-// Apply は新規ノートを作成する。
-func (editorHeaderNewAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
-	return m.createNote(ctx.Now)
-}
-
-// editorHeaderTrashAction はノートのゴミ箱移動を Model に要求する。
-type editorHeaderTrashAction struct{}
-
-// Apply は選択ノートをゴミ箱に移動する。
-func (editorHeaderTrashAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
-	m.syncEditorToNote(ctx.Now)
-	result, err := m.NoteList.TrashSelected()
-
-	return m.applyNoteAction(result, err, ctx.Now)
-}
-
-// editorHeaderCopyAction はノート内容のクリップボードコピーを Model に要求する。
-type editorHeaderCopyAction struct{}
-
-// Apply は選択ノート内容をクリップボードにコピーする。
-func (editorHeaderCopyAction) Apply(m *Model, _ ActionContext) tea.Cmd {
-	return m.Editor.CopyToClipboard()
-}
-
-// editorHeaderPinAction はノートのピン留めを Model に要求する。
-type editorHeaderPinAction struct{}
-
-// Apply はノートをピン留めする。
-func (editorHeaderPinAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// pinNote はノートをピン留めする。
+func pinNote(m *Model, _ ActionContext) tea.Cmd {
 	return m.setNotePin(true)
 }
 
-// editorHeaderUnpinAction はノートのピン留め解除を Model に要求する。
-type editorHeaderUnpinAction struct{}
-
-// Apply はノートのピン留めを解除する。
-func (editorHeaderUnpinAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// unpinNote はノートのピン留めを解除する。
+func unpinNote(m *Model, _ ActionContext) tea.Cmd {
 	return m.setNotePin(false)
 }
 
-// editorHeaderMoveAction は移動先メニュー表示を Model に要求する。
-type editorHeaderMoveAction struct{}
-
-// Apply は移動先フォルダ選択メニューを開く。
-func (editorHeaderMoveAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// openNoteMoveMenu は移動先フォルダ選択メニューを開く。
+func openNoteMoveMenu(m *Model, _ ActionContext) tea.Cmd {
 	return m.openMoveMenu()
 }
 
-// editorHeaderDuplicateAction はノート複製を Model に要求する。
-type editorHeaderDuplicateAction struct{}
-
-// Apply は選択ノートを複製する。
-func (editorHeaderDuplicateAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
-	m.syncEditorToNote(ctx.Now)
-	result, err := m.NoteList.DuplicateSelected()
-
-	return m.applyNoteAction(result, err, ctx.Now)
-}
-
-// editorHeaderOpenMenuAction はエディタヘッダー「⋯」ボタンによるメニュー開閉を Model に要求する。
-type editorHeaderOpenMenuAction struct{}
-
-// Apply は固定位置ポップアップとしてメニューを開く。
-func (editorHeaderOpenMenuAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// openEditorHeaderMenu はエディタヘッダーの「⋯」メニューを固定位置ポップアップとして開く。
+func openEditorHeaderMenu(m *Model, _ ActionContext) tea.Cmd {
 	m.Editor.Header.OpenMenu()
 	m.openFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin, PopupKindEditorHeader)
 
 	return nil
 }
 
-// noteMoveAction はノートを別フォルダに移動する処理を Model に要求する。
-type noteMoveAction struct {
-	DestFolder string
-}
-
-// Apply はノートを指定フォルダに移動し、UIを切り替える。
-func (a noteMoveAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
-	return m.handleNoteMove(a.DestFolder, ctx.Now)
+// moveNoteTo はノートを指定フォルダに移動し、UI を切り替える。
+func moveNoteTo(dest string) ModelAction {
+	return func(m *Model, ctx ActionContext) tea.Cmd {
+		return m.handleNoteMove(dest, ctx.Now)
+	}
 }

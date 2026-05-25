@@ -1,11 +1,8 @@
 package shared
 
-import tea "charm.land/bubbletea/v2"
-
-// OverlayComponent はオーバーレイコンポーネントの共通インターフェース。
-// Help / PopupMenu / ConfirmDialog などモーダル UI が実装する。
+// OverlayComponent はオーバーレイの描画インターフェース。
+// 入力（Update）の扱いはホストアプリ側で定義する（ModelAction を返す等）。
 type OverlayComponent interface {
-	Update(msg tea.Msg) tea.Cmd
 	RenderOn(base string, width, height int) string
 	SetScreenSize(width, height int)
 }

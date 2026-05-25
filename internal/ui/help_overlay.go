@@ -71,21 +71,21 @@ func (h *HelpOverlay) SetScreenSize(screenWidth, bodyHeight int) {
 	h.bodyHeight = bodyHeight
 }
 
-// Update はメッセージに応じて状態を更新し、副作用 Cmd を返す。
-func (h *HelpOverlay) Update(msg tea.Msg) tea.Cmd {
+// UpdateOverlay はメッセージに応じて状態を更新し、ModelAction と tea.Cmd を返す。
+func (h *HelpOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		return h.handleKey(msg)
+		return h.handleKey(msg), nil
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft && h.closeButtonHit(msg.X, msg.Y) {
-			return actionCmd(helpOverlayCloseAction{})
+			return closeHelpOverlay, nil
 		}
 	case tea.MouseMsg:
 		mouse := msg.Mouse()
 		h.closeHover = h.closeButtonHit(mouse.X, mouse.Y)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // RenderOn はベース画面上にヘルプオーバーレイを合成する。
@@ -167,16 +167,16 @@ func (h *HelpOverlay) closeButtonHit(absX, absY int) bool {
 	return absX == btnX && absY == btnY
 }
 
-func (h *HelpOverlay) handleKey(msg tea.KeyPressMsg) tea.Cmd {
+func (h *HelpOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	switch {
 	case msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0:
-		return actionCmd(helpOverlayQuitAction{})
+		return quitFromHelpOverlay
 	case msg.Code == tea.KeyEscape:
-		return actionCmd(helpOverlayCloseAction{})
+		return closeHelpOverlay
 	case msg.Code == '?' && msg.Mod == 0:
-		return actionCmd(helpOverlayCloseAction{})
+		return closeHelpOverlay
 	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
-		return actionCmd(helpOverlayCloseAction{})
+		return closeHelpOverlay
 	}
 
 	return nil
@@ -294,21 +294,15 @@ func globalHelpSection() HelpSection {
 
 // --- HelpOverlay → Model アクション ---
 
-// helpOverlayCloseAction はヘルプオーバーレイを閉じることを Model に要求する。
-type helpOverlayCloseAction struct{}
-
-// Apply はオーバーレイをクリアする。
-func (helpOverlayCloseAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// closeHelpOverlay はオーバーレイをクリアする。
+func closeHelpOverlay(m *Model, _ ActionContext) tea.Cmd {
 	m.overlay = nil
 
 	return nil
 }
 
-// helpOverlayQuitAction はヘルプ表示中のアプリ終了を Model に要求する。
-type helpOverlayQuitAction struct{}
-
-// Apply はオーバーレイをクリアし、編集中ノートを保存してから tea.Quit を返す。
-func (helpOverlayQuitAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+// quitFromHelpOverlay はオーバーレイをクリアし、編集中ノートを保存してから tea.Quit を返す。
+func quitFromHelpOverlay(m *Model, ctx ActionContext) tea.Cmd {
 	m.overlay = nil
 	m.syncEditorToNote(ctx.Now)
 

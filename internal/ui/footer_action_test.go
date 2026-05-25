@@ -1,4 +1,4 @@
-package ui //nolint:testpackage // 内部アクション型（unexported）を検査するためのホワイトボックステスト
+package ui //nolint:testpackage // 内部アクション関数（unexported）を検査するためのホワイトボックステスト
 
 import (
 	"testing"
@@ -12,14 +12,8 @@ func TestFooterClickMoreEmitsAction(t *testing.T) {
 	f := NewFooter()
 	f.RebuildButtons()
 
-	cmd := f.HandleClick(1)
-	assert.NotNil(t, cmd)
-
-	am, ok := cmd().(actionMsg)
-	assert.True(t, ok)
-
-	_, isToggle := am.action.(footerToggleMenuAction)
-	assert.True(t, isToggle, "expected footerToggleMenuAction")
+	act := f.HandleClick(1)
+	assert.True(t, sameAction(act, toggleFooterMenu), "expected toggleFooterMenu")
 }
 
 func TestFooterClickMenuQuitEmitsAction(t *testing.T) {
@@ -29,14 +23,8 @@ func TestFooterClickMenuQuitEmitsAction(t *testing.T) {
 	f.RebuildButtons()
 	f.OpenMenu()
 
-	cmd := f.HandleMenuClick(2, 3)
-	assert.NotNil(t, cmd)
-
-	am, ok := cmd().(actionMsg)
-	assert.True(t, ok)
-
-	_, isQuit := am.action.(quitAction)
-	assert.True(t, isQuit, "expected quitAction")
+	act := f.HandleMenuClick(2, 3)
+	assert.True(t, sameAction(act, quit), "expected quit")
 	assert.False(t, f.MenuOpen())
 }
 
@@ -47,13 +35,7 @@ func TestFooterClickMenuShortcutsEmitsAction(t *testing.T) {
 	f.RebuildButtons()
 	f.OpenMenu()
 
-	cmd := f.HandleMenuClick(2, 1)
-	assert.NotNil(t, cmd)
-
-	am, ok := cmd().(actionMsg)
-	assert.True(t, ok)
-
-	_, isOpenHelp := am.action.(openHelpAction)
-	assert.True(t, isOpenHelp, "expected openHelpAction")
+	act := f.HandleMenuClick(2, 1)
+	assert.True(t, sameAction(act, openHelp), "expected openHelp")
 	assert.False(t, f.MenuOpen())
 }

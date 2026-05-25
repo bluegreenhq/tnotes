@@ -134,7 +134,7 @@ func TestEditorAutoSnapshotOnTextChange(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
+	ed2, _, _ := ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
 	assert.True(t, ed2.UndoMgr.CanUndo())
 }
 
@@ -147,7 +147,7 @@ func TestEditorAutoSnapshotOnNewline(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyEnter}, now)
+	ed2, _, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyEnter}, now)
 	assert.True(t, ed2.UndoMgr.CanUndo())
 }
 

@@ -6,68 +6,75 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
-// ModelAction はペインからモデルへの「やってほしいこと」を表す。
-// pane が UpdatePane で返す tea.Cmd の搬送先として用いる。
-type ModelAction interface {
-	Apply(m *Model, ctx ActionContext) tea.Cmd
-}
+// ModelAction はペインからモデルへの「やってほしいこと」を表す関数。
+// pane の UpdatePane が直接返し、Model が即時実行する。
+type ModelAction func(m *Model, ctx ActionContext) tea.Cmd
 
-// ActionContext は Apply に渡す共通コンテキスト。
+// ActionContext は ModelAction に渡す共通コンテキスト。
 type ActionContext struct {
 	Now time.Time
 }
 
-// actionMsg は ModelAction を tea.Cmd で運ぶための内部キャリア。
-type actionMsg struct{ action ModelAction }
-
-// actionCmd は ModelAction を tea.Cmd 化するヘルパー。
-func actionCmd(a ModelAction) tea.Cmd {
-	return func() tea.Msg { return actionMsg{action: a} }
-}
-
 // --- 共通アクション（複数のペイン／オーバーレイから emit される） ---
 
-// quitAction はアプリケーション終了を Model に要求する。
-type quitAction struct{}
-
-// Apply は編集中ノートを保存してから tea.Quit を返す。
-func (quitAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+// quit は編集中ノートを保存してから tea.Quit を返す。
+func quit(m *Model, ctx ActionContext) tea.Cmd {
 	m.syncEditorToNote(ctx.Now)
 
 	return tea.Quit
 }
 
-// openHelpAction はショートカットヘルプ表示を Model に要求する。
-type openHelpAction struct{}
-
-// Apply はヘルプオーバーレイを開く。
-func (openHelpAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+// openHelp はヘルプオーバーレイを開く。
+func openHelp(m *Model, _ ActionContext) tea.Cmd {
 	m.openHelp()
 
 	return nil
 }
 
-// toggleFolderListAction はフォルダ一覧の表示切り替えを Model に要求する。
-type toggleFolderListAction struct{}
-
-// Apply はフォルダペインの表示状態をトグルする。
-func (toggleFolderListAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+// toggleFolderList はフォルダペインの表示状態をトグルする。
+func toggleFolderList(m *Model, ctx ActionContext) tea.Cmd {
 	return m.toggleFolderList(ctx.Now)
 }
 
-// resultAction はコンポーネント操作の結果（エラー or 情報メッセージ）を Model に伝える。
-type resultAction struct {
-	Err  error
-	Info string
+// reportResult は操作結果（エラー or 情報メッセージ）を Model に伝える ModelAction を返す。
+func reportResult(err error, info string) ModelAction {
+	return func(m *Model, _ ActionContext) tea.Cmd {
+		if err != nil {
+			m.errMsg = err.Error()
+
+			return nil
+		}
+
+		return m.setInfoMsg(info)
+	}
 }
 
-// Apply はエラーメッセージ／情報メッセージをセットする。
-func (a resultAction) Apply(m *Model, _ ActionContext) tea.Cmd {
-	if a.Err != nil {
-		m.errMsg = a.Err.Error()
+// trashSelectedNote は選択ノートをゴミ箱に移動する。
+// NoteList と EditorHeader の両方から emit される。
+func trashSelectedNote(m *Model, ctx ActionContext) tea.Cmd {
+	m.syncEditorToNote(ctx.Now)
+	result, err := m.NoteList.TrashSelected()
 
-		return nil
-	}
+	return m.applyNoteAction(result, err, ctx.Now)
+}
 
-	return m.setInfoMsg(a.Info)
+// duplicateSelectedNote は選択ノートを複製する。
+// NoteList と EditorHeader の両方から emit される。
+func duplicateSelectedNote(m *Model, ctx ActionContext) tea.Cmd {
+	m.syncEditorToNote(ctx.Now)
+	result, err := m.NoteList.DuplicateSelected()
+
+	return m.applyNoteAction(result, err, ctx.Now)
+}
+
+// copyNoteToClipboard は選択ノート内容をクリップボードにコピーする。
+// NoteList と EditorHeader の両方から emit される。
+func copyNoteToClipboard(m *Model, ctx ActionContext) tea.Cmd {
+	return m.applyAction(m.Editor.CopyToClipboard(), ctx.Now)
+}
+
+// createNote は新規ノートを作成する。
+// NoteList と EditorHeader の両方から emit される。
+func createNote(m *Model, ctx ActionContext) tea.Cmd {
+	return m.createNote(ctx.Now)
 }

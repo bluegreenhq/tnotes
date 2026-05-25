@@ -44,20 +44,20 @@ func (p *FixedPopupOverlay) SetScreenSize(width, height int) {
 	p.screenHeight = height
 }
 
-// Update はメッセージに応じて状態を更新する。
-func (p *FixedPopupOverlay) Update(msg tea.Msg) tea.Cmd {
+// UpdateOverlay はメッセージに応じて状態を更新し、ModelAction と tea.Cmd を返す。
+func (p *FixedPopupOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		return p.handleKey(msg)
+		return p.handleKey(msg), nil
 	case tea.MouseClickMsg:
-		return p.handleClick(msg)
+		return p.handleClick(msg), nil
 	case tea.MouseMsg:
 		mouse := msg.Mouse()
 		ox, oy := p.origin()
 		p.menu.SetHoverByPos(mouse.X-ox, mouse.Y-oy)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // RenderOn はベース画面上にメニューを合成する。
@@ -75,17 +75,17 @@ func (p *FixedPopupOverlay) RenderOn(base string, _, _ int) string {
 	return strings.Join(bodyLines, "\n")
 }
 
-func (p *FixedPopupOverlay) handleKey(msg tea.KeyPressMsg) tea.Cmd {
+func (p *FixedPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	switch msg.Code {
 	case tea.KeyEscape:
-		return p.closedCmd()
+		return closePopup(p.kind)
 	case tea.KeyEnter:
 		idx := p.menu.SelectHover()
 		if idx < 0 {
-			return p.closedCmd()
+			return closePopup(p.kind)
 		}
 
-		return p.selectedCmd(idx)
+		return selectPopupMenuItem(p.kind, idx)
 	default:
 		p.menu.HandleKeyNav(msg)
 	}
@@ -93,9 +93,9 @@ func (p *FixedPopupOverlay) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) tea.Cmd {
+func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	if msg.Button != tea.MouseLeft {
-		return p.closedCmd()
+		return closePopup(p.kind)
 	}
 
 	ox, oy := p.origin()
@@ -103,7 +103,7 @@ func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) tea.Cmd {
 	h := p.menu.Height()
 
 	if msg.X < ox || msg.X >= ox+w || msg.Y < oy || msg.Y >= oy+h {
-		return p.closedCmd()
+		return closePopup(p.kind)
 	}
 
 	relX := msg.X - ox
@@ -111,16 +111,8 @@ func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) tea.Cmd {
 	idx, hit := p.menu.HandleClick(relX, relY)
 
 	if !hit || idx < 0 {
-		return p.closedCmd()
+		return closePopup(p.kind)
 	}
 
-	return p.selectedCmd(idx)
-}
-
-func (p *FixedPopupOverlay) selectedCmd(idx int) tea.Cmd {
-	return actionCmd(popupMenuSelectedAction{Kind: p.kind, Index: idx})
-}
-
-func (p *FixedPopupOverlay) closedCmd() tea.Cmd {
-	return actionCmd(popupMenuClosedAction{Kind: p.kind})
+	return selectPopupMenuItem(p.kind, idx)
 }

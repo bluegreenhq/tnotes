@@ -10,7 +10,6 @@ import (
 
 	"github.com/bluegreenhq/tnotes/internal/app"
 	"github.com/bluegreenhq/tnotes/internal/note"
-	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
 // Model はUIの状態を表す。
@@ -30,9 +29,9 @@ type Model struct {
 	infoMsg          string
 	infoMsgID        int
 	indexModTime     time.Time
-	overlay          shared.OverlayComponent // オーバーレイ（ヘルプ / ポップアップメニュー等、nil = 非表示）
-	lastPopupAnchor  *menuAnchor             // 直前のアンカー付きポップアップの位置（サブメニュー復元用）
-	searchDebounceID int                     // デバウンスタイマーの世代ID
+	overlay          overlayComponent // オーバーレイ（ヘルプ / ポップアップメニュー等、nil = 非表示）
+	lastPopupAnchor  *menuAnchor      // 直前のアンカー付きポップアップの位置（サブメニュー復元用）
+	searchDebounceID int              // デバウンスタイマーの世代ID
 }
 
 var _ tea.Model = (*Model)(nil)
@@ -157,8 +156,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		m.applySearchFilter("", now)
 	case clearInfoMsg:
 		m.handleClearInfo(msg)
-	case actionMsg:
-		cmd = msg.action.Apply(m, ActionContext{Now: now})
 	default:
 		cmd = m.routeFocus(msg, now)
 	}
@@ -319,7 +316,9 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
 	// オーバーレイ表示中（ヘルプ / ポップアップメニュー / 確認ダイアログ等）
 	if m.overlay != nil {
-		return m.processPaneCmd(m.overlay.Update(msg), now), true
+		action, cmd := m.overlay.UpdateOverlay(msg)
+
+		return m.applyPaneResult(action, cmd, now), true
 	}
 
 	return nil, false
@@ -357,13 +356,13 @@ func (m *Model) executePopupAction(kind PopupKind, idx int, now time.Time) tea.C
 
 		return nil
 	case PopupKindEditorHeader:
-		return m.processPaneCmd(m.Editor.Header.ExecuteMenuAction(idx), now)
+		return m.applyAction(m.Editor.Header.ExecuteMenuAction(idx), now)
 	case PopupKindMoveMenu:
-		return m.processPaneCmd(m.Editor.Header.ExecuteMoveMenuAction(idx), now)
+		return m.applyAction(m.Editor.Header.ExecuteMoveMenuAction(idx), now)
 	case PopupKindFolderList:
 		return m.handleFolderMenuAction(idx, now)
 	case PopupKindFooter:
-		return m.processPaneCmd(m.Footer.ExecuteMenuAction(idx), now)
+		return m.applyAction(m.Footer.ExecuteMenuAction(idx), now)
 	case PopupKindNone:
 	}
 
@@ -392,7 +391,9 @@ func (m *Model) handleGlobalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bo
 
 // routeFocus はフォーカス先のコンポーネントに msg を委譲する。
 func (m *Model) routeFocus(msg tea.Msg, now time.Time) tea.Cmd {
-	return m.processPaneCmd(m.activePane().UpdatePane(msg, m.paneContext(now)), now)
+	action, cmd := m.activePane().UpdatePane(msg, m.paneContext(now))
+
+	return m.applyPaneResult(action, cmd, now)
 }
 
 // activePane は現在フォーカスのある PaneComponent を返す。
@@ -521,22 +522,23 @@ func (m *Model) handleClick(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 	}
 
 	// インライン入力中はクリックで確定
-	commitCmd := m.commitFolderLineInput()
+	commitCmd := m.commitFolderLineInput(now)
 	clickCmd := m.handleClickInner(msg, now)
 
 	return tea.Batch(commitCmd, clickCmd)
 }
 
-func (m *Model) commitFolderLineInput() tea.Cmd {
-	if m.FolderList.InputMode() {
-		return m.FolderList.CommitInput()
+func (m *Model) commitFolderLineInput(now time.Time) tea.Cmd {
+	var action ModelAction
+
+	switch {
+	case m.FolderList.InputMode():
+		action = m.FolderList.CommitInput()
+	case m.FolderList.RenameMode():
+		action = m.FolderList.CommitRename()
 	}
 
-	if m.FolderList.RenameMode() {
-		return m.FolderList.CommitRename()
-	}
-
-	return nil
+	return m.applyAction(action, now)
 }
 
 func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
@@ -560,7 +562,9 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd, bool) {
 	// オーバーレイ表示中（ヘルプ / ポップアップメニュー / 確認ダイアログ全般）
 	if m.overlay != nil {
-		return m.processPaneCmd(m.overlay.Update(msg), now), true
+		action, cmd := m.overlay.UpdateOverlay(msg)
+
+		return m.applyPaneResult(action, cmd, now), true
 	}
 
 	return nil, false
@@ -609,7 +613,7 @@ func (m *Model) zoneToDragTarget(zone HitZone) dragTarget {
 func (m *Model) handleFooterClick(x int, now time.Time) tea.Cmd {
 	m.rebuildFooterButtons()
 
-	return m.processPaneCmd(m.Footer.HandleClick(x), now)
+	return m.applyAction(m.Footer.HandleClick(x), now)
 }
 
 // routeDragTarget はキャプチャ中の dragTarget に応じたコンポーネントに msg を委譲する。
@@ -619,7 +623,9 @@ func (m *Model) routeDragTarget(msg mouseMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	return m.processPaneCmd(pane.UpdatePane(msg, m.paneContext(now)), now)
+	action, cmd := pane.UpdatePane(msg, m.paneContext(now))
+
+	return m.applyPaneResult(action, cmd, now)
 }
 
 // dragTargetPane は現在のドラッグ対象 pane を返す（セパレーター・None の場合は nil）。
@@ -672,14 +678,18 @@ func (m *Model) routeMouse(msg mouseMsg, now time.Time) tea.Cmd {
 		return nil
 	}
 
-	return m.processPaneCmd(m.paneAt(mouse.X).UpdatePane(msg, m.paneContext(now)), now)
+	action, cmd := m.paneAt(mouse.X).UpdatePane(msg, m.paneContext(now))
+
+	return m.applyPaneResult(action, cmd, now)
 }
 
 func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	if m.overlay != nil {
-		return m.processPaneCmd(m.overlay.Update(msg), now)
+		action, cmd := m.overlay.UpdateOverlay(msg)
+
+		return m.applyPaneResult(action, cmd, now)
 	}
 
 	m.hoverSeparator = m.dragTarget == dragNoteSeparator || m.layout.IsOnSeparator(mouse.X)
@@ -732,7 +742,9 @@ func (m *Model) handleHover(msg tea.MouseMsg, now time.Time) tea.Cmd {
 	m.hoverFolderSep = m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X)
 
 	if m.overlay != nil {
-		return m.processPaneCmd(m.overlay.Update(msg), now)
+		action, cmd := m.overlay.UpdateOverlay(msg)
+
+		return m.applyPaneResult(action, cmd, now)
 	}
 
 	return m.handleIdleHover(msg, mouse, now)
@@ -747,19 +759,28 @@ func (m *Model) handleIdleHover(msg mouseMsg, mouse tea.Mouse, now time.Time) te
 	return m.routeMouse(msg, now)
 }
 
-// processPaneCmd は pane / オーバーレイ起源 Cmd をすべて受けて分岐する単一エントリ。
-// actionMsg をラップした Cmd であれば即時 Apply を呼び、それ以外は素通しする。
-func (m *Model) processPaneCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
-	if cmd == nil {
+// applyAction は ModelAction を即時適用し、結果の tea.Cmd を返す。nil 安全。
+func (m *Model) applyAction(action ModelAction, now time.Time) tea.Cmd {
+	if action == nil {
 		return nil
 	}
 
-	msg := cmd()
-	if am, ok := msg.(actionMsg); ok {
-		return am.action.Apply(m, ActionContext{Now: now})
-	}
+	return action(m, ActionContext{Now: now})
+}
 
-	return func() tea.Msg { return msg }
+// applyPaneResult は pane.UpdatePane / 各種 helper の戻り値 (action, cmd) を適用する。
+// action があれば即時実行し、追加の cmd があれば一緒に batch する。
+func (m *Model) applyPaneResult(action ModelAction, cmd tea.Cmd, now time.Time) tea.Cmd {
+	actCmd := m.applyAction(action, now)
+
+	switch {
+	case actCmd == nil:
+		return cmd
+	case cmd == nil:
+		return actCmd
+	default:
+		return tea.Batch(actCmd, cmd)
+	}
 }
 
 func (m *Model) recalcLayout(now time.Time) {
@@ -1117,7 +1138,7 @@ func (m *Model) handleFolderMenuAction(idx int, now time.Time) tea.Cmd {
 	case menuDelete:
 		name := m.FolderList.SelectedName()
 
-		return m.processPaneCmd(m.FolderList.TryDeleteFolder(name), now)
+		return m.applyAction(m.FolderList.TryDeleteFolder(name), now)
 	}
 
 	return nil

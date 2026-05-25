@@ -44,21 +44,21 @@ func (c *ConfirmDialogOverlay) SetScreenSize(width, height int) {
 	c.dialog.SetScreenSize(width, height)
 }
 
-// Update はメッセージに応じて状態を更新する。
-func (c *ConfirmDialogOverlay) Update(msg tea.Msg) tea.Cmd {
+// UpdateOverlay はメッセージに応じて状態を更新し、ModelAction と tea.Cmd を返す。
+func (c *ConfirmDialogOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		return c.resultCmd(c.dialog.Update(msg))
+		return c.resultAction(c.dialog.Update(msg)), nil
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
-			return c.resultCmd(c.dialog.HandleClickAbs(msg.X, msg.Y))
+			return c.resultAction(c.dialog.HandleClickAbs(msg.X, msg.Y)), nil
 		}
 	case tea.MouseMsg:
 		mouse := msg.Mouse()
 		c.dialog.HandleMotionAbs(mouse.X, mouse.Y)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // RenderOn はベース画面上に確認ダイアログを合成する。
@@ -77,12 +77,12 @@ func (c *ConfirmDialogOverlay) Target() ConfirmTarget { return c.target }
 // FolderName は対象フォルダ名を返す。
 func (c *ConfirmDialogOverlay) FolderName() string { return c.folderName }
 
-func (c *ConfirmDialogOverlay) resultCmd(result tui.ConfirmResult) tea.Cmd {
+func (c *ConfirmDialogOverlay) resultAction(result tui.ConfirmResult) ModelAction {
 	switch result {
 	case tui.ConfirmYes:
-		return actionCmd(confirmDialogResultAction{Target: c.target, Confirmed: true, FolderName: c.folderName})
+		return handleConfirmDialogResult(c.target, true, c.folderName)
 	case tui.ConfirmNo:
-		return actionCmd(confirmDialogResultAction{Target: c.target, Confirmed: false, FolderName: c.folderName})
+		return handleConfirmDialogResult(c.target, false, c.folderName)
 	case tui.ConfirmContinue:
 		return nil
 	}
@@ -92,27 +92,22 @@ func (c *ConfirmDialogOverlay) resultCmd(result tui.ConfirmResult) tea.Cmd {
 
 // --- ConfirmDialogOverlay → Model アクション ---
 
-// confirmDialogResultAction は確認ダイアログの結果を Model に通知する。
-type confirmDialogResultAction struct {
-	Target     ConfirmTarget
-	Confirmed  bool
-	FolderName string
-}
+// handleConfirmDialogResult はオーバーレイをクリアし、Target に応じた後続処理を行う。
+func handleConfirmDialogResult(target ConfirmTarget, confirmed bool, folderName string) ModelAction {
+	return func(m *Model, ctx ActionContext) tea.Cmd {
+		m.overlay = nil
 
-// Apply はオーバーレイをクリアし、Target に応じた後続処理を行う。
-func (a confirmDialogResultAction) Apply(m *Model, _ ActionContext) tea.Cmd {
-	m.overlay = nil
+		if target != ConfirmTargetFolderDelete || !confirmed {
+			return nil
+		}
 
-	if a.Target != ConfirmTargetFolderDelete || !a.Confirmed {
-		return nil
+		deleted, err := m.FolderList.DeleteFolder(folderName)
+		if err != nil {
+			return reportResult(err, "")(m, ctx)
+		}
+
+		info := "Deleted: " + folderName + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
+
+		return reportResult(nil, info)(m, ctx)
 	}
-
-	deleted, err := m.FolderList.DeleteFolder(a.FolderName)
-	if err != nil {
-		return actionCmd(resultAction{Err: err, Info: ""})
-	}
-
-	info := "Deleted: " + a.FolderName + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
-
-	return actionCmd(resultAction{Err: nil, Info: info})
 }

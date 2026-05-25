@@ -1,33 +1,16 @@
-package ui //nolint:testpackage // 内部アクション型（unexported）を検査するためのホワイトボックステスト
+package ui //nolint:testpackage // 内部アクション関数（unexported）を検査するためのホワイトボックステスト
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// actionTypeFromCmd は cmd を実行して actionMsg.action の具体型をテストで判定するためのヘルパー。
-func actionTypeFromCmd[T ModelAction](t *testing.T, cmd func() any) (T, bool) {
-	t.Helper()
-
-	if cmd == nil {
-		var zero T
-
-		return zero, false
-	}
-
-	msg := cmd()
-
-	am, ok := msg.(actionMsg)
-	if !ok {
-		var zero T
-
-		return zero, false
-	}
-
-	a, ok := am.action.(T)
-
-	return a, ok
+// sameAction は 2 つの ModelAction が同じ関数を指しているかを返す。
+// トップレベル関数および empty struct のメソッド値で安定して動作する。
+func sameAction(a, b ModelAction) bool {
+	return reflect.ValueOf(a).Pointer() == reflect.ValueOf(b).Pointer()
 }
 
 func TestEditorHeaderClickNewEmitsAction(t *testing.T) {
@@ -35,11 +18,8 @@ func TestEditorHeaderClickNewEmitsAction(t *testing.T) {
 
 	h := NewEditorHeader(60)
 	h.SetHasNote(true)
-	cmd := h.HandleClick(1)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderNewAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderNewAction")
+	act := h.HandleClick(1)
+	assert.True(t, sameAction(act, createNote), "expected createNote")
 }
 
 func TestEditorHeaderClickMoreEmitsAction(t *testing.T) {
@@ -48,11 +28,8 @@ func TestEditorHeaderClickMoreEmitsAction(t *testing.T) {
 	h := NewEditorHeader(60)
 	h.SetHasNote(true)
 	moreX := h.Width() - 22
-	cmd := h.HandleClick(moreX)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderOpenMenuAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderOpenMenuAction")
+	act := h.HandleClick(moreX)
+	assert.True(t, sameAction(act, openEditorHeaderMenu), "expected openEditorHeaderMenu")
 }
 
 func TestEditorHeaderMenuClickTrashEmitsAction(t *testing.T) {
@@ -63,11 +40,8 @@ func TestEditorHeaderMenuClickTrashEmitsAction(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	cmd := h.HandleMenuClick(2, 1)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderTrashAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderTrashAction")
+	act := h.HandleMenuClick(2, 1)
+	assert.True(t, sameAction(act, trashSelectedNote), "expected trashSelectedNote")
 	assert.False(t, h.MenuOpen())
 }
 
@@ -80,11 +54,8 @@ func TestEditorHeaderMenuClickCopyEmitsAction(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	cmd := h.HandleMenuClick(2, 9)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderCopyAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderCopyAction")
+	act := h.HandleMenuClick(2, 9)
+	assert.True(t, sameAction(act, copyNoteToClipboard), "expected copyNoteToClipboard")
 }
 
 func TestEditorHeaderMenuTrashModeEmitsMoveAction(t *testing.T) {
@@ -96,11 +67,8 @@ func TestEditorHeaderMenuTrashModeEmitsMoveAction(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	cmd := h.HandleMenuClick(2, 1)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderMoveAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderMoveAction")
+	act := h.HandleMenuClick(2, 1)
+	assert.True(t, sameAction(act, openNoteMoveMenu), "expected openNoteMoveMenu")
 }
 
 func TestEditorHeaderMenuClickPinEmitsAction(t *testing.T) {
@@ -111,11 +79,8 @@ func TestEditorHeaderMenuClickPinEmitsAction(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	cmd := h.HandleMenuClick(2, 3)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderPinAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderPinAction")
+	act := h.HandleMenuClick(2, 3)
+	assert.True(t, sameAction(act, pinNote), "expected pinNote")
 }
 
 func TestEditorHeaderMenuClickUnpinEmitsAction(t *testing.T) {
@@ -127,9 +92,6 @@ func TestEditorHeaderMenuClickUnpinEmitsAction(t *testing.T) {
 	h.RebuildMenu()
 	h.OpenMenu()
 
-	cmd := h.HandleMenuClick(2, 3)
-	assert.NotNil(t, cmd)
-
-	_, ok := actionTypeFromCmd[editorHeaderUnpinAction](t, func() any { return cmd() })
-	assert.True(t, ok, "expected editorHeaderUnpinAction")
+	act := h.HandleMenuClick(2, 3)
+	assert.True(t, sameAction(act, unpinNote), "expected unpinNote")
 }
