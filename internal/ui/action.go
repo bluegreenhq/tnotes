@@ -26,7 +26,7 @@ func quit(m *Model, ctx ActionContext) tea.Cmd {
 
 // openHelp はヘルプオーバーレイを開く。
 func openHelp(m *Model, _ ActionContext) tea.Cmd {
-	m.openHelp()
+	m.Overlays.OpenHelp(m.Focus)
 
 	return nil
 }

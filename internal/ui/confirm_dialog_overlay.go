@@ -95,7 +95,7 @@ func (c *ConfirmDialogOverlay) resultAction(result tui.ConfirmResult) ModelActio
 // handleConfirmDialogResult はオーバーレイをクリアし、Target に応じた後続処理を行う。
 func handleConfirmDialogResult(target ConfirmTarget, confirmed bool, folderName string) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.overlay = nil
+		m.Overlays.Clear()
 
 		if target != ConfirmTargetFolderDelete || !confirmed {
 			return nil

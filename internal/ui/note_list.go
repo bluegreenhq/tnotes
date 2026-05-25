@@ -804,7 +804,7 @@ func openNoteListRightClickMenu(anchorX, anchorY int) ModelAction {
 
 		m.loadSelectedNote()
 		m.Editor.Header.OpenMenu()
-		m.openAnchoredPopup(m.Editor.Header.PopupMenu, anchorX, anchorY,
+		m.Overlays.OpenAnchoredPopup(m.Editor.Header.PopupMenu, anchorX, anchorY,
 			m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
 
 		return nil

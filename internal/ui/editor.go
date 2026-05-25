@@ -616,23 +616,12 @@ func (e *Editor) ClearHover() {
 
 // HandleHover はエディタ領域のホバーを処理する。
 // x, y はエディタ左上を原点とする相対座標。
+// メニュー open 中の hover は overlay 側が intercept するため、ここではヘッダーボタンのみ扱う。
 func (e *Editor) HandleHover(x, y int) {
-	// ヘッダーボタンのホバー
 	if y == 0 {
 		e.Header.SetHover(x)
 	} else {
 		e.Header.ClearHover()
-	}
-
-	// メニューのホバー
-	if e.Header.MenuOpen() {
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := e.Header.MenuHeight()
-
-		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.Header.MenuLeftX()
-			e.Header.SetMenuHover(menuRelX, y-menuTopY)
-		}
 	}
 }
 
@@ -899,23 +888,7 @@ func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, M
 }
 
 func (e *Editor) handleClick(x, y int) ModelAction {
-	// メニューが開いている場合
-	if e.Header.MenuOpen() {
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := e.Header.MenuHeight()
-
-		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.Header.MenuLeftX()
-
-			return e.Header.HandleMenuClick(menuRelX, y-menuTopY)
-		}
-
-		e.Header.CloseMenu()
-
-		return nil
-	}
-
-	// ヘッダー行
+	// メニュー open 中のクリックは overlay 側が intercept するため、ここではヘッダー行のみ扱う。
 	if y == 0 {
 		e.Header.SetHasContent(e.textarea.Value() != "")
 
@@ -1217,7 +1190,7 @@ func focusEditorBody(m *Model, _ ActionContext) tea.Cmd {
 // openEditorRightClickMenu はエディタでの右クリックでコンテキストメニューを開く。
 func openEditorRightClickMenu(menu *tui.PopupMenu, anchorX, anchorY int) ModelAction {
 	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.openAnchoredPopup(menu, anchorX, anchorY, executeEditorContextItem, nil)
+		m.Overlays.OpenAnchoredPopup(menu, anchorX, anchorY, executeEditorContextItem, nil)
 
 		return nil
 	}

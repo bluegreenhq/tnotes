@@ -296,14 +296,14 @@ func globalHelpSection() HelpSection {
 
 // closeHelpOverlay はオーバーレイをクリアする。
 func closeHelpOverlay(m *Model, _ ActionContext) tea.Cmd {
-	m.overlay = nil
+	m.Overlays.Clear()
 
 	return nil
 }
 
 // quitFromHelpOverlay はオーバーレイをクリアし、編集中ノートを保存してから tea.Quit を返す。
 func quitFromHelpOverlay(m *Model, ctx ActionContext) tea.Cmd {
-	m.overlay = nil
+	m.Overlays.Clear()
 	m.syncEditorToNote(ctx.Now)
 
 	return tea.Quit

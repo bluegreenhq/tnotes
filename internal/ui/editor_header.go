@@ -281,18 +281,6 @@ func (h *EditorHeader) CloseMoveMenu() {
 	h.MoveMenu.SetHover(-1)
 }
 
-// HandleMoveMenuClick は移動先メニューのクリックを処理する。
-func (h *EditorHeader) HandleMoveMenuClick(x, y int) ModelAction {
-	idx, hit := h.MoveMenu.HandleClick(x, y)
-	h.CloseMoveMenu()
-
-	if !hit || idx < 0 || idx >= len(h.moveFolders) {
-		return nil
-	}
-
-	return moveNoteTo(h.moveFolders[idx])
-}
-
 // ExecuteMoveMenuAction はインデックスに対応する移動先フォルダのアクションを返す。
 func (h *EditorHeader) ExecuteMoveMenuAction(idx int) ModelAction {
 	if idx < 0 || idx >= len(h.moveFolders) {
@@ -442,7 +430,7 @@ func openNoteMoveMenu(m *Model, _ ActionContext) tea.Cmd {
 // openEditorHeaderMenu はエディタヘッダーの「⋯」メニューを固定位置ポップアップとして開く。
 func openEditorHeaderMenu(m *Model, _ ActionContext) tea.Cmd {
 	m.Editor.Header.OpenMenu()
-	m.openFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin,
+	m.Overlays.OpenFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin,
 		m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
 
 	return nil

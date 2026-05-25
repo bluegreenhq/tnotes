@@ -34,12 +34,3 @@ type overlayComponent interface {
 	RenderOn(base string, width, height int) string
 	SetScreenSize(width, height int)
 }
-
-// popupOverlay は AnchoredPopupOverlay / FixedPopupOverlay が実装する共通インターフェース。
-// オーバーレイ自身が「閉じ時の pane 側後始末」と「保持するメニュー」を知るため、
-// Model 側は overlay 種別による分岐を持たずに済む。
-type popupOverlay interface {
-	overlayComponent
-	Menu() *tui.PopupMenu
-	OnClose() ModelAction
-}

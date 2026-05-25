@@ -14,35 +14,33 @@ import (
 // メニュー内の選択 idx に対応する後続 ModelAction を返す。
 type popupSelectFunc func(idx int) ModelAction
 
-// AnchoredPopupOverlay は右クリックで開くアンカー位置に追従するポップアップメニュー。
-type AnchoredPopupOverlay struct {
+// PopupOverlay は popup メニューを画面にオーバーレイ表示する。
+// 「固定位置（origin closure 指定）」と「アンカー位置（座標指定 + 画面内クランプ）」の
+// 両モードを単一構造体で扱う。anchor が nil ならば固定位置モード。
+type PopupOverlay struct {
 	menu         *tui.PopupMenu
-	anchorX      int
-	anchorY      int
+	origin       func() (int, int) // クランプ済みのメニュー左上座標を返す
+	anchor       *menuAnchor       // anchored の場合のみセット（dismiss 時の anchor 保存用）
 	onSelect     popupSelectFunc
 	onClose      ModelAction
 	screenWidth  int
 	screenHeight int
 }
 
-var (
-	_ shared.OverlayComponent = (*AnchoredPopupOverlay)(nil)
-	_ shared.AnchoredOverlay  = (*AnchoredPopupOverlay)(nil)
-	_ popupOverlay            = (*AnchoredPopupOverlay)(nil)
-)
+var _ shared.OverlayComponent = (*PopupOverlay)(nil)
 
-// NewAnchoredPopupOverlay は AnchoredPopupOverlay を生成する。
-// onSelect はメニュー項目選択時、onClose は閉じ時の pane 側後始末アクション（不要なら nil）。
-func NewAnchoredPopupOverlay(
+// NewFixedPopupOverlay は origin closure で位置が決まる popup を生成する。
+// editor header の「⋯」ボタンや folder list の more ボタンから開く用途。
+func NewFixedPopupOverlay(
 	menu *tui.PopupMenu,
-	anchorX, anchorY int,
+	origin func() (int, int),
 	onSelect popupSelectFunc,
 	onClose ModelAction,
-) *AnchoredPopupOverlay {
-	return &AnchoredPopupOverlay{
+) *PopupOverlay {
+	return &PopupOverlay{
 		menu:         menu,
-		anchorX:      anchorX,
-		anchorY:      anchorY,
+		origin:       origin,
+		anchor:       nil,
 		onSelect:     onSelect,
 		onClose:      onClose,
 		screenWidth:  0,
@@ -50,33 +48,46 @@ func NewAnchoredPopupOverlay(
 	}
 }
 
-// Menu は内部の PopupMenu を返す。
-func (p *AnchoredPopupOverlay) Menu() *tui.PopupMenu { return p.menu }
+// NewAnchoredPopupOverlay は anchor (x, y) を起点に画面内クランプして表示する popup を生成する。
+// 右クリックメニュー用途。dismiss 時には anchor を保存する（サブメニュー復元用）。
+func NewAnchoredPopupOverlay(
+	menu *tui.PopupMenu,
+	anchorX, anchorY int,
+	onSelect popupSelectFunc,
+	onClose ModelAction,
+) *PopupOverlay {
+	a := menuAnchor{x: anchorX, y: anchorY}
+	p := &PopupOverlay{
+		menu:         menu,
+		origin:       nil, // セット後すぐ下で代入
+		anchor:       &a,
+		onSelect:     onSelect,
+		onClose:      onClose,
+		screenWidth:  0,
+		screenHeight: 0,
+	}
+	p.origin = p.anchoredOrigin
 
-// OnClose は閉じ時の pane 側後始末アクションを返す。
-func (p *AnchoredPopupOverlay) OnClose() ModelAction { return p.onClose }
-
-// AnchorX はアンカーX座標を返す。
-func (p *AnchoredPopupOverlay) AnchorX() int { return p.anchorX }
-
-// AnchorY はアンカーY座標を返す。
-func (p *AnchoredPopupOverlay) AnchorY() int { return p.anchorY }
-
-// MenuOrigin はクランプ済みのメニュー描画左上座標を返す。
-func (p *AnchoredPopupOverlay) MenuOrigin(screenWidth, screenHeight int) (int, int) {
-	w, h := p.menuSize()
-
-	return tui.ClampMenuOrigin(w, h, p.anchorX, p.anchorY, screenWidth, screenHeight)
+	return p
 }
 
+// Menu は内部の PopupMenu を返す。
+func (p *PopupOverlay) Menu() *tui.PopupMenu { return p.menu }
+
+// OnClose は閉じ時の pane 側後始末アクションを返す。
+func (p *PopupOverlay) OnClose() ModelAction { return p.onClose }
+
+// Anchor はアンカー情報を返す（fixed モードでは nil）。
+func (p *PopupOverlay) Anchor() *menuAnchor { return p.anchor }
+
 // SetScreenSize は画面サイズを設定する。
-func (p *AnchoredPopupOverlay) SetScreenSize(width, height int) {
+func (p *PopupOverlay) SetScreenSize(width, height int) {
 	p.screenWidth = width
 	p.screenHeight = height
 }
 
 // UpdateOverlay はメッセージに応じて状態を更新し、ModelAction と tea.Cmd を返す。
-func (p *AnchoredPopupOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd) {
+func (p *PopupOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return p.handleKey(msg), nil
@@ -84,7 +95,7 @@ func (p *AnchoredPopupOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd)
 		return p.handleClick(msg), nil
 	case tea.MouseMsg:
 		mouse := msg.Mouse()
-		ox, oy := p.MenuOrigin(p.screenWidth, p.screenHeight)
+		ox, oy := p.origin()
 		p.menu.SetHoverByPos(mouse.X-ox, mouse.Y-oy)
 	}
 
@@ -92,7 +103,7 @@ func (p *AnchoredPopupOverlay) UpdateOverlay(msg tea.Msg) (ModelAction, tea.Cmd)
 }
 
 // RenderOn はベース画面上にメニューを合成する。
-func (p *AnchoredPopupOverlay) RenderOn(base string, width, height int) string {
+func (p *PopupOverlay) RenderOn(base string, _, _ int) string {
 	bodyLines := strings.Split(base, "\n")
 	menuLines := p.menu.View()
 
@@ -100,22 +111,26 @@ func (p *AnchoredPopupOverlay) RenderOn(base string, width, height int) string {
 		return base
 	}
 
-	x, y := p.MenuOrigin(width, height)
-	tui.OverlayLines(bodyLines, menuLines, x, y)
+	ox, oy := p.origin()
+	tui.OverlayLines(bodyLines, menuLines, ox, oy)
 
 	return strings.Join(bodyLines, "\n")
 }
 
-func (p *AnchoredPopupOverlay) menuSize() (int, int) {
+// anchoredOrigin は anchor 座標から画面サイズに収まるメニュー左上座標を計算する。
+func (p *PopupOverlay) anchoredOrigin() (int, int) {
 	menuLines := p.menu.View()
 	if len(menuLines) == 0 {
 		return 0, 0
 	}
 
-	return lipgloss.Width(menuLines[0]), len(menuLines)
+	w := lipgloss.Width(menuLines[0])
+	h := len(menuLines)
+
+	return tui.ClampMenuOrigin(w, h, p.anchor.x, p.anchor.y, p.screenWidth, p.screenHeight)
 }
 
-func (p *AnchoredPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
+func (p *PopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	switch msg.Code {
 	case tea.KeyEscape:
 		return popupDismiss(p.onClose)
@@ -133,12 +148,20 @@ func (p *AnchoredPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	return nil
 }
 
-func (p *AnchoredPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
+func (p *PopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	if msg.Button != tea.MouseLeft {
 		return popupDismiss(p.onClose)
 	}
 
-	ox, oy := p.MenuOrigin(p.screenWidth, p.screenHeight)
+	ox, oy := p.origin()
+	w := p.menu.Width()
+	h := p.menu.Height()
+
+	// メニュー領域外のクリックは閉じる
+	if msg.X < ox || msg.X >= ox+w || msg.Y < oy || msg.Y >= oy+h {
+		return popupDismiss(p.onClose)
+	}
+
 	relX := msg.X - ox
 	relY := msg.Y - oy
 	idx, hit := p.menu.HandleClick(relX, relY)
@@ -151,12 +174,11 @@ func (p *AnchoredPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 }
 
 // --- PopupOverlay → Model アクション ---
-// AnchoredPopupOverlay と FixedPopupOverlay が共有する。
 
 // popupSelect は overlay を閉じてから onClose と onSelect(idx) を順に適用する。
 func popupSelect(idx int, onSelect popupSelectFunc, onClose ModelAction) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.dismissOverlayKeepAnchor()
+		m.Overlays.DismissKeepAnchor()
 
 		var cmds []tea.Cmd
 
@@ -181,7 +203,7 @@ func popupSelect(idx int, onSelect popupSelectFunc, onClose ModelAction) ModelAc
 // popupDismiss は overlay を閉じる（選択なしで閉じた場合に使う）。
 func popupDismiss(onClose ModelAction) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.dismissOverlayKeepAnchor()
+		m.Overlays.DismissKeepAnchor()
 
 		if onClose == nil {
 			return nil

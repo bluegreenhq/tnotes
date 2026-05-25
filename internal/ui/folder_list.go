@@ -409,24 +409,12 @@ func (fl *FolderList) CancelRename() {
 }
 
 // HandleHoverLocal はローカル座標でホバーを処理する。
+// メニュー open 中の hover は overlay 側が intercept するため、ここではヘッダーボタンのみ扱う。
 func (fl *FolderList) HandleHoverLocal(x, y int) {
 	if x < fl.width && y == 0 {
 		fl.setHeaderHover(x, y)
 	} else {
 		fl.clearHeaderHover()
-	}
-
-	if fl.menuOpen {
-		menuTopY := folderListHeaderLines
-		menuHeight := fl.MenuHeight()
-		menuX := fl.MenuLeftX()
-		menuWidth := fl.PopupMenu.Width()
-
-		if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
-			fl.PopupMenu.SetHoverByPos(x-menuX, y-menuTopY)
-		} else {
-			fl.PopupMenu.SetHoverByPos(-1, -1)
-		}
 	}
 }
 
@@ -571,12 +559,7 @@ func (fl *FolderList) TryDeleteFolder(name string) ModelAction {
 }
 
 func (fl *FolderList) handleClickLocal(x, y int) ModelAction {
-	// moreメニューが開いている場合
-	if fl.menuOpen {
-		return fl.handleMenuClick(x, y)
-	}
-
-	// ヘッダーのボタンクリック判定
+	// メニュー open 中のクリックは overlay 側が intercept するため、ここではヘッダー以下のみ扱う。
 	if y < folderListHeaderLines {
 		hit := fl.hitTestHeader(x, y)
 
@@ -747,31 +730,6 @@ func (fl *FolderList) clearRename() {
 	fl.blink.Stop()
 }
 
-func (fl *FolderList) handleMenuClick(x, y int) ModelAction {
-	menuTopY := folderListHeaderLines
-	menuHeight := fl.MenuHeight()
-	menuX := fl.MenuLeftX()
-	menuWidth := fl.PopupMenu.Width()
-
-	if y >= menuTopY && y < menuTopY+menuHeight && x >= menuX && x < menuX+menuWidth {
-		relX := x - menuX
-		relY := y - menuTopY
-
-		idx, hit := fl.PopupMenu.HandleClick(relX, relY)
-		fl.CloseMenu()
-
-		if hit {
-			return executeFolderMenuItem(idx)
-		}
-
-		return nil
-	}
-
-	fl.CloseMenu()
-
-	return nil
-}
-
 func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, ModelAction) {
 	if keyMsg.Mod&tea.ModCtrl != 0 {
 		return fl.handleCtrlKeyNav(keyMsg)
@@ -863,17 +821,7 @@ func (fl *FolderList) updateInput(keyMsg tea.KeyPressMsg) (FolderList, ModelActi
 }
 
 func (fl *FolderList) handleKeyMsg(msg tea.KeyPressMsg) (FolderList, ModelAction) {
-	// メニュー表示中
-	if fl.menuOpen {
-		if msg.Code == tea.KeyEscape {
-			fl.CloseMenu()
-
-			return *fl, nil
-		}
-
-		fl.CloseMenu()
-	}
-
+	// メニュー open 中のキー入力は overlay 側が intercept する。
 	// リネーム入力モード
 	if fl.renameMode {
 		return fl.updateRename(msg)
@@ -905,7 +853,7 @@ func focusNoteListFromFolder(m *Model, _ ActionContext) tea.Cmd {
 func openFolderMenu(m *Model, _ ActionContext) tea.Cmd {
 	if m.FolderList.IsUserFolder() {
 		m.FolderList.OpenMenu()
-		m.openFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin,
+		m.Overlays.OpenFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin,
 			executeFolderMenuItem, closeFolderListMenu)
 	}
 
@@ -930,7 +878,7 @@ func startFolderInput(m *Model, _ ActionContext) tea.Cmd {
 // openFolderRightClickMenu はアンカー付きポップアップメニューを開く。
 func openFolderRightClickMenu(anchorX, anchorY int) ModelAction {
 	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.openAnchoredPopup(m.FolderList.PopupMenu, anchorX, anchorY,
+		m.Overlays.OpenAnchoredPopup(m.FolderList.PopupMenu, anchorX, anchorY,
 			executeFolderMenuItem, closeFolderListMenu)
 
 		return nil
@@ -947,7 +895,7 @@ func executeFolderMenuItem(idx int) ModelAction {
 // requestConfirmDeleteFolder はフォルダ削除確認ダイアログをオーバーレイとして開く。
 func requestConfirmDeleteFolder(name string, noteCount int) ModelAction {
 	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.openConfirmDeleteFolder(name, noteCount)
+		m.Overlays.OpenConfirmDeleteFolder(name, noteCount)
 
 		return nil
 	}
