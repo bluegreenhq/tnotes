@@ -904,9 +904,8 @@ func (m *Model) openMoveMenu() tea.Cmd {
 		return m.setInfoMsg("No folders to move to")
 	}
 
-	// 直前が右クリックメニューならアンカーを引き継ぎ、それ以外は移動ボタン直下の固定位置に表示
-	if anchor := m.Overlays.LastPopupAnchor(); anchor != nil {
-		m.Overlays.ClearLastPopupAnchor()
+	// 親メニューが anchored で開かれていたなら同位置に展開、それ以外は移動ボタン直下の固定位置
+	if anchor := m.Editor.Header.MoveAnchor(); anchor != nil {
 		m.Overlays.OpenAnchoredPopup(m.Editor.Header.MoveMenu, anchor.x, anchor.y,
 			m.Editor.Header.ExecuteMoveMenuAction, closeMoveMenu)
 	} else {
@@ -1097,10 +1096,10 @@ func (m *Model) setInfoMsg(msg string) tea.Cmd {
 }
 
 func (m *Model) openNoteListMenu(now time.Time) tea.Cmd {
-	m.Editor.Header.OpenMenu()
 	menuW := m.Editor.Header.PopupMenu.Width()
 	x := m.layout.EditorStartX() - menuW
 	y := m.NoteList.SelectedY(now)
+	m.Editor.Header.OpenMenuAtAnchor(x, y)
 	m.Overlays.OpenAnchoredPopup(m.Editor.Header.PopupMenu, x, y,
 		m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
 

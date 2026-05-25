@@ -21,6 +21,7 @@ type EditorHeader struct {
 	menuOpen      bool
 	PopupMenu     *tui.PopupMenu
 	menuActions   []ModelAction
+	moveAnchor    *menuAnchor // メニューが anchored で開かれた位置（Move サブメニューを同位置に展開するため）
 	hoverNew      bool
 	hoverMore     bool
 	hasNote       bool
@@ -43,6 +44,7 @@ func NewEditorHeader(width int) *EditorHeader {
 		menuOpen:      false,
 		PopupMenu:     tui.NewPopupMenu(nil),
 		menuActions:   nil,
+		moveAnchor:    nil,
 		hoverNew:      false,
 		hoverMore:     false,
 		hasNote:       false,
@@ -170,13 +172,28 @@ func (h *EditorHeader) RebuildMenu() {
 	h.PopupMenu.SetHover(prevHover)
 }
 
-// OpenMenu はメニューを開く。
+// OpenMenu は固定位置モードでメニューを開く。Move サブメニューも固定位置に展開される。
 func (h *EditorHeader) OpenMenu() {
+	h.moveAnchor = nil
 	h.RebuildMenu()
 	h.menuOpen = true
 }
 
+// OpenMenuAtAnchor はアンカー位置モードでメニューを開く。Move サブメニューも同じアンカー位置に展開される。
+func (h *EditorHeader) OpenMenuAtAnchor(anchorX, anchorY int) {
+	a := menuAnchor{x: anchorX, y: anchorY}
+	h.moveAnchor = &a
+	h.RebuildMenu()
+	h.menuOpen = true
+}
+
+// MoveAnchor は Move サブメニュー展開時に使うアンカー位置を返す。固定位置モードでは nil。
+func (h *EditorHeader) MoveAnchor() *menuAnchor { return h.moveAnchor }
+
 // CloseMenu はメニューを閉じる。
+// moveAnchor はクリアしない（popupSelect chain で onClose → onSelect(openMoveMenu) が
+// 順次走るとき、openMoveMenu が anchor を必要とする）。次の OpenMenu/OpenMenuAtAnchor で
+// 上書きされるため、メニュー open 中以外の値は意味を持たない。
 func (h *EditorHeader) CloseMenu() {
 	h.menuOpen = false
 	h.PopupMenu.SetHover(-1)

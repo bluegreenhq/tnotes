@@ -11,21 +11,11 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
-// ConfirmTarget は確認ダイアログの対象を表す。
-type ConfirmTarget int
-
-const (
-	// ConfirmTargetNone は対象未指定。
-	ConfirmTargetNone ConfirmTarget = iota
-	// ConfirmTargetFolderDelete はフォルダ削除確認。
-	ConfirmTargetFolderDelete
-)
-
 // ConfirmDialogOverlay は tui.ConfirmDialog をオーバーレイ化したラッパー。
+// Yes 選択時に onConfirm を実行する。
 type ConfirmDialogOverlay struct {
-	dialog     *tui.ConfirmDialog
-	target     ConfirmTarget
-	folderName string
+	dialog    *tui.ConfirmDialog
+	onConfirm ModelAction
 }
 
 var _ shared.OverlayComponent = (*ConfirmDialogOverlay)(nil)
@@ -36,7 +26,7 @@ func NewConfirmDeleteFolderDialog(name string, noteCount int) *ConfirmDialogOver
 	detail := fmt.Sprintf("%d note(s) will be moved to Trash.", noteCount)
 	d := tui.NewConfirmDialog(title, detail)
 
-	return &ConfirmDialogOverlay{dialog: &d, target: ConfirmTargetFolderDelete, folderName: name}
+	return &ConfirmDialogOverlay{dialog: &d, onConfirm: confirmDeleteFolder(name)}
 }
 
 // SetScreenSize は画面サイズを設定する。
@@ -71,18 +61,12 @@ func (c *ConfirmDialogOverlay) RenderOn(base string, width, height int) string {
 	return strings.Join(bodyLines, "\n")
 }
 
-// Target は確認対象を返す。
-func (c *ConfirmDialogOverlay) Target() ConfirmTarget { return c.target }
-
-// FolderName は対象フォルダ名を返す。
-func (c *ConfirmDialogOverlay) FolderName() string { return c.folderName }
-
 func (c *ConfirmDialogOverlay) resultAction(result tui.ConfirmResult) ModelAction {
 	switch result {
 	case tui.ConfirmYes:
-		return handleConfirmDialogResult(c.target, true, c.folderName)
+		return c.dismissAndRun(true)
 	case tui.ConfirmNo:
-		return handleConfirmDialogResult(c.target, false, c.folderName)
+		return c.dismissAndRun(false)
 	case tui.ConfirmContinue:
 		return nil
 	}
@@ -90,23 +74,30 @@ func (c *ConfirmDialogOverlay) resultAction(result tui.ConfirmResult) ModelActio
 	return nil
 }
 
-// --- ConfirmDialogOverlay → Model アクション ---
-
-// handleConfirmDialogResult はオーバーレイをクリアし、Target に応じた後続処理を行う。
-func handleConfirmDialogResult(target ConfirmTarget, confirmed bool, folderName string) ModelAction {
+// dismissAndRun は overlay をクリアし、Yes ならば onConfirm を実行する。
+func (c *ConfirmDialogOverlay) dismissAndRun(confirmed bool) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
 		m.Overlays.Clear()
 
-		if target != ConfirmTargetFolderDelete || !confirmed {
+		if !confirmed || c.onConfirm == nil {
 			return nil
 		}
 
-		deleted, err := m.FolderList.DeleteFolder(folderName)
+		return c.onConfirm(m, ctx)
+	}
+}
+
+// --- ConfirmDialogOverlay → Model アクション ---
+
+// confirmDeleteFolder はフォルダ削除確認の Yes 押下時に呼ばれる。
+func confirmDeleteFolder(name string) ModelAction {
+	return func(m *Model, ctx ActionContext) tea.Cmd {
+		deleted, err := m.FolderList.DeleteFolder(name)
 		if err != nil {
 			return reportResult(err, "")(m, ctx)
 		}
 
-		info := "Deleted: " + folderName + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
+		info := "Deleted: " + name + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
 
 		return reportResult(nil, info)(m, ctx)
 	}

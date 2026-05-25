@@ -77,9 +77,6 @@ func (p *PopupOverlay) Menu() *tui.PopupMenu { return p.menu }
 // OnClose は閉じ時の pane 側後始末アクションを返す。
 func (p *PopupOverlay) OnClose() ModelAction { return p.onClose }
 
-// Anchor はアンカー情報を返す（fixed モードでは nil）。
-func (p *PopupOverlay) Anchor() *menuAnchor { return p.anchor }
-
 // SetScreenSize は画面サイズを設定する。
 func (p *PopupOverlay) SetScreenSize(width, height int) {
 	p.screenWidth = width
@@ -178,7 +175,7 @@ func (p *PopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 // popupSelect は overlay を閉じてから onClose と onSelect(idx) を順に適用する。
 func popupSelect(idx int, onSelect popupSelectFunc, onClose ModelAction) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.Overlays.DismissKeepAnchor()
+		m.Overlays.Clear()
 
 		var cmds []tea.Cmd
 
@@ -203,7 +200,7 @@ func popupSelect(idx int, onSelect popupSelectFunc, onClose ModelAction) ModelAc
 // popupDismiss は overlay を閉じる（選択なしで閉じた場合に使う）。
 func popupDismiss(onClose ModelAction) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.Overlays.DismissKeepAnchor()
+		m.Overlays.Clear()
 
 		if onClose == nil {
 			return nil
