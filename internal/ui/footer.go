@@ -65,8 +65,8 @@ func (f *Footer) RebuildButtons() {
 	}
 
 	f.menuCmds = []tea.Cmd{
-		func() tea.Msg { return OpenHelpMsg{} },
-		func() tea.Msg { return QuitMsg{} },
+		actionCmd(openHelpAction{}),
+		actionCmd(quitAction{}),
 	}
 
 	prevHover := f.PopupMenu.Hover()
@@ -138,11 +138,11 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 	target := f.HitTest(x)
 
 	if target == HoverMore {
-		return func() tea.Msg { return FooterToggleMenuMsg{} }
+		return actionCmd(footerToggleMenuAction{})
 	}
 
 	if target == HoverQuit {
-		return func() tea.Msg { return QuitMsg{} }
+		return actionCmd(quitAction{})
 	}
 
 	return nil
@@ -301,4 +301,16 @@ func renderErrorLines(msg string, width int) string {
 	}
 
 	return buf.String()
+}
+
+// --- Footer → Model アクション ---
+
+// footerToggleMenuAction はフッターメニューの開閉トグルを Model に要求する。
+type footerToggleMenuAction struct{}
+
+// Apply はフッターメニューを開閉する。
+func (footerToggleMenuAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.toggleFooterMenu()
+
+	return nil
 }

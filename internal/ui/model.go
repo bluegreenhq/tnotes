@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strconv"
 	"strings"
 	"time"
 
@@ -158,8 +157,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) { //nolint:cyclop // ty
 		m.applySearchFilter("", now)
 	case clearInfoMsg:
 		m.handleClearInfo(msg)
-	case actionResultMsg:
-		cmd = m.handleActionResult(msg)
+	case actionMsg:
+		cmd = msg.action.Apply(m, ActionContext{Now: now})
 	default:
 		cmd = m.routeFocus(msg, now)
 	}
@@ -320,59 +319,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg, now time.Time) tea.Cmd {
 func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
 	// オーバーレイ表示中（ヘルプ / ポップアップメニュー / 確認ダイアログ等）
 	if m.overlay != nil {
-		return m.processOverlayCmd(m.overlay.Update(msg), now), true
+		return m.processPaneCmd(m.overlay.Update(msg), now), true
 	}
 
 	return nil, false
-}
-
-// processOverlayCmd はオーバーレイから返された Cmd を解釈する。
-func (m *Model) processOverlayCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
-	if cmd == nil {
-		return nil
-	}
-
-	switch msg := cmd().(type) {
-	case HelpOverlayCloseMsg:
-		m.overlay = nil
-
-		return nil
-	case HelpOverlayQuitMsg:
-		m.overlay = nil
-		m.syncEditorToNote(now)
-
-		return tea.Quit
-	case PopupMenuClosedMsg:
-		m.closePopupOverlay(msg.Kind)
-
-		return nil
-	case PopupMenuSelectedMsg:
-		m.closePopupOverlay(msg.Kind)
-
-		return m.executePopupAction(msg.Kind, msg.Index, now)
-	case ConfirmDialogResultMsg:
-		m.overlay = nil
-
-		return m.handleConfirmDialogResult(msg)
-	default:
-		return cmd
-	}
-}
-
-// handleConfirmDialogResult は確認ダイアログの結果を対応するハンドラに振り分ける。
-func (m *Model) handleConfirmDialogResult(msg ConfirmDialogResultMsg) tea.Cmd {
-	if msg.Target == ConfirmTargetFolderDelete && msg.Confirmed {
-		deleted, err := m.FolderList.DeleteFolder(msg.FolderName)
-		if err != nil {
-			return actionResultMsg{Err: err, Info: ""}.Cmd()
-		}
-
-		info := "Deleted: " + msg.FolderName + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
-
-		return actionResultMsg{Err: nil, Info: info}.Cmd()
-	}
-
-	return nil
 }
 
 // closePopupOverlay は overlay をクリアし、対応するコンポーネント側の状態フラグも整える。
@@ -409,17 +359,7 @@ func (m *Model) executePopupAction(kind PopupKind, idx int, now time.Time) tea.C
 	case PopupKindEditorHeader:
 		return m.processPaneCmd(m.Editor.Header.ExecuteMenuAction(idx), now)
 	case PopupKindMoveMenu:
-		cmd := m.Editor.Header.ExecuteMoveMenuAction(idx)
-		if cmd == nil {
-			return nil
-		}
-
-		moveMsg, ok := cmd().(noteMoveMsg)
-		if !ok {
-			return cmd
-		}
-
-		return m.handleNoteMove(moveMsg, now)
+		return m.processPaneCmd(m.Editor.Header.ExecuteMoveMenuAction(idx), now)
 	case PopupKindFolderList:
 		return m.handleFolderMenuAction(idx, now)
 	case PopupKindFooter:
@@ -620,7 +560,7 @@ func (m *Model) handleClickInner(msg tea.MouseClickMsg, now time.Time) tea.Cmd {
 func (m *Model) handleModalClick(msg tea.MouseClickMsg, now time.Time) (tea.Cmd, bool) {
 	// オーバーレイ表示中（ヘルプ / ポップアップメニュー / 確認ダイアログ全般）
 	if m.overlay != nil {
-		return m.processOverlayCmd(m.overlay.Update(msg), now), true
+		return m.processPaneCmd(m.overlay.Update(msg), now), true
 	}
 
 	return nil, false
@@ -739,7 +679,7 @@ func (m *Model) handleDrag(msg tea.MouseMotionMsg, now time.Time) tea.Cmd {
 	mouse := msg.Mouse()
 
 	if m.overlay != nil {
-		return m.processOverlayCmd(m.overlay.Update(msg), now)
+		return m.processPaneCmd(m.overlay.Update(msg), now)
 	}
 
 	m.hoverSeparator = m.dragTarget == dragNoteSeparator || m.layout.IsOnSeparator(mouse.X)
@@ -792,7 +732,7 @@ func (m *Model) handleHover(msg tea.MouseMsg, now time.Time) tea.Cmd {
 	m.hoverFolderSep = m.layout.folderVisible && m.layout.IsOnFolderSeparator(mouse.X)
 
 	if m.overlay != nil {
-		return m.processOverlayCmd(m.overlay.Update(msg), now)
+		return m.processPaneCmd(m.overlay.Update(msg), now)
 	}
 
 	return m.handleIdleHover(msg, mouse, now)
@@ -808,76 +748,18 @@ func (m *Model) handleIdleHover(msg mouseMsg, mouse tea.Mouse, now time.Time) te
 }
 
 // processPaneCmd は pane / オーバーレイ起源 Cmd をすべて受けて分岐する単一エントリ。
-//
-//nolint:cyclop,funlen // msg 種別ごとの分岐
+// actionMsg をラップした Cmd であれば即時 Apply を呼び、それ以外は素通しする。
 func (m *Model) processPaneCmd(cmd tea.Cmd, now time.Time) tea.Cmd {
 	if cmd == nil {
 		return nil
 	}
 
-	rawMsg := cmd()
-
-	switch msg := rawMsg.(type) {
-	// ---- 共通メッセージ ----
-	case QuitMsg:
-		m.syncEditorToNote(now)
-
-		return tea.Quit
-	case OpenHelpMsg:
-		m.openHelp()
-
-		return nil
-	case ToggleFolderListMsg:
-		return m.toggleFolderList(now)
-	case actionResultMsg:
-		return m.handleActionResult(msg)
-
-	// ---- FolderList ----
-	case FolderListMsg:
-		return m.handleFolderListMsg(msg, now)
-	case folderMenuActionMsg:
-		return m.handleFolderMenuAction(msg.idx, now)
-	case FolderListRightClickMsg:
-		m.openAnchoredPopup(m.FolderList.PopupMenu, msg.AnchorX, msg.AnchorY, PopupKindFolderList)
-
-		return nil
-	case OpenConfirmDeleteFolderMsg:
-		m.openConfirmDeleteFolder(msg.Name, msg.NoteCount)
-
-		return nil
-
-	// ---- NoteList ----
-	case NoteListMsg:
-		return m.handleNoteListMsg(msg, now)
-	case NoteListRightClickMsg:
-		return m.handleNoteListRightClick(msg, now)
-
-	// ---- Editor ----
-	case EditorMsg:
-		return m.handleEditorMsg(msg, now)
-	case EditorHeaderMsg:
-		return m.handleEditorHeaderMsg(msg, now)
-	case EditorRightClickMsg:
-		m.openAnchoredPopup(msg.Menu, msg.AnchorX, msg.AnchorY, PopupKindEditorContext)
-
-		return nil
-	case EditorHeaderOpenMenuMsg:
-		m.Editor.Header.OpenMenu()
-		m.openFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin, PopupKindEditorHeader)
-
-		return nil
-	case editorOpenURLMsg:
-		return shared.OpenURL(msg.URL)
-
-	// ---- Footer ----
-	case FooterToggleMenuMsg:
-		m.toggleFooterMenu()
-
-		return nil
-
-	default:
-		return cmd
+	msg := cmd()
+	if am, ok := msg.(actionMsg); ok {
+		return am.action.Apply(m, ActionContext{Now: now})
 	}
+
+	return func() tea.Msg { return msg }
 }
 
 func (m *Model) recalcLayout(now time.Time) {
@@ -1135,7 +1017,7 @@ func (m *Model) openMoveMenu() tea.Cmd {
 	return nil
 }
 
-func (m *Model) handleNoteMove(msg noteMoveMsg, now time.Time) tea.Cmd {
+func (m *Model) handleNoteMove(destFolder string, now time.Time) tea.Cmd {
 	id := m.Editor.NoteID()
 	if id == "" {
 		return nil
@@ -1147,7 +1029,7 @@ func (m *Model) handleNoteMove(msg noteMoveMsg, now time.Time) tea.Cmd {
 		m.syncEditorToNote(now)
 	}
 
-	err := m.App.MoveNoteToFolder(id, msg.DestFolder)
+	err := m.App.MoveNoteToFolder(id, destFolder)
 	if err != nil {
 		m.errMsg = err.Error()
 
@@ -1157,11 +1039,11 @@ func (m *Model) handleNoteMove(msg noteMoveMsg, now time.Time) tea.Cmd {
 	// 移動先フォルダに切り替え
 	if m.FolderList.Visible() {
 		_ = m.FolderList.RefreshFromApp()
-		m.FolderList.SelectIndex(m.FolderList.IndexByName(msg.DestFolder))
+		m.FolderList.SelectIndex(m.FolderList.IndexByName(destFolder))
 		m.switchFolder(folderView{
-			name:      msg.DestFolder,
-			notes:     m.App.ListByFolder(msg.DestFolder),
-			sectioned: msg.DestFolder == app.DefaultFolder,
+			name:      destFolder,
+			notes:     m.App.ListByFolder(destFolder),
+			sectioned: destFolder == app.DefaultFolder,
 			readOnly:  false,
 			trash:     false,
 			selectID:  id,
@@ -1170,7 +1052,7 @@ func (m *Model) handleNoteMove(msg noteMoveMsg, now time.Time) tea.Cmd {
 		m.NoteList.RefreshKeepSelection(m.FolderList.SelectedKind(), m.FolderList.SelectedName(), m.Editor.NoteID(), now)
 	}
 
-	return m.setInfoMsg("Moved to " + msg.DestFolder)
+	return m.setInfoMsg("Moved to " + destFolder)
 }
 
 func (m *Model) toggleFolderList(now time.Time) tea.Cmd {
@@ -1239,16 +1121,6 @@ func (m *Model) handleFolderMenuAction(idx int, now time.Time) tea.Cmd {
 	}
 
 	return nil
-}
-
-func (m *Model) handleActionResult(msg actionResultMsg) tea.Cmd {
-	if msg.Err != nil {
-		m.errMsg = msg.Err.Error()
-
-		return nil
-	}
-
-	return m.setInfoMsg(msg.Info)
 }
 
 func (m *Model) loadSelectedNote() {
@@ -1324,148 +1196,12 @@ func (m *Model) setInfoMsg(msg string) tea.Cmd {
 	})
 }
 
-func (m *Model) handleFolderListMsg(msg FolderListMsg, _ time.Time) tea.Cmd {
-	switch msg {
-	case FolderListSelect:
-		return m.handleFolderSelect(time.Now())
-	case FolderListFocusNext:
-		m.Focus = FocusNoteList
-
-		return nil
-	case FolderListMenu:
-		if m.FolderList.IsUserFolder() {
-			m.FolderList.OpenMenu()
-			m.openFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin, PopupKindFolderList)
-		}
-
-		return nil
-	case FolderListStartInput:
-		blinkCmd := m.FolderList.StartInput()
-		m.Focus = FocusFolderList
-
-		return blinkCmd
-	}
-
-	return nil
-}
-
-func (m *Model) handleNoteListRightClick(msg NoteListRightClickMsg, now time.Time) tea.Cmd {
-	if !m.FolderList.IsTrash() {
-		m.syncEditorToNote(now)
-	}
-
-	m.loadSelectedNote()
-	m.Editor.Header.OpenMenu()
-	m.openAnchoredPopup(m.Editor.Header.PopupMenu, msg.AnchorX, msg.AnchorY, PopupKindEditorHeader)
-
-	return nil
-}
-
-func (m *Model) handleNoteListMsg(msg NoteListMsg, now time.Time) tea.Cmd { //nolint:cyclop // msg種別ごとの分岐
-	switch msg {
-	case NoteListSelect:
-		m.loadSelectedNote()
-
-		return nil
-	case NoteListClickSelect:
-		if !m.FolderList.IsTrash() {
-			m.syncEditorToNote(now)
-		}
-
-		m.loadSelectedNote()
-		m.Focus = FocusNoteList
-		m.Editor.Blur()
-
-		return nil
-	case NoteListCreate:
-		return m.createNote(now)
-	case NoteListTrash:
-		m.syncEditorToNote(now)
-		result, err := m.NoteList.TrashSelected()
-
-		return m.applyNoteAction(result, err, now)
-	case NoteListUndo:
-		return m.undoRedoNote(now, true)
-	case NoteListRedo:
-		return m.undoRedoNote(now, false)
-	case NoteListEdit:
-		return m.focusEditor()
-	case NoteListDuplicate:
-		m.syncEditorToNote(now)
-		result, err := m.NoteList.DuplicateSelected()
-
-		return m.applyNoteAction(result, err, now)
-	case NoteListCopy:
-		return m.Editor.CopyToClipboard()
-	case NoteListMenu:
-		return m.openNoteListMenu(now)
-	case NoteListFocusPrev:
-		if m.FolderList.Visible() {
-			m.Focus = FocusFolderList
-		}
-
-		return nil
-	}
-
-	return nil
-}
-
 func (m *Model) openNoteListMenu(now time.Time) tea.Cmd {
 	m.Editor.Header.OpenMenu()
 	menuW := m.Editor.Header.PopupMenu.Width()
 	x := m.layout.EditorStartX() - menuW
 	y := m.NoteList.SelectedY(now)
 	m.openAnchoredPopup(m.Editor.Header.PopupMenu, x, y, PopupKindEditorHeader)
-
-	return nil
-}
-
-func (m *Model) handleEditorMsg(msg EditorMsg, now time.Time) tea.Cmd {
-	switch msg {
-	case EditorBlur:
-		return m.blurEditor(now)
-	case EditorSave:
-		m.syncEditorToNote(now)
-
-		return m.setInfoMsg("Saved")
-	case EditorSearchChanged:
-		return m.scheduleSearchDebounce()
-	case EditorSearchBlur:
-		m.Focus = FocusNoteList
-
-		return nil
-	case EditorClickBody:
-		m.Focus = FocusEditor
-
-		return m.Editor.Focus()
-	}
-
-	return nil
-}
-
-func (m *Model) handleEditorHeaderMsg(msg EditorHeaderMsg, now time.Time) tea.Cmd {
-	switch msg {
-	case EditorHeaderNew:
-		return m.createNote(now)
-	case EditorHeaderTrash:
-		m.syncEditorToNote(now)
-		result, err := m.NoteList.TrashSelected()
-
-		return m.applyNoteAction(result, err, now)
-	case EditorHeaderCopy:
-		return m.Editor.CopyToClipboard()
-	case EditorHeaderPin:
-		return m.setNotePin(true)
-	case EditorHeaderUnpin:
-		return m.setNotePin(false)
-	case EditorHeaderMove:
-		return m.openMoveMenu()
-	case EditorHeaderDuplicate:
-		m.syncEditorToNote(now)
-		result, err := m.NoteList.DuplicateSelected()
-
-		return m.applyNoteAction(result, err, now)
-	}
 
 	return nil
 }

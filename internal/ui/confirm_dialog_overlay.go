@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -19,14 +20,6 @@ const (
 	// ConfirmTargetFolderDelete はフォルダ削除確認。
 	ConfirmTargetFolderDelete
 )
-
-// ConfirmDialogResultMsg は確認ダイアログの結果を通知する。
-type ConfirmDialogResultMsg struct {
-	Target    ConfirmTarget
-	Confirmed bool
-	// FolderName は ConfirmTargetFolderDelete の対象フォルダ名。
-	FolderName string
-}
 
 // ConfirmDialogOverlay は tui.ConfirmDialog をオーバーレイ化したラッパー。
 type ConfirmDialogOverlay struct {
@@ -87,22 +80,39 @@ func (c *ConfirmDialogOverlay) FolderName() string { return c.folderName }
 func (c *ConfirmDialogOverlay) resultCmd(result tui.ConfirmResult) tea.Cmd {
 	switch result {
 	case tui.ConfirmYes:
-		target := c.target
-		name := c.folderName
-
-		return func() tea.Msg {
-			return ConfirmDialogResultMsg{Target: target, Confirmed: true, FolderName: name}
-		}
+		return actionCmd(confirmDialogResultAction{Target: c.target, Confirmed: true, FolderName: c.folderName})
 	case tui.ConfirmNo:
-		target := c.target
-		name := c.folderName
-
-		return func() tea.Msg {
-			return ConfirmDialogResultMsg{Target: target, Confirmed: false, FolderName: name}
-		}
+		return actionCmd(confirmDialogResultAction{Target: c.target, Confirmed: false, FolderName: c.folderName})
 	case tui.ConfirmContinue:
 		return nil
 	}
 
 	return nil
+}
+
+// --- ConfirmDialogOverlay → Model アクション ---
+
+// confirmDialogResultAction は確認ダイアログの結果を Model に通知する。
+type confirmDialogResultAction struct {
+	Target     ConfirmTarget
+	Confirmed  bool
+	FolderName string
+}
+
+// Apply はオーバーレイをクリアし、Target に応じた後続処理を行う。
+func (a confirmDialogResultAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.overlay = nil
+
+	if a.Target != ConfirmTargetFolderDelete || !a.Confirmed {
+		return nil
+	}
+
+	deleted, err := m.FolderList.DeleteFolder(a.FolderName)
+	if err != nil {
+		return actionCmd(resultAction{Err: err, Info: ""})
+	}
+
+	info := "Deleted: " + a.FolderName + " (" + strconv.Itoa(deleted) + " note(s) trashed)"
+
+	return actionCmd(resultAction{Err: nil, Info: info})
 }

@@ -142,17 +142,37 @@ func (p *AnchoredPopupOverlay) handleClick(msg tea.MouseClickMsg) tea.Cmd {
 }
 
 func (p *AnchoredPopupOverlay) selectedCmd(idx int) tea.Cmd {
-	kind := p.kind
-
-	return func() tea.Msg {
-		return PopupMenuSelectedMsg{Kind: kind, Index: idx}
-	}
+	return actionCmd(popupMenuSelectedAction{Kind: p.kind, Index: idx})
 }
 
 func (p *AnchoredPopupOverlay) closedCmd() tea.Cmd {
-	kind := p.kind
+	return actionCmd(popupMenuClosedAction{Kind: p.kind})
+}
 
-	return func() tea.Msg {
-		return PopupMenuClosedMsg{Kind: kind}
-	}
+// --- PopupOverlay → Model アクション ---
+// AnchoredPopupOverlay と FixedPopupOverlay が共有する。
+
+// popupMenuSelectedAction はポップアップメニュー項目選択を Model に通知する。
+type popupMenuSelectedAction struct {
+	Kind  PopupKind
+	Index int
+}
+
+// Apply はポップアップを閉じ、対応するメニューアクションを実行する。
+func (a popupMenuSelectedAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	m.closePopupOverlay(a.Kind)
+
+	return m.executePopupAction(a.Kind, a.Index, ctx.Now)
+}
+
+// popupMenuClosedAction はポップアップメニューが選択無しで閉じられたことを Model に通知する。
+type popupMenuClosedAction struct {
+	Kind PopupKind
+}
+
+// Apply はポップアップを閉じる。
+func (a popupMenuClosedAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.closePopupOverlay(a.Kind)
+
+	return nil
 }

@@ -323,7 +323,7 @@ func (s *NoteList) UpdatePane(msg tea.Msg, ctx PaneContext) tea.Cmd {
 // Update はメッセージに応じてノート一覧の状態を更新する。
 // trashMode はゴミ箱モードかどうかを示す。
 // ナビゲーション（カーソル移動）は自身で処理し、
-// ノート操作（作成、削除等）は tea.Cmd で NoteListMsg を返して Model に委譲する。
+// ノート操作（作成、削除等）は tea.Cmd で ModelAction を返して Model に委譲する。
 func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
@@ -516,15 +516,15 @@ func (s *NoteList) clampScrollOffset(now time.Time) {
 func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch {
 	case msg.Code == 'q' && msg.Mod == 0:
-		return func() tea.Msg { return QuitMsg{} }, true
+		return actionCmd(quitAction{}), true
 	case msg.Code == tea.KeyTab:
-		return NoteListEdit.Cmd(), true
+		return actionCmd(noteListEditAction{}), true
 	case msg.Code == tea.KeyEscape:
-		return NoteListFocusPrev.Cmd(), true
+		return actionCmd(noteListFocusPrevAction{}), true
 	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0:
-		return func() tea.Msg { return ToggleFolderListMsg{} }, true
+		return actionCmd(toggleFolderListAction{}), true
 	case msg.Code == '?' && msg.Mod == 0:
-		return func() tea.Msg { return OpenHelpMsg{} }, true
+		return actionCmd(openHelpAction{}), true
 	}
 
 	return nil, false
@@ -533,17 +533,17 @@ func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
 func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'n':
-		return *s, NoteListCreate.Cmd()
+		return *s, actionCmd(noteListCreateAction{})
 	case 'd', tea.KeyDelete, tea.KeyBackspace:
-		return *s, NoteListTrash.Cmd()
+		return *s, actionCmd(noteListTrashAction{})
 	case 'm':
-		return *s, NoteListMenu.Cmd()
+		return *s, actionCmd(noteListMenuAction{})
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
 		return s.moveDownCmd(now)
 	case tea.KeyEnter:
-		return *s, NoteListEdit.Cmd()
+		return *s, actionCmd(noteListEditAction{})
 	}
 
 	return *s, nil
@@ -552,7 +552,7 @@ func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList
 func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
 	switch msg.Code {
 	case 'm':
-		return *s, NoteListMenu.Cmd()
+		return *s, actionCmd(noteListMenuAction{})
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
@@ -566,14 +566,14 @@ func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, 
 	switch msg.Code {
 	case 'z':
 		if msg.Mod&tea.ModShift != 0 {
-			return *s, NoteListRedo.Cmd()
+			return *s, actionCmd(noteListRedoAction{})
 		}
 
-		return *s, NoteListUndo.Cmd()
+		return *s, actionCmd(noteListUndoAction{})
 	case 'c':
-		return *s, NoteListCopy.Cmd()
+		return *s, actionCmd(noteListCopyAction{})
 	case 'd':
-		return *s, NoteListDuplicate.Cmd()
+		return *s, actionCmd(noteListDuplicateAction{})
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':
@@ -588,7 +588,7 @@ func (s *NoteList) moveUpCmd(now time.Time) (NoteList, tea.Cmd) {
 	s.MoveUp(now)
 
 	if s.selected != prev {
-		return *s, NoteListSelect.Cmd()
+		return *s, actionCmd(noteListSelectAction{})
 	}
 
 	return *s, nil
@@ -599,7 +599,7 @@ func (s *NoteList) moveDownCmd(now time.Time) (NoteList, tea.Cmd) {
 	s.MoveDown(now)
 
 	if s.selected != prev {
-		return *s, NoteListSelect.Cmd()
+		return *s, actionCmd(noteListSelectAction{})
 	}
 
 	return *s, nil
@@ -688,7 +688,7 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 
 	// トグルボタン（≡）クリック判定
 	if !s.layout.folderVisible && msg.Y == 0 && msg.X >= nlOffset+1 && msg.X <= nlOffset+2 {
-		return *s, func() tea.Msg { return ToggleFolderListMsg{} }
+		return *s, actionCmd(toggleFolderListAction{})
 	}
 
 	relX := s.layout.NoteListLocalX(msg.X)
@@ -697,7 +697,7 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 	if idx >= 0 {
 		s.SelectIndex(idx, now)
 
-		return *s, NoteListClickSelect.Cmd()
+		return *s, actionCmd(noteListClickSelectAction{})
 	}
 
 	return *s, nil
@@ -713,11 +713,10 @@ func (s *NoteList) handleRightClick(msg tea.MouseClickMsg, now time.Time) (NoteL
 
 	s.SelectIndex(idx, now)
 
-	return *s, NoteListRightClickMsg{
-		NoteIndex: idx,
-		AnchorX:   msg.X,
-		AnchorY:   msg.Y,
-	}.Cmd()
+	return *s, actionCmd(noteListRightClickAction{
+		AnchorX: msg.X,
+		AnchorY: msg.Y,
+	})
 }
 
 func (s *NoteList) updateHover(mouse tea.Mouse) {
@@ -746,4 +745,133 @@ func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode 
 	}
 
 	return s.handleNormalKey(msg, now)
+}
+
+// --- NoteList → Model アクション ---
+
+// noteListSelectAction はカーソル移動によるノート選択変更を Model に通知する。
+type noteListSelectAction struct{}
+
+// Apply は選択ノートを Editor にロードする。
+func (noteListSelectAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.loadSelectedNote()
+
+	return nil
+}
+
+// noteListClickSelectAction はクリックによる選択変更を Model に通知する。
+type noteListClickSelectAction struct{}
+
+// Apply は編集中ノートを保存し、選択ノートをロード後 NoteList にフォーカスを移す。
+func (noteListClickSelectAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	if !m.FolderList.IsTrash() {
+		m.syncEditorToNote(ctx.Now)
+	}
+
+	m.loadSelectedNote()
+	m.Focus = FocusNoteList
+	m.Editor.Blur()
+
+	return nil
+}
+
+// noteListCreateAction は新規ノート作成を Model に要求する。
+type noteListCreateAction struct{}
+
+// Apply は新規ノートを作成する。
+func (noteListCreateAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.createNote(ctx.Now)
+}
+
+// noteListTrashAction はノートのゴミ箱移動を Model に要求する。
+type noteListTrashAction struct{}
+
+// Apply は選択ノートをゴミ箱に移動する。
+func (noteListTrashAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	m.syncEditorToNote(ctx.Now)
+	result, err := m.NoteList.TrashSelected()
+
+	return m.applyNoteAction(result, err, ctx.Now)
+}
+
+// noteListUndoAction はノート操作の undo を Model に要求する。
+type noteListUndoAction struct{}
+
+// Apply は undo を実行する。
+func (noteListUndoAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.undoRedoNote(ctx.Now, true)
+}
+
+// noteListRedoAction はノート操作の redo を Model に要求する。
+type noteListRedoAction struct{}
+
+// Apply は redo を実行する。
+func (noteListRedoAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.undoRedoNote(ctx.Now, false)
+}
+
+// noteListEditAction はエディタへのフォーカス切り替えを Model に要求する。
+type noteListEditAction struct{}
+
+// Apply はエディタにフォーカスする。
+func (noteListEditAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	return m.focusEditor()
+}
+
+// noteListDuplicateAction はノート複製を Model に要求する。
+type noteListDuplicateAction struct{}
+
+// Apply は選択ノートを複製する。
+func (noteListDuplicateAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	m.syncEditorToNote(ctx.Now)
+	result, err := m.NoteList.DuplicateSelected()
+
+	return m.applyNoteAction(result, err, ctx.Now)
+}
+
+// noteListCopyAction はノート内容のクリップボードコピーを Model に要求する。
+type noteListCopyAction struct{}
+
+// Apply は選択ノートの内容をクリップボードにコピーする。
+func (noteListCopyAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	return m.Editor.CopyToClipboard()
+}
+
+// noteListMenuAction はノート一覧コンテキストメニューの表示を Model に要求する。
+type noteListMenuAction struct{}
+
+// Apply は EditorHeader メニューを NoteList の位置にアンカーして開く。
+func (noteListMenuAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.openNoteListMenu(ctx.Now)
+}
+
+// noteListFocusPrevAction はフォルダ一覧へのフォーカス移動を Model に要求する。
+type noteListFocusPrevAction struct{}
+
+// Apply はフォルダ一覧が表示中であればフォーカスを移す。
+func (noteListFocusPrevAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	if m.FolderList.Visible() {
+		m.Focus = FocusFolderList
+	}
+
+	return nil
+}
+
+// noteListRightClickAction はノート一覧での右クリックを Model に通知する。
+type noteListRightClickAction struct {
+	AnchorX int
+	AnchorY int
+}
+
+// Apply は編集中ノートを保存後、EditorHeader メニューをアンカー位置に開く。
+func (a noteListRightClickAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	if !m.FolderList.IsTrash() {
+		m.syncEditorToNote(ctx.Now)
+	}
+
+	m.loadSelectedNote()
+	m.Editor.Header.OpenMenu()
+	m.openAnchoredPopup(m.Editor.Header.PopupMenu, a.AnchorX, a.AnchorY, PopupKindEditorHeader)
+
+	return nil
 }

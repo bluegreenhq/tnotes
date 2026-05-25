@@ -78,7 +78,7 @@ func (h *HelpOverlay) Update(msg tea.Msg) tea.Cmd {
 		return h.handleKey(msg)
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft && h.closeButtonHit(msg.X, msg.Y) {
-			return func() tea.Msg { return HelpOverlayCloseMsg{} }
+			return actionCmd(helpOverlayCloseAction{})
 		}
 	case tea.MouseMsg:
 		mouse := msg.Mouse()
@@ -170,13 +170,13 @@ func (h *HelpOverlay) closeButtonHit(absX, absY int) bool {
 func (h *HelpOverlay) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	switch {
 	case msg.Code == 'q' && msg.Mod&tea.ModCtrl != 0:
-		return func() tea.Msg { return HelpOverlayQuitMsg{} }
+		return actionCmd(helpOverlayQuitAction{})
 	case msg.Code == tea.KeyEscape:
-		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+		return actionCmd(helpOverlayCloseAction{})
 	case msg.Code == '?' && msg.Mod == 0:
-		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+		return actionCmd(helpOverlayCloseAction{})
 	case msg.Code == '/' && msg.Mod == (tea.ModCtrl|tea.ModShift):
-		return func() tea.Msg { return HelpOverlayCloseMsg{} }
+		return actionCmd(helpOverlayCloseAction{})
 	}
 
 	return nil
@@ -290,4 +290,27 @@ func globalHelpSection() HelpSection {
 			{"Tab", "Next pane"},
 		},
 	}
+}
+
+// --- HelpOverlay → Model アクション ---
+
+// helpOverlayCloseAction はヘルプオーバーレイを閉じることを Model に要求する。
+type helpOverlayCloseAction struct{}
+
+// Apply はオーバーレイをクリアする。
+func (helpOverlayCloseAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.overlay = nil
+
+	return nil
+}
+
+// helpOverlayQuitAction はヘルプ表示中のアプリ終了を Model に要求する。
+type helpOverlayQuitAction struct{}
+
+// Apply はオーバーレイをクリアし、編集中ノートを保存してから tea.Quit を返す。
+func (helpOverlayQuitAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	m.overlay = nil
+	m.syncEditorToNote(ctx.Now)
+
+	return tea.Quit
 }

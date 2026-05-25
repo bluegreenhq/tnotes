@@ -118,17 +118,9 @@ func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) tea.Cmd {
 }
 
 func (p *FixedPopupOverlay) selectedCmd(idx int) tea.Cmd {
-	kind := p.kind
-
-	return func() tea.Msg {
-		return PopupMenuSelectedMsg{Kind: kind, Index: idx}
-	}
+	return actionCmd(popupMenuSelectedAction{Kind: p.kind, Index: idx})
 }
 
 func (p *FixedPopupOverlay) closedCmd() tea.Cmd {
-	kind := p.kind
-
-	return func() tea.Msg {
-		return PopupMenuClosedMsg{Kind: kind}
-	}
+	return actionCmd(popupMenuClosedAction{Kind: p.kind})
 }

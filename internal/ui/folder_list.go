@@ -364,10 +364,10 @@ func (fl *FolderList) CommitInput() tea.Cmd {
 
 	err := fl.CreateFolder(val)
 	if err != nil {
-		return actionResultMsg{Err: err, Info: ""}.Cmd()
+		return actionCmd(resultAction{Err: err, Info: ""})
 	}
 
-	return actionResultMsg{Err: nil, Info: "Created: " + val}.Cmd()
+	return actionCmd(resultAction{Err: nil, Info: "Created: " + val})
 }
 
 // CancelInput はインライン入力を破棄する（Esc用）。
@@ -397,10 +397,10 @@ func (fl *FolderList) CommitRename() tea.Cmd {
 
 	err := fl.RenameFolder(oldName, val)
 	if err != nil {
-		return actionResultMsg{Err: err, Info: ""}.Cmd()
+		return actionCmd(resultAction{Err: err, Info: ""})
 	}
 
-	return actionResultMsg{Err: nil, Info: "Renamed: " + oldName + " → " + val}.Cmd()
+	return actionCmd(resultAction{Err: nil, Info: "Renamed: " + oldName + " → " + val})
 }
 
 // CancelRename はリネーム入力を破棄する（Esc用）。
@@ -480,7 +480,7 @@ func (fl *FolderList) SelectIndex(idx int) tea.Cmd {
 	fl.selected = idx
 
 	if prev != fl.selected {
-		return FolderListSelect.Cmd()
+		return actionCmd(folderSelectAction{})
 	}
 
 	return nil
@@ -549,29 +549,25 @@ func (fl *FolderList) ClearHover() {
 }
 
 // TryDeleteFolder はフォルダ削除を試行する。
-// 空フォルダなら即時削除して actionResultMsg を返す。
-// ノートが存在する場合は OpenConfirmDeleteFolderMsg を返して Model にダイアログ表示を委ねる。
+// 空フォルダなら即時削除して resultAction を返す。
+// ノートが存在する場合は openConfirmDeleteFolderAction を返して Model にダイアログ表示を委ねる。
 func (fl *FolderList) TryDeleteFolder(name string) tea.Cmd {
 	count, err := fl.app.FolderNoteCount(name)
 	if err != nil {
-		return actionResultMsg{Err: err, Info: ""}.Cmd()
+		return actionCmd(resultAction{Err: err, Info: ""})
 	}
 
 	if count > 0 {
-		noteCount := count
-
-		return func() tea.Msg {
-			return OpenConfirmDeleteFolderMsg{Name: name, NoteCount: noteCount}
-		}
+		return actionCmd(openConfirmDeleteFolderAction{Name: name, NoteCount: count})
 	}
 
 	// 空フォルダは即時削除
 	_, err = fl.DeleteFolder(name)
 	if err != nil {
-		return actionResultMsg{Err: err, Info: ""}.Cmd()
+		return actionCmd(resultAction{Err: err, Info: ""})
 	}
 
-	return actionResultMsg{Err: nil, Info: "Deleted: " + name}.Cmd()
+	return actionCmd(resultAction{Err: nil, Info: "Deleted: " + name})
 }
 
 func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
@@ -586,9 +582,9 @@ func (fl *FolderList) handleClickLocal(x, y int) tea.Cmd {
 
 		switch hit {
 		case headerHitClose:
-			return func() tea.Msg { return ToggleFolderListMsg{} }
+			return actionCmd(toggleFolderListAction{})
 		case headerHitAdd:
-			return FolderListStartInput.Cmd()
+			return actionCmd(folderStartInputAction{})
 		}
 
 		return nil
@@ -615,11 +611,10 @@ func (fl *FolderList) handleRightClick(msg tea.MouseClickMsg) (FolderList, tea.C
 
 	fl.OpenMenu()
 
-	return *fl, FolderListRightClickMsg{
-		FolderIndex: fl.selected,
-		AnchorX:     msg.X,
-		AnchorY:     msg.Y,
-	}.Cmd()
+	return *fl, actionCmd(folderRightClickAction{
+		AnchorX: msg.X,
+		AnchorY: msg.Y,
+	})
 }
 
 // hitTestHeader はヘッダー領域のクリック判定を行う.
@@ -769,7 +764,7 @@ func (fl *FolderList) handleMenuClick(x, y int) tea.Cmd {
 		fl.CloseMenu()
 
 		if hit {
-			return folderMenuActionMsg{idx: idx}.Cmd()
+			return actionCmd(folderMenuItemAction{Idx: idx})
 		}
 
 		return nil
@@ -791,13 +786,13 @@ func (fl *FolderList) handleKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.Cmd)
 	case tea.KeyDown, 'j':
 		return fl.moveDown()
 	case 'm':
-		return *fl, FolderListMenu.Cmd()
+		return *fl, actionCmd(folderOpenMenuAction{})
 	case tea.KeyEnter, tea.KeyTab:
-		return *fl, FolderListFocusNext.Cmd()
+		return *fl, actionCmd(folderFocusNextAction{})
 	case 'q':
-		return *fl, func() tea.Msg { return QuitMsg{} }
+		return *fl, actionCmd(quitAction{})
 	case '?':
-		return *fl, func() tea.Msg { return OpenHelpMsg{} }
+		return *fl, actionCmd(openHelpAction{})
 	}
 
 	return *fl, nil
@@ -810,7 +805,7 @@ func (fl *FolderList) handleCtrlKeyNav(keyMsg tea.KeyPressMsg) (FolderList, tea.
 	case 'n':
 		return fl.moveDown()
 	case 'b':
-		return *fl, func() tea.Msg { return ToggleFolderListMsg{} }
+		return *fl, actionCmd(toggleFolderListAction{})
 	}
 
 	return *fl, nil
@@ -820,7 +815,7 @@ func (fl *FolderList) moveUp() (FolderList, tea.Cmd) {
 	if fl.selected > 0 {
 		fl.selected--
 
-		return *fl, FolderListSelect.Cmd()
+		return *fl, actionCmd(folderSelectAction{})
 	}
 
 	return *fl, nil
@@ -830,7 +825,7 @@ func (fl *FolderList) moveDown() (FolderList, tea.Cmd) {
 	if fl.selected < len(fl.folders)-1 {
 		fl.selected++
 
-		return *fl, FolderListSelect.Cmd()
+		return *fl, actionCmd(folderSelectAction{})
 	}
 
 	return *fl, nil
@@ -893,4 +888,84 @@ func (fl *FolderList) handleKeyMsg(msg tea.KeyPressMsg) (FolderList, tea.Cmd) {
 	}
 
 	return fl.handleKeyNav(msg)
+}
+
+// --- FolderList → Model アクション ---
+
+// folderSelectAction はフォルダ選択変更を Model に通知する。
+type folderSelectAction struct{}
+
+// Apply は選択フォルダに応じて表示を切り替える。
+func (folderSelectAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.handleFolderSelect(ctx.Now)
+}
+
+// folderFocusNextAction はノート一覧へのフォーカス移動を要求する。
+type folderFocusNextAction struct{}
+
+// Apply はフォーカスを NoteList に移す。
+func (folderFocusNextAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.Focus = FocusNoteList
+
+	return nil
+}
+
+// folderOpenMenuAction はフォルダ moreメニュー（fixed popup）の表示を要求する。
+type folderOpenMenuAction struct{}
+
+// Apply はユーザー定義フォルダの場合のみメニューを開く。
+func (folderOpenMenuAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	if m.FolderList.IsUserFolder() {
+		m.FolderList.OpenMenu()
+		m.openFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin, PopupKindFolderList)
+	}
+
+	return nil
+}
+
+// folderStartInputAction はフォルダ新規作成インライン入力の開始を要求する。
+type folderStartInputAction struct{}
+
+// Apply は入力モードに切り替え、FolderList にフォーカスを移す。
+func (folderStartInputAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	blinkCmd := m.FolderList.StartInput()
+	m.Focus = FocusFolderList
+
+	return blinkCmd
+}
+
+// folderRightClickAction はフォルダ一覧での右クリックによるアンカー付きポップアップ表示を要求する。
+type folderRightClickAction struct {
+	AnchorX int
+	AnchorY int
+}
+
+// Apply はアンカー付きポップアップメニューを開く。
+func (a folderRightClickAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.openAnchoredPopup(m.FolderList.PopupMenu, a.AnchorX, a.AnchorY, PopupKindFolderList)
+
+	return nil
+}
+
+// folderMenuItemAction はフォルダメニュー項目の選択を Model に通知する。
+type folderMenuItemAction struct {
+	Idx int
+}
+
+// Apply は選択されたメニュー項目に応じた処理を実行する。
+func (a folderMenuItemAction) Apply(m *Model, ctx ActionContext) tea.Cmd {
+	return m.handleFolderMenuAction(a.Idx, ctx.Now)
+}
+
+// openConfirmDeleteFolderAction はフォルダ削除確認ダイアログの表示を要求する。
+type openConfirmDeleteFolderAction struct {
+	Name      string
+	NoteCount int
+}
+
+// Apply は確認ダイアログをオーバーレイとして開く。
+func (a openConfirmDeleteFolderAction) Apply(m *Model, _ ActionContext) tea.Cmd {
+	m.openConfirmDeleteFolder(a.Name, a.NoteCount)
+
+	return nil
 }
