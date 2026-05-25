@@ -442,7 +442,22 @@ func openNoteMoveMenu(m *Model, _ ActionContext) tea.Cmd {
 // openEditorHeaderMenu はエディタヘッダーの「⋯」メニューを固定位置ポップアップとして開く。
 func openEditorHeaderMenu(m *Model, _ ActionContext) tea.Cmd {
 	m.Editor.Header.OpenMenu()
-	m.openFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin, PopupKindEditorHeader)
+	m.openFixedPopup(m.Editor.Header.PopupMenu, m.editorHeaderMenuOrigin,
+		m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
+
+	return nil
+}
+
+// closeEditorHeaderMenu はエディタヘッダーの「⋯」メニューを閉じる（popup overlay の onClose 用）。
+func closeEditorHeaderMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.Editor.Header.CloseMenu()
+
+	return nil
+}
+
+// closeMoveMenu は移動先メニューを閉じる（popup overlay の onClose 用）。
+func closeMoveMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.Editor.Header.CloseMoveMenu()
 
 	return nil
 }

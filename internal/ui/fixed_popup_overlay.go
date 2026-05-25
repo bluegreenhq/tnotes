@@ -14,19 +14,30 @@ import (
 type FixedPopupOverlay struct {
 	menu         *tui.PopupMenu
 	origin       func() (int, int) // 描画時に呼ばれて (x, y) を返す
-	kind         PopupKind
+	onSelect     popupSelectFunc
+	onClose      ModelAction
 	screenWidth  int
 	screenHeight int
 }
 
-var _ shared.OverlayComponent = (*FixedPopupOverlay)(nil)
+var (
+	_ shared.OverlayComponent = (*FixedPopupOverlay)(nil)
+	_ popupOverlay            = (*FixedPopupOverlay)(nil)
+)
 
 // NewFixedPopupOverlay は FixedPopupOverlay を生成する。
-func NewFixedPopupOverlay(menu *tui.PopupMenu, origin func() (int, int), kind PopupKind) *FixedPopupOverlay {
+// onSelect はメニュー項目選択時、onClose は閉じ時の pane 側後始末アクション（不要なら nil）。
+func NewFixedPopupOverlay(
+	menu *tui.PopupMenu,
+	origin func() (int, int),
+	onSelect popupSelectFunc,
+	onClose ModelAction,
+) *FixedPopupOverlay {
 	return &FixedPopupOverlay{
 		menu:         menu,
 		origin:       origin,
-		kind:         kind,
+		onSelect:     onSelect,
+		onClose:      onClose,
 		screenWidth:  0,
 		screenHeight: 0,
 	}
@@ -35,8 +46,8 @@ func NewFixedPopupOverlay(menu *tui.PopupMenu, origin func() (int, int), kind Po
 // Menu は内部の PopupMenu を返す。
 func (p *FixedPopupOverlay) Menu() *tui.PopupMenu { return p.menu }
 
-// Kind はポップアップ種別を返す。
-func (p *FixedPopupOverlay) Kind() PopupKind { return p.kind }
+// OnClose は閉じ時の pane 側後始末アクションを返す。
+func (p *FixedPopupOverlay) OnClose() ModelAction { return p.onClose }
 
 // SetScreenSize は画面サイズを設定する。
 func (p *FixedPopupOverlay) SetScreenSize(width, height int) {
@@ -78,14 +89,14 @@ func (p *FixedPopupOverlay) RenderOn(base string, _, _ int) string {
 func (p *FixedPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	switch msg.Code {
 	case tea.KeyEscape:
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	case tea.KeyEnter:
 		idx := p.menu.SelectHover()
 		if idx < 0 {
-			return closePopup(p.kind)
+			return popupDismiss(p.onClose)
 		}
 
-		return selectPopupMenuItem(p.kind, idx)
+		return popupSelect(idx, p.onSelect, p.onClose)
 	default:
 		p.menu.HandleKeyNav(msg)
 	}
@@ -95,7 +106,7 @@ func (p *FixedPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 
 func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	if msg.Button != tea.MouseLeft {
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	}
 
 	ox, oy := p.origin()
@@ -103,7 +114,7 @@ func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	h := p.menu.Height()
 
 	if msg.X < ox || msg.X >= ox+w || msg.Y < oy || msg.Y >= oy+h {
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	}
 
 	relX := msg.X - ox
@@ -111,8 +122,8 @@ func (p *FixedPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	idx, hit := p.menu.HandleClick(relX, relY)
 
 	if !hit || idx < 0 {
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	}
 
-	return selectPopupMenuItem(p.kind, idx)
+	return popupSelect(idx, p.onSelect, p.onClose)
 }

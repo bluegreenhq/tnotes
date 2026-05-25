@@ -1217,7 +1217,16 @@ func focusEditorBody(m *Model, _ ActionContext) tea.Cmd {
 // openEditorRightClickMenu はエディタでの右クリックでコンテキストメニューを開く。
 func openEditorRightClickMenu(menu *tui.PopupMenu, anchorX, anchorY int) ModelAction {
 	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.openAnchoredPopup(menu, anchorX, anchorY, PopupKindEditorContext)
+		m.openAnchoredPopup(menu, anchorX, anchorY, executeEditorContextItem, nil)
+
+		return nil
+	}
+}
+
+// executeEditorContextItem はエディタ右クリックメニューの選択項目を実行する。
+func executeEditorContextItem(idx int) ModelAction {
+	return func(m *Model, _ ActionContext) tea.Cmd {
+		m.Editor.ExecuteContextMenuAction(idx)
 
 		return nil
 	}

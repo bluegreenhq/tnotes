@@ -311,3 +311,10 @@ func toggleFooterMenu(m *Model, _ ActionContext) tea.Cmd {
 
 	return nil
 }
+
+// closeFooterMenu はフッターメニューを閉じる（popup overlay の onClose 用）。
+func closeFooterMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.Footer.CloseMenu()
+
+	return nil
+}

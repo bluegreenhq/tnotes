@@ -905,8 +905,16 @@ func focusNoteListFromFolder(m *Model, _ ActionContext) tea.Cmd {
 func openFolderMenu(m *Model, _ ActionContext) tea.Cmd {
 	if m.FolderList.IsUserFolder() {
 		m.FolderList.OpenMenu()
-		m.openFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin, PopupKindFolderList)
+		m.openFixedPopup(m.FolderList.PopupMenu, m.folderListMenuOrigin,
+			executeFolderMenuItem, closeFolderListMenu)
 	}
+
+	return nil
+}
+
+// closeFolderListMenu はフォルダ一覧の more メニューを閉じる（popup overlay の onClose 用）。
+func closeFolderListMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.FolderList.CloseMenu()
 
 	return nil
 }
@@ -922,7 +930,8 @@ func startFolderInput(m *Model, _ ActionContext) tea.Cmd {
 // openFolderRightClickMenu はアンカー付きポップアップメニューを開く。
 func openFolderRightClickMenu(anchorX, anchorY int) ModelAction {
 	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.openAnchoredPopup(m.FolderList.PopupMenu, anchorX, anchorY, PopupKindFolderList)
+		m.openAnchoredPopup(m.FolderList.PopupMenu, anchorX, anchorY,
+			executeFolderMenuItem, closeFolderListMenu)
 
 		return nil
 	}

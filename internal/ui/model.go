@@ -93,27 +93,11 @@ func (m *Model) HelpVisible() bool {
 	return ok
 }
 
-// OverlayPopupKind は表示中の AnchoredPopupOverlay / FixedPopupOverlay の Kind を返す。
-// オーバーレイがポップアップでなければ PopupKindNone を返す。テスト用ヘルパー。
-func (m *Model) OverlayPopupKind() PopupKind {
-	switch ov := m.overlay.(type) {
-	case *AnchoredPopupOverlay:
-		return ov.Kind()
-	case *FixedPopupOverlay:
-		return ov.Kind()
-	}
-
-	return PopupKindNone
-}
-
-// OverlayMenu は表示中の AnchoredPopupOverlay / FixedPopupOverlay の PopupMenu を返す。
+// OverlayMenu は表示中のポップアップオーバーレイの PopupMenu を返す。
 // オーバーレイがポップアップでなければ nil を返す。テスト用ヘルパー。
 func (m *Model) OverlayMenu() *tui.PopupMenu {
-	switch ov := m.overlay.(type) {
-	case *AnchoredPopupOverlay:
-		return ov.Menu()
-	case *FixedPopupOverlay:
-		return ov.Menu()
+	if pop, ok := m.overlay.(popupOverlay); ok {
+		return pop.Menu()
 	}
 
 	return nil
@@ -208,8 +192,13 @@ func (m *Model) openHelp() {
 }
 
 // openAnchoredPopup はアンカー付きポップアップメニューをオーバーレイとして開く。
-func (m *Model) openAnchoredPopup(menu *tui.PopupMenu, anchorX, anchorY int, kind PopupKind) {
-	overlay := NewAnchoredPopupOverlay(menu, anchorX, anchorY, kind)
+func (m *Model) openAnchoredPopup(
+	menu *tui.PopupMenu,
+	anchorX, anchorY int,
+	onSelect popupSelectFunc,
+	onClose ModelAction,
+) {
+	overlay := NewAnchoredPopupOverlay(menu, anchorX, anchorY, onSelect, onClose)
 	overlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 	m.overlay = overlay
 }
@@ -222,23 +211,27 @@ func (m *Model) openConfirmDeleteFolder(name string, noteCount int) {
 }
 
 // openFixedPopup は固定位置ポップアップメニューをオーバーレイとして開く。
-func (m *Model) openFixedPopup(menu *tui.PopupMenu, origin func() (int, int), kind PopupKind) {
-	overlay := NewFixedPopupOverlay(menu, origin, kind)
+func (m *Model) openFixedPopup(
+	menu *tui.PopupMenu,
+	origin func() (int, int),
+	onSelect popupSelectFunc,
+	onClose ModelAction,
+) {
+	overlay := NewFixedPopupOverlay(menu, origin, onSelect, onClose)
 	overlay.SetScreenSize(m.layout.width, m.layout.BodyHeight())
 	m.overlay = overlay
 }
 
-// dismissOverlay は現在表示中のオーバーレイを閉じる（コンポーネント側のフラグも整える）。
+// dismissOverlay は次に別のオーバーレイを開くために現在のオーバーレイを閉じる。
+// popup overlay の場合は onClose を呼んで pane 側の状態も整える。anchor は記憶しない。
 func (m *Model) dismissOverlay() {
-	switch ov := m.overlay.(type) {
-	case *AnchoredPopupOverlay:
-		m.closePopupOverlay(ov.Kind())
-	case *FixedPopupOverlay:
-		m.closePopupOverlay(ov.Kind())
-	default:
-		m.overlay = nil
+	if pop, ok := m.overlay.(popupOverlay); ok {
+		if oc := pop.OnClose(); oc != nil {
+			_ = oc(m, ActionContext{Now: time.Now()})
+		}
 	}
 
+	m.overlay = nil
 	m.lastPopupAnchor = nil
 }
 
@@ -264,16 +257,16 @@ func (m *Model) footerMenuOrigin() (int, int) {
 
 // toggleFooterMenu はフッターメニュー overlay の開閉をトグルする。
 func (m *Model) toggleFooterMenu() {
-	if _, ok := m.overlay.(*FixedPopupOverlay); ok {
-		if fp, _ := m.overlay.(*FixedPopupOverlay); fp.Kind() == PopupKindFooter {
-			m.closePopupOverlay(PopupKindFooter)
+	if m.Footer.MenuOpen() {
+		m.Footer.CloseMenu()
+		m.overlay = nil
+		m.lastPopupAnchor = nil
 
-			return
-		}
+		return
 	}
 
 	m.Footer.OpenMenu()
-	m.openFixedPopup(m.Footer.PopupMenu, m.footerMenuOrigin, PopupKindFooter)
+	m.openFixedPopup(m.Footer.PopupMenu, m.footerMenuOrigin, m.Footer.ExecuteMenuAction, closeFooterMenu)
 }
 
 // syncViewState は View() に必要な派生状態を同期する。
@@ -324,49 +317,16 @@ func (m *Model) handleModalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, boo
 	return nil, false
 }
 
-// closePopupOverlay は overlay をクリアし、対応するコンポーネント側の状態フラグも整える。
+// dismissOverlayKeepAnchor は popup overlay の選択/Esc 経路で呼ばれる close 処理。
 // AnchoredPopupOverlay の場合はサブメニュー復元用にアンカーを保存する。
-func (m *Model) closePopupOverlay(kind PopupKind) {
+// pane 側の後始末は popup overlay 自身が onClose で行うため、ここでは触らない。
+func (m *Model) dismissOverlayKeepAnchor() {
 	if anchored, ok := m.overlay.(*AnchoredPopupOverlay); ok {
 		a := menuAnchor{x: anchored.AnchorX(), y: anchored.AnchorY()}
 		m.lastPopupAnchor = &a
 	}
 
 	m.overlay = nil
-
-	switch kind {
-	case PopupKindEditorHeader:
-		m.Editor.Header.CloseMenu()
-	case PopupKindMoveMenu:
-		m.Editor.Header.CloseMoveMenu()
-	case PopupKindFolderList:
-		m.FolderList.CloseMenu()
-	case PopupKindFooter:
-		m.Footer.CloseMenu()
-	case PopupKindEditorContext, PopupKindNone:
-		// noop（EditorContext はメニューが overlay 内に閉じているため後始末不要）
-	}
-}
-
-// executePopupAction はポップアップメニュー選択結果を対応するハンドラに振り分ける。
-func (m *Model) executePopupAction(kind PopupKind, idx int, now time.Time) tea.Cmd {
-	switch kind {
-	case PopupKindEditorContext:
-		m.Editor.ExecuteContextMenuAction(idx)
-
-		return nil
-	case PopupKindEditorHeader:
-		return m.applyAction(m.Editor.Header.ExecuteMenuAction(idx), now)
-	case PopupKindMoveMenu:
-		return m.applyAction(m.Editor.Header.ExecuteMoveMenuAction(idx), now)
-	case PopupKindFolderList:
-		return m.handleFolderMenuAction(idx, now)
-	case PopupKindFooter:
-		return m.applyAction(m.Footer.ExecuteMenuAction(idx), now)
-	case PopupKindNone:
-	}
-
-	return nil
 }
 
 func (m *Model) handleGlobalKey(msg tea.KeyPressMsg, now time.Time) (tea.Cmd, bool) {
@@ -1030,9 +990,11 @@ func (m *Model) openMoveMenu() tea.Cmd {
 	// 直前が右クリックメニューならアンカーを引き継ぎ、それ以外は移動ボタン直下の固定位置に表示
 	if anchor := m.lastPopupAnchor; anchor != nil {
 		m.lastPopupAnchor = nil
-		m.openAnchoredPopup(m.Editor.Header.MoveMenu, anchor.x, anchor.y, PopupKindMoveMenu)
+		m.openAnchoredPopup(m.Editor.Header.MoveMenu, anchor.x, anchor.y,
+			m.Editor.Header.ExecuteMoveMenuAction, closeMoveMenu)
 	} else {
-		m.openFixedPopup(m.Editor.Header.MoveMenu, m.editorHeaderMoveMenuOrigin, PopupKindMoveMenu)
+		m.openFixedPopup(m.Editor.Header.MoveMenu, m.editorHeaderMoveMenuOrigin,
+			m.Editor.Header.ExecuteMoveMenuAction, closeMoveMenu)
 	}
 
 	return nil
@@ -1222,7 +1184,8 @@ func (m *Model) openNoteListMenu(now time.Time) tea.Cmd {
 	menuW := m.Editor.Header.PopupMenu.Width()
 	x := m.layout.EditorStartX() - menuW
 	y := m.NoteList.SelectedY(now)
-	m.openAnchoredPopup(m.Editor.Header.PopupMenu, x, y, PopupKindEditorHeader)
+	m.openAnchoredPopup(m.Editor.Header.PopupMenu, x, y,
+		m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
 
 	return nil
 }

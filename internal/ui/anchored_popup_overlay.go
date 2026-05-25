@@ -10,12 +10,17 @@ import (
 	"github.com/bluegreenhq/tnotes/internal/ui/shared"
 )
 
+// popupSelectFunc は popup メニュー項目選択時に呼ばれる関数。
+// メニュー内の選択 idx に対応する後続 ModelAction を返す。
+type popupSelectFunc func(idx int) ModelAction
+
 // AnchoredPopupOverlay は右クリックで開くアンカー位置に追従するポップアップメニュー。
 type AnchoredPopupOverlay struct {
 	menu         *tui.PopupMenu
 	anchorX      int
 	anchorY      int
-	kind         PopupKind
+	onSelect     popupSelectFunc
+	onClose      ModelAction
 	screenWidth  int
 	screenHeight int
 }
@@ -23,15 +28,23 @@ type AnchoredPopupOverlay struct {
 var (
 	_ shared.OverlayComponent = (*AnchoredPopupOverlay)(nil)
 	_ shared.AnchoredOverlay  = (*AnchoredPopupOverlay)(nil)
+	_ popupOverlay            = (*AnchoredPopupOverlay)(nil)
 )
 
 // NewAnchoredPopupOverlay は AnchoredPopupOverlay を生成する。
-func NewAnchoredPopupOverlay(menu *tui.PopupMenu, anchorX, anchorY int, kind PopupKind) *AnchoredPopupOverlay {
+// onSelect はメニュー項目選択時、onClose は閉じ時の pane 側後始末アクション（不要なら nil）。
+func NewAnchoredPopupOverlay(
+	menu *tui.PopupMenu,
+	anchorX, anchorY int,
+	onSelect popupSelectFunc,
+	onClose ModelAction,
+) *AnchoredPopupOverlay {
 	return &AnchoredPopupOverlay{
 		menu:         menu,
 		anchorX:      anchorX,
 		anchorY:      anchorY,
-		kind:         kind,
+		onSelect:     onSelect,
+		onClose:      onClose,
 		screenWidth:  0,
 		screenHeight: 0,
 	}
@@ -40,8 +53,8 @@ func NewAnchoredPopupOverlay(menu *tui.PopupMenu, anchorX, anchorY int, kind Pop
 // Menu は内部の PopupMenu を返す。
 func (p *AnchoredPopupOverlay) Menu() *tui.PopupMenu { return p.menu }
 
-// Kind はポップアップ種別を返す。
-func (p *AnchoredPopupOverlay) Kind() PopupKind { return p.kind }
+// OnClose は閉じ時の pane 側後始末アクションを返す。
+func (p *AnchoredPopupOverlay) OnClose() ModelAction { return p.onClose }
 
 // AnchorX はアンカーX座標を返す。
 func (p *AnchoredPopupOverlay) AnchorX() int { return p.anchorX }
@@ -105,14 +118,14 @@ func (p *AnchoredPopupOverlay) menuSize() (int, int) {
 func (p *AnchoredPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 	switch msg.Code {
 	case tea.KeyEscape:
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	case tea.KeyEnter:
 		idx := p.menu.SelectHover()
 		if idx < 0 {
-			return closePopup(p.kind)
+			return popupDismiss(p.onClose)
 		}
 
-		return selectPopupMenuItem(p.kind, idx)
+		return popupSelect(idx, p.onSelect, p.onClose)
 	default:
 		p.menu.HandleKeyNav(msg)
 	}
@@ -122,7 +135,7 @@ func (p *AnchoredPopupOverlay) handleKey(msg tea.KeyPressMsg) ModelAction {
 
 func (p *AnchoredPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	if msg.Button != tea.MouseLeft {
-		return closePopup(p.kind)
+		return popupDismiss(p.onClose)
 	}
 
 	ox, oy := p.MenuOrigin(p.screenWidth, p.screenHeight)
@@ -130,34 +143,50 @@ func (p *AnchoredPopupOverlay) handleClick(msg tea.MouseClickMsg) ModelAction {
 	relY := msg.Y - oy
 	idx, hit := p.menu.HandleClick(relX, relY)
 
-	if !hit {
-		return closePopup(p.kind)
+	if !hit || idx < 0 {
+		return popupDismiss(p.onClose)
 	}
 
-	if idx < 0 {
-		return closePopup(p.kind)
-	}
-
-	return selectPopupMenuItem(p.kind, idx)
+	return popupSelect(idx, p.onSelect, p.onClose)
 }
 
 // --- PopupOverlay → Model アクション ---
 // AnchoredPopupOverlay と FixedPopupOverlay が共有する。
 
-// selectPopupMenuItem はポップアップを閉じ、対応するメニューアクションを実行する。
-func selectPopupMenuItem(kind PopupKind, idx int) ModelAction {
+// popupSelect は overlay を閉じてから onClose と onSelect(idx) を順に適用する。
+func popupSelect(idx int, onSelect popupSelectFunc, onClose ModelAction) ModelAction {
 	return func(m *Model, ctx ActionContext) tea.Cmd {
-		m.closePopupOverlay(kind)
+		m.dismissOverlayKeepAnchor()
 
-		return m.executePopupAction(kind, idx, ctx.Now)
+		var cmds []tea.Cmd
+
+		if onClose != nil {
+			if c := onClose(m, ctx); c != nil {
+				cmds = append(cmds, c)
+			}
+		}
+
+		if onSelect != nil {
+			if act := onSelect(idx); act != nil {
+				if c := act(m, ctx); c != nil {
+					cmds = append(cmds, c)
+				}
+			}
+		}
+
+		return tea.Batch(cmds...)
 	}
 }
 
-// closePopup はポップアップを閉じる（選択なしで閉じた場合に使う）。
-func closePopup(kind PopupKind) ModelAction {
-	return func(m *Model, _ ActionContext) tea.Cmd {
-		m.closePopupOverlay(kind)
+// popupDismiss は overlay を閉じる（選択なしで閉じた場合に使う）。
+func popupDismiss(onClose ModelAction) ModelAction {
+	return func(m *Model, ctx ActionContext) tea.Cmd {
+		m.dismissOverlayKeepAnchor()
 
-		return nil
+		if onClose == nil {
+			return nil
+		}
+
+		return onClose(m, ctx)
 	}
 }
