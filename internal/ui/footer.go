@@ -31,21 +31,21 @@ func NewFooterButton(label string, target HoverTarget) FooterButton {
 
 // Footer はフッターバーの状態を表す。
 type Footer struct {
-	hover     HoverTarget
-	buttons   []FooterButton
-	menuOpen  bool
-	PopupMenu *tui.PopupMenu
-	menuCmds  []tea.Cmd // menuItems[i] に対応する Cmd
+	hover       HoverTarget
+	buttons     []FooterButton
+	menuOpen    bool
+	PopupMenu   *tui.PopupMenu
+	menuActions []ModelAction // menuItems[i] に対応する ModelAction
 }
 
 // NewFooter は新しい Footer を生成する。
 func NewFooter() Footer {
 	return Footer{
-		hover:     HoverNone,
-		buttons:   nil,
-		menuOpen:  false,
-		PopupMenu: tui.NewPopupMenu(nil),
-		menuCmds:  nil,
+		hover:       HoverNone,
+		buttons:     nil,
+		menuOpen:    false,
+		PopupMenu:   tui.NewPopupMenu(nil),
+		menuActions: nil,
 	}
 }
 
@@ -64,9 +64,9 @@ func (f *Footer) RebuildButtons() {
 		tui.NewMenuItem("Quit"),
 	}
 
-	f.menuCmds = []tea.Cmd{
-		func() tea.Msg { return OpenHelpMsg{} },
-		func() tea.Msg { return QuitMsg{} },
+	f.menuActions = []ModelAction{
+		openHelp,
+		quit,
 	}
 
 	prevHover := f.PopupMenu.Hover()
@@ -133,16 +133,16 @@ func (f *Footer) HitTest(x int) HoverTarget {
 }
 
 // HandleClick はフッター行のクリックを処理する。
-// [More] クリックでメニュー開閉トグル要求 Msg を返し、他のボタンはコマンドを返す。
-func (f *Footer) HandleClick(x int) tea.Cmd {
+// [More] クリックでメニュー開閉トグル、他のボタンは対応する ModelAction を返す。
+func (f *Footer) HandleClick(x int) ModelAction {
 	target := f.HitTest(x)
 
 	if target == HoverMore {
-		return func() tea.Msg { return FooterToggleMenuMsg{} }
+		return toggleFooterMenu
 	}
 
 	if target == HoverQuit {
-		return func() tea.Msg { return QuitMsg{} }
+		return quit
 	}
 
 	return nil
@@ -150,24 +150,24 @@ func (f *Footer) HandleClick(x int) tea.Cmd {
 
 // HandleMenuClick はメニュー領域のクリックを処理する。
 // x, y はメニュー左上を原点とする相対座標。
-func (f *Footer) HandleMenuClick(x, y int) tea.Cmd {
+func (f *Footer) HandleMenuClick(x, y int) ModelAction {
 	idx, hit := f.PopupMenu.HandleClick(x, y)
 	f.CloseMenu()
 
-	if !hit || idx < 0 || idx >= len(f.menuCmds) {
+	if !hit || idx < 0 || idx >= len(f.menuActions) {
 		return nil
 	}
 
-	return f.menuCmds[idx]
+	return f.menuActions[idx]
 }
 
-// ExecuteMenuAction はインデックスに対応するメニューアクションのコマンドを返す。
-func (f *Footer) ExecuteMenuAction(idx int) tea.Cmd {
-	if idx < 0 || idx >= len(f.menuCmds) {
+// ExecuteMenuAction はインデックスに対応するメニューアクションを返す。
+func (f *Footer) ExecuteMenuAction(idx int) ModelAction {
+	if idx < 0 || idx >= len(f.menuActions) {
 		return nil
 	}
 
-	return f.menuCmds[idx]
+	return f.menuActions[idx]
 }
 
 // SetMenuHover はメニュー領域のホバーを更新する。
@@ -301,4 +301,20 @@ func renderErrorLines(msg string, width int) string {
 	}
 
 	return buf.String()
+}
+
+// --- Footer → Model アクション ---
+
+// toggleFooterMenu はフッターメニューの開閉トグルを Model に要求する。
+func toggleFooterMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.toggleFooterMenu()
+
+	return nil
+}
+
+// closeFooterMenu はフッターメニューを閉じる（popup overlay の onClose 用）。
+func closeFooterMenu(m *Model, _ ActionContext) tea.Cmd {
+	m.Footer.CloseMenu()
+
+	return nil
 }

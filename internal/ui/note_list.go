@@ -312,19 +312,19 @@ func (s *NoteList) RefreshKeepSelection(kind FolderKind, name string, selectedNo
 }
 
 // UpdatePane は PaneComponent インターフェース実装。
-func (s *NoteList) UpdatePane(msg tea.Msg, ctx PaneContext) tea.Cmd {
-	var cmd tea.Cmd
+func (s *NoteList) UpdatePane(msg tea.Msg, ctx PaneContext) (ModelAction, tea.Cmd) {
+	var action ModelAction
 
-	*s, cmd = s.Update(msg, ctx.Now, ctx.TrashMode)
+	*s, action = s.Update(msg, ctx.Now, ctx.TrashMode)
 
-	return cmd
+	return action, nil
 }
 
 // Update はメッセージに応じてノート一覧の状態を更新する。
 // trashMode はゴミ箱モードかどうかを示す。
 // ナビゲーション（カーソル移動）は自身で処理し、
-// ノート操作（作成、削除等）は tea.Cmd で NoteListMsg を返して Model に委譲する。
-func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
+// ノート操作（作成、削除等）は ModelAction を返して Model に委譲する。
+func (s *NoteList) Update(msg tea.Msg, now time.Time, trashMode bool) (NoteList, ModelAction) {
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		return s.handleClickMsg(msg, now)
@@ -513,46 +513,46 @@ func (s *NoteList) clampScrollOffset(now time.Time) {
 	}
 }
 
-func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (tea.Cmd, bool) {
+func (s *NoteList) handleNavKey(msg tea.KeyPressMsg) (ModelAction, bool) {
 	switch {
 	case msg.Code == 'q' && msg.Mod == 0:
-		return func() tea.Msg { return QuitMsg{} }, true
+		return quit, true
 	case msg.Code == tea.KeyTab:
-		return NoteListEdit.Cmd(), true
+		return focusEditorPane, true
 	case msg.Code == tea.KeyEscape:
-		return NoteListFocusPrev.Cmd(), true
+		return focusFolderListFromNoteList, true
 	case msg.Code == 'b' && msg.Mod&tea.ModCtrl != 0:
-		return func() tea.Msg { return ToggleFolderListMsg{} }, true
+		return toggleFolderList, true
 	case msg.Code == '?' && msg.Mod == 0:
-		return func() tea.Msg { return OpenHelpMsg{} }, true
+		return openHelp, true
 	}
 
 	return nil, false
 }
 
-func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) handleNormalKey(msg tea.KeyPressMsg, now time.Time) (NoteList, ModelAction) {
 	switch msg.Code {
 	case 'n':
-		return *s, NoteListCreate.Cmd()
+		return *s, createNote
 	case 'd', tea.KeyDelete, tea.KeyBackspace:
-		return *s, NoteListTrash.Cmd()
+		return *s, trashSelectedNote
 	case 'm':
-		return *s, NoteListMenu.Cmd()
+		return *s, openNoteListMenu
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
 		return s.moveDownCmd(now)
 	case tea.KeyEnter:
-		return *s, NoteListEdit.Cmd()
+		return *s, focusEditorPane
 	}
 
 	return *s, nil
 }
 
-func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteList, ModelAction) {
 	switch msg.Code {
 	case 'm':
-		return *s, NoteListMenu.Cmd()
+		return *s, openNoteListMenu
 	case tea.KeyUp, 'k':
 		return s.moveUpCmd(now)
 	case tea.KeyDown, 'j':
@@ -562,18 +562,18 @@ func (s *NoteList) handleTrashModeKey(msg tea.KeyPressMsg, now time.Time) (NoteL
 	return *s, nil
 }
 
-func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, ModelAction) {
 	switch msg.Code {
 	case 'z':
 		if msg.Mod&tea.ModShift != 0 {
-			return *s, NoteListRedo.Cmd()
+			return *s, redoNote
 		}
 
-		return *s, NoteListUndo.Cmd()
+		return *s, undoNote
 	case 'c':
-		return *s, NoteListCopy.Cmd()
+		return *s, copyNoteToClipboard
 	case 'd':
-		return *s, NoteListDuplicate.Cmd()
+		return *s, duplicateSelectedNote
 	case 'n':
 		return s.moveDownCmd(now)
 	case 'p':
@@ -583,23 +583,23 @@ func (s *NoteList) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (NoteList, 
 	return *s, nil
 }
 
-func (s *NoteList) moveUpCmd(now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) moveUpCmd(now time.Time) (NoteList, ModelAction) {
 	prev := s.selected
 	s.MoveUp(now)
 
 	if s.selected != prev {
-		return *s, NoteListSelect.Cmd()
+		return *s, selectNote
 	}
 
 	return *s, nil
 }
 
-func (s *NoteList) moveDownCmd(now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) moveDownCmd(now time.Time) (NoteList, ModelAction) {
 	prev := s.selected
 	s.MoveDown(now)
 
 	if s.selected != prev {
-		return *s, NoteListSelect.Cmd()
+		return *s, selectNote
 	}
 
 	return *s, nil
@@ -679,7 +679,7 @@ func findSelectedRow(rows []noteListRow, selected int) int {
 	return 0
 }
 
-func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteList, ModelAction) {
 	if msg.Button == tea.MouseRight {
 		return s.handleRightClick(msg, now)
 	}
@@ -688,7 +688,7 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 
 	// トグルボタン（≡）クリック判定
 	if !s.layout.folderVisible && msg.Y == 0 && msg.X >= nlOffset+1 && msg.X <= nlOffset+2 {
-		return *s, func() tea.Msg { return ToggleFolderListMsg{} }
+		return *s, toggleFolderList
 	}
 
 	relX := s.layout.NoteListLocalX(msg.X)
@@ -697,13 +697,13 @@ func (s *NoteList) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (NoteLis
 	if idx >= 0 {
 		s.SelectIndex(idx, now)
 
-		return *s, NoteListClickSelect.Cmd()
+		return *s, clickSelectNote
 	}
 
 	return *s, nil
 }
 
-func (s *NoteList) handleRightClick(msg tea.MouseClickMsg, now time.Time) (NoteList, tea.Cmd) {
+func (s *NoteList) handleRightClick(msg tea.MouseClickMsg, now time.Time) (NoteList, ModelAction) {
 	relX := s.layout.NoteListLocalX(msg.X)
 	idx := s.HitTest(relX, msg.Y, now)
 
@@ -713,11 +713,7 @@ func (s *NoteList) handleRightClick(msg tea.MouseClickMsg, now time.Time) (NoteL
 
 	s.SelectIndex(idx, now)
 
-	return *s, NoteListRightClickMsg{
-		NoteIndex: idx,
-		AnchorX:   msg.X,
-		AnchorY:   msg.Y,
-	}.Cmd()
+	return *s, openNoteListRightClickMenu(msg.X, msg.Y)
 }
 
 func (s *NoteList) updateHover(mouse tea.Mouse) {
@@ -731,10 +727,10 @@ func (s *NoteList) updateHover(mouse tea.Mouse) {
 	s.hoverFolderBtn = mouse.Y == 0 && mouse.X == offset+1
 }
 
-func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode bool) (NoteList, tea.Cmd) {
+func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode bool) (NoteList, ModelAction) {
 	// ナビゲーション共通キー（通常/ゴミ箱モード共通）
-	if cmd, handled := s.handleNavKey(msg); handled {
-		return *s, cmd
+	if action, handled := s.handleNavKey(msg); handled {
+		return *s, action
 	}
 
 	if msg.Mod&tea.ModCtrl != 0 {
@@ -746,4 +742,71 @@ func (s *NoteList) handleKeyPress(msg tea.KeyPressMsg, now time.Time, trashMode 
 	}
 
 	return s.handleNormalKey(msg, now)
+}
+
+// --- NoteList → Model アクション ---
+
+// selectNote はカーソル移動によるノート選択変更を Editor にロードする。
+func selectNote(m *Model, _ ActionContext) tea.Cmd {
+	m.loadSelectedNote()
+
+	return nil
+}
+
+// clickSelectNote は編集中ノートを保存し、選択ノートをロード後 NoteList にフォーカスを移す。
+func clickSelectNote(m *Model, ctx ActionContext) tea.Cmd {
+	if !m.FolderList.IsTrash() {
+		m.syncEditorToNote(ctx.Now)
+	}
+
+	m.loadSelectedNote()
+	m.Focus = FocusNoteList
+	m.Editor.Blur()
+
+	return nil
+}
+
+// undoNote はノート操作の undo を実行する。
+func undoNote(m *Model, ctx ActionContext) tea.Cmd {
+	return m.undoRedoNote(ctx.Now, true)
+}
+
+// redoNote はノート操作の redo を実行する。
+func redoNote(m *Model, ctx ActionContext) tea.Cmd {
+	return m.undoRedoNote(ctx.Now, false)
+}
+
+// focusEditorPane はエディタにフォーカスする。
+func focusEditorPane(m *Model, _ ActionContext) tea.Cmd {
+	return m.focusEditor()
+}
+
+// openNoteListMenu は EditorHeader メニューを NoteList の位置にアンカーして開く。
+func openNoteListMenu(m *Model, ctx ActionContext) tea.Cmd {
+	return m.openNoteListMenu(ctx.Now)
+}
+
+// focusFolderListFromNoteList はフォルダ一覧が表示中であればフォーカスを移す。
+func focusFolderListFromNoteList(m *Model, _ ActionContext) tea.Cmd {
+	if m.FolderList.Visible() {
+		m.Focus = FocusFolderList
+	}
+
+	return nil
+}
+
+// openNoteListRightClickMenu は編集中ノートを保存後、EditorHeader メニューをアンカー位置に開く。
+func openNoteListRightClickMenu(anchorX, anchorY int) ModelAction {
+	return func(m *Model, ctx ActionContext) tea.Cmd {
+		if !m.FolderList.IsTrash() {
+			m.syncEditorToNote(ctx.Now)
+		}
+
+		m.loadSelectedNote()
+		m.Editor.Header.OpenMenuAtAnchor(anchorX, anchorY)
+		m.Overlays.OpenAnchoredPopup(m.Editor.Header.PopupMenu, anchorX, anchorY,
+			m.Editor.Header.ExecuteMenuAction, closeEditorHeaderMenu)
+
+		return nil
+	}
 }

@@ -171,8 +171,8 @@ func (e *Editor) BuildMoveMenu() (bool, error) {
 }
 
 // CopyToClipboard はエディタの内容をクリップボードにコピーする。
-// 内容が空の場合は何もしない。
-func (e *Editor) CopyToClipboard() tea.Cmd {
+// 内容が空の場合は nil（無操作）を返す。
+func (e *Editor) CopyToClipboard() ModelAction {
 	content := e.Value()
 	if content == "" {
 		return nil
@@ -180,10 +180,10 @@ func (e *Editor) CopyToClipboard() tea.Cmd {
 
 	err := clipboard.WriteAll(content)
 	if err != nil {
-		return actionResultMsg{Err: errors.WithStack(err), Info: ""}.Cmd()
+		return reportResult(errors.WithStack(err), "")
 	}
 
-	return actionResultMsg{Err: nil, Info: "Copied"}.Cmd()
+	return reportResult(nil, "Copied")
 }
 
 // SetValue はテキストエリアの値を設定する。
@@ -248,24 +248,29 @@ func (e *Editor) Clear() {
 }
 
 // UpdatePane は PaneComponent インターフェース実装。
-func (e *Editor) UpdatePane(msg tea.Msg, ctx PaneContext) tea.Cmd {
-	var cmd tea.Cmd
+func (e *Editor) UpdatePane(msg tea.Msg, ctx PaneContext) (ModelAction, tea.Cmd) {
+	var (
+		action ModelAction
+		cmd    tea.Cmd
+	)
 
-	*e, cmd = e.Update(msg, ctx.Now)
+	*e, action, cmd = e.Update(msg, ctx.Now)
 
-	return cmd
+	return action, cmd
 }
 
 // Update はメッセージに応じて状態を更新する。
-func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop,funlen // type switch dispatch
+func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, ModelAction, tea.Cmd) { //nolint:cyclop,funlen // type switch dispatch
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseRight {
-			return e.handleRightClickMsg(msg)
+			ed, action := e.handleRightClickMsg(msg)
+
+			return ed, action, nil
 		}
 
 		if e.readOnly {
-			return *e, nil
+			return *e, nil, nil
 		}
 
 		return e.handleClickMsg(msg, now)
@@ -278,13 +283,13 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 			e.HandleHover(localX, msg.Mouse().Y)
 		}
 
-		return *e, nil
+		return *e, nil, nil
 	case tea.MouseReleaseMsg:
 		if e.selecting {
 			e.StopDragSelection()
 		}
 
-		return *e, nil
+		return *e, nil, nil
 	case tea.MouseWheelMsg:
 		switch msg.Mouse().Button {
 		case tea.MouseWheelUp:
@@ -293,15 +298,17 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 			e.scrollDown(1)
 		}
 
-		return *e, nil
+		return *e, nil, nil
 	case tea.KeyPressMsg:
 		if e.readOnly {
-			return *e, nil
+			return *e, nil, nil
 		}
 
 		// 検索フィールドにフォーカスがある場合
 		if e.Header.SearchFocused() {
-			return e.handleSearchKey(msg)
+			ed, action := e.handleSearchKey(msg)
+
+			return ed, action, nil
 		}
 
 		return e.handleKey(msg, now)
@@ -309,7 +316,7 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 		localX := e.layout.EditorLocalX(msg.Mouse().X)
 		e.HandleHover(localX, msg.Mouse().Y)
 
-		return *e, nil
+		return *e, nil, nil
 	}
 
 	prevText := e.textarea.Value()
@@ -323,7 +330,7 @@ func (e *Editor) Update(msg tea.Msg, now time.Time) (Editor, tea.Cmd) { //nolint
 		e.saveSnapshotBefore(prevText, prevLine, prevCol, false, now)
 	}
 
-	return *e, cmd
+	return *e, nil, cmd
 }
 
 // SelectWord はワード選択を行う。
@@ -609,23 +616,12 @@ func (e *Editor) ClearHover() {
 
 // HandleHover はエディタ領域のホバーを処理する。
 // x, y はエディタ左上を原点とする相対座標。
+// メニュー open 中の hover は overlay 側が intercept するため、ここではヘッダーボタンのみ扱う。
 func (e *Editor) HandleHover(x, y int) {
-	// ヘッダーボタンのホバー
 	if y == 0 {
 		e.Header.SetHover(x)
 	} else {
 		e.Header.ClearHover()
-	}
-
-	// メニューのホバー
-	if e.Header.MenuOpen() {
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := e.Header.MenuHeight()
-
-		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.Header.MenuLeftX()
-			e.Header.SetMenuHover(menuRelX, y-menuTopY)
-		}
 	}
 }
 
@@ -710,7 +706,7 @@ func (e *Editor) resetBlink() tea.Cmd {
 	return e.blink.Reset()
 }
 
-func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, tea.Cmd) {
+func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, ModelAction) {
 	handled, _ := e.Header.HandleSearchKey(msg)
 	if !handled {
 		return *e, nil
@@ -720,15 +716,15 @@ func (e *Editor) handleSearchKey(msg tea.KeyPressMsg) (Editor, tea.Cmd) {
 		// Esc/Enter で検索フォーカスを外した
 		e.Header.searchBlink.Stop()
 
-		return *e, EditorSearchBlur.Cmd()
+		return *e, onSearchBlur
 	}
 
-	return *e, EditorSearchChanged.Cmd()
+	return *e, onSearchChanged
 }
 
-func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd) { //nolint:cyclop // キーバインド分岐
-	if handled, cmd := e.handleCtrlKey(msg, now); handled {
-		return *e, cmd
+func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, ModelAction, tea.Cmd) { //nolint:cyclop // キーバインド分岐
+	if handled, action := e.handleCtrlKey(msg, now); handled {
+		return *e, action, nil
 	}
 
 	isArrow := msg.Code == tea.KeyLeft || msg.Code == tea.KeyRight ||
@@ -738,7 +734,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 	if isArrow && msg.Mod == tea.ModShift {
 		cmd := e.handleShiftArrow(msg)
 
-		return *e, cmd
+		return *e, nil, cmd
 	}
 
 	prevText := e.textarea.Value()
@@ -755,7 +751,7 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 			e.saveSnapshotBefore(prevText, prevLine, prevCol, true, now)
 			e.DeleteSelection()
 
-			return *e, nil
+			return *e, nil, nil
 		case msg.Text != "":
 			e.DeleteSelection()
 		}
@@ -770,13 +766,13 @@ func (e *Editor) handleKey(msg tea.KeyPressMsg, now time.Time) (Editor, tea.Cmd)
 		e.saveSnapshotBefore(prevText, prevLine, prevCol, forceSnapshot, now)
 	}
 
-	return *e, cmd
+	return *e, nil, cmd
 }
 
-func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cmd) { //nolint:cyclop // キーバインド分岐
+func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, ModelAction) { //nolint:cyclop // キーバインド分岐
 	switch {
 	case msg.Code == tea.KeyTab:
-		return true, EditorBlur.Cmd()
+		return true, blurEditorAction
 	case msg.Code == tea.KeyEscape:
 		if e.HasSelection() {
 			e.ClearSelection()
@@ -784,9 +780,9 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 			return true, nil
 		}
 
-		return true, EditorBlur.Cmd()
+		return true, blurEditorAction
 	case msg.Code == 's' && msg.Mod == tea.ModCtrl:
-		return true, EditorSave.Cmd()
+		return true, saveEditor
 	case msg.Code == 'z' && msg.Mod == tea.ModCtrl:
 		e.Undo()
 	case msg.Code == 'z' && msg.Mod == (tea.ModCtrl|tea.ModShift):
@@ -811,7 +807,7 @@ func (e *Editor) handleCtrlKey(msg tea.KeyPressMsg, now time.Time) (bool, tea.Cm
 		_ = e.PasteFromClipboard()
 	case msg.Code == 'o' && msg.Mod == tea.ModCtrl:
 		if u := e.urlAtCursor(); u != "" {
-			return true, editorOpenURLMsg{URL: u}.Cmd()
+			return true, openURLInBrowser(u)
 		}
 
 		return true, nil
@@ -852,49 +848,47 @@ func (e *Editor) moveCursorTo(pos SelectionAnchor) {
 
 // handleClickMsg は tea.MouseClickMsg を処理する。
 // layout を参照して絶対座標をローカル座標に変換し、ヘッダー/本文に振り分ける。
-func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, tea.Cmd) {
+func (e *Editor) handleClickMsg(msg tea.MouseClickMsg, now time.Time) (Editor, ModelAction, tea.Cmd) {
 	localX := e.layout.EditorLocalX(msg.X)
 
 	// ヘッダー行のクリック
 	if msg.Y == 0 {
-		cmd := e.handleClick(localX, 0)
+		action := e.handleClick(localX, 0)
 
 		// 検索フォーカス中はエディタへのフォーカス取得も要求
 		if e.Header.SearchFocused() {
-			return *e, tea.Batch(cmd, EditorClickBody.Cmd())
+			// 既存 action があれば優先しつつ、focusEditorBody も実行したいので
+			// 両者を順次実行するクロージャに合成する。
+			if action == nil {
+				return *e, focusEditorBody, nil
+			}
+
+			composed := action
+			focus := focusEditorBody
+
+			return *e, func(m *Model, ctx ActionContext) tea.Cmd {
+				cmd1 := composed(m, ctx)
+				cmd2 := focus(m, ctx)
+
+				return tea.Batch(cmd1, cmd2)
+			}, nil
 		}
 
-		return *e, cmd
+		return *e, action, nil
 	}
 
 	// 本文クリック: readOnly またはノート未選択なら無視
 	if e.readOnly || e.noteID == "" {
-		return *e, nil
+		return *e, nil, nil
 	}
 
 	e.HandleTextAreaClick(localX, msg.Y-editorHeaderHeight, now)
 
-	return *e, EditorClickBody.Cmd()
+	return *e, focusEditorBody, nil
 }
 
-func (e *Editor) handleClick(x, y int) tea.Cmd {
-	// メニューが開いている場合
-	if e.Header.MenuOpen() {
-		menuTopY := editorHeaderMenuTopY
-		menuHeight := e.Header.MenuHeight()
-
-		if y >= menuTopY && y < menuTopY+menuHeight {
-			menuRelX := x - e.Header.MenuLeftX()
-
-			return e.Header.HandleMenuClick(menuRelX, y-menuTopY)
-		}
-
-		e.Header.CloseMenu()
-
-		return nil
-	}
-
-	// ヘッダー行
+func (e *Editor) handleClick(x, y int) ModelAction {
+	// メニュー open 中のクリックは overlay 側が intercept するため、ここではヘッダー行のみ扱う。
 	if y == 0 {
 		e.Header.SetHasContent(e.textarea.Value() != "")
 
@@ -941,16 +935,12 @@ func (e *Editor) urlAtCursor() string {
 	return ""
 }
 
-func (e *Editor) handleRightClickMsg(msg tea.MouseClickMsg) (Editor, tea.Cmd) {
+func (e *Editor) handleRightClickMsg(msg tea.MouseClickMsg) (Editor, ModelAction) {
 	if e.readOnly {
 		return *e, nil
 	}
 
-	return *e, EditorRightClickMsg{
-		Menu:    e.buildContextMenu(),
-		AnchorX: msg.X,
-		AnchorY: msg.Y,
-	}.Cmd()
+	return *e, openEditorRightClickMenu(e.buildContextMenu(), msg.X, msg.Y)
 }
 
 // buildContextMenu は現在の選択・読み取り専用状態に応じたコンテキストメニューを構築する。
@@ -1162,4 +1152,62 @@ func (e *Editor) applySelectionHighlight(raw string) string {
 	}
 
 	return strings.Join(viewLines, "\n")
+}
+
+// --- Editor → Model アクション ---
+
+// blurEditorAction は編集内容を保存し、NoteList にフォーカスを移す。
+func blurEditorAction(m *Model, ctx ActionContext) tea.Cmd {
+	return m.blurEditor(ctx.Now)
+}
+
+// saveEditor は同期保存し、Saved メッセージを表示する。
+func saveEditor(m *Model, ctx ActionContext) tea.Cmd {
+	m.syncEditorToNote(ctx.Now)
+
+	return m.setInfoMsg("Saved")
+}
+
+// onSearchChanged は検索デバウンスをスケジュールする。
+func onSearchChanged(m *Model, _ ActionContext) tea.Cmd {
+	return m.scheduleSearchDebounce()
+}
+
+// onSearchBlur はフォーカスを NoteList に移す。
+func onSearchBlur(m *Model, _ ActionContext) tea.Cmd {
+	m.Focus = FocusNoteList
+
+	return nil
+}
+
+// focusEditorBody はフォーカスをエディタに移し、Focus コマンドを返す。
+func focusEditorBody(m *Model, _ ActionContext) tea.Cmd {
+	m.Focus = FocusEditor
+
+	return m.Editor.Focus()
+}
+
+// openEditorRightClickMenu はエディタでの右クリックでコンテキストメニューを開く。
+func openEditorRightClickMenu(menu *tui.PopupMenu, anchorX, anchorY int) ModelAction {
+	return func(m *Model, _ ActionContext) tea.Cmd {
+		m.Overlays.OpenAnchoredPopup(menu, anchorX, anchorY, executeEditorContextItem, nil)
+
+		return nil
+	}
+}
+
+// executeEditorContextItem はエディタ右クリックメニューの選択項目を実行する。
+func executeEditorContextItem(idx int) ModelAction {
+	return func(m *Model, _ ActionContext) tea.Cmd {
+		m.Editor.ExecuteContextMenuAction(idx)
+
+		return nil
+	}
+}
+
+// openURLInBrowser はカーソル位置の URL を外部ブラウザで開く。
+func openURLInBrowser(url string) ModelAction {
+	return func(_ *Model, _ ActionContext) tea.Cmd {
+		return shared.OpenURL(url)
+	}
 }

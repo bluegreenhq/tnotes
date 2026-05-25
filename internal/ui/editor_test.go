@@ -64,7 +64,7 @@ func TestEditorReadOnly(t *testing.T) {
 	ed.SetReadOnly(true)
 	assert.True(t, ed.ReadOnly())
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: 'x', Text: "x"}, now)
+	ed2, _, _ := ed.Update(tea.KeyPressMsg{Code: 'x', Text: "x"}, now)
 	assert.Equal(t, "read only content", ed2.Value())
 
 	ed2.SetReadOnly(false)
@@ -214,11 +214,11 @@ func TestEditorShiftArrowSelection(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
+	ed2, _, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
 	assert.True(t, ed2.HasSelection())
 	assert.Equal(t, "H", ed2.SelectedText())
 
-	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
+	ed3, _, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
 	assert.Equal(t, "He", ed3.SelectedText())
 }
 
@@ -231,10 +231,10 @@ func TestEditorShiftArrowThenPlainArrowClearsSelection(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed2, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
+	ed2, _, _ := ed.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: tea.ModShift}, now)
 	assert.True(t, ed2.HasSelection())
 
-	ed3, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: 0}, now)
+	ed3, _, _ := ed2.Update(tea.KeyPressMsg{Code: tea.KeyRight, Mod: 0}, now)
 	assert.False(t, ed3.HasSelection())
 }
 
@@ -289,7 +289,7 @@ func TestEditorBlinkResetsOnKeyPress(t *testing.T) {
 	ed.LoadNote(n)
 	ed.Focus()
 
-	ed, _ = ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
+	ed, _, _ = ed.Update(tea.KeyPressMsg{Code: 'a', Text: "a"}, now)
 	assert.True(t, ed.BlinkVisible())
 }
 

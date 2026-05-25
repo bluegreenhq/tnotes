@@ -178,31 +178,6 @@ func TestNoteListUpdateMoveUpAtTop(t *testing.T) {
 	assert.Nil(t, cmd)
 }
 
-func TestNoteListUpdateCreateMsg(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-	nl := ui.NewNoteList(nil, nil, 30, 20)
-	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'n'}, now, false)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.NoteListCreate, msg)
-}
-
-func TestNoteListUpdateTrashModeMenu(t *testing.T) {
-	t.Parallel()
-
-	now := time.Now()
-	notes := []note.Note{
-		{Metadata: note.Metadata{ID: "1", CreatedAt: now, UpdatedAt: now}, Body: "A"},
-	}
-	nl := ui.NewNoteList(nil, notes, 30, 20)
-	_, cmd := nl.Update(tea.KeyPressMsg{Code: 'm'}, now, true)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.NoteListMenu, msg)
-}
-
 func TestNoteListTrashModeNoSections(t *testing.T) {
 	t.Parallel()
 

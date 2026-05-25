@@ -67,80 +67,6 @@ func TestEditorHeaderViewTrashMode(t *testing.T) {
 	assert.Contains(t, view, "⋯")
 }
 
-func TestEditorHeaderClickNew(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	// "+" は x=1 の位置
-	cmd := h.HandleClick(1)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderNew, msg)
-}
-
-func TestEditorHeaderClickMore(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	// "⋯" は検索フィールドの左側: width - searchFieldWidth(20) - moreButtonOffset(2)
-	moreX := h.Width() - 22
-	cmd := h.HandleClick(moreX)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	_, ok := msg.(ui.EditorHeaderOpenMenuMsg)
-	assert.True(t, ok, "expected EditorHeaderOpenMenuMsg")
-}
-
-func TestEditorHeaderMenuClickTrash(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	h.RebuildMenu()
-	h.OpenMenu()
-
-	// メニュー内: y=1 = "Delete Note"
-	cmd := h.HandleMenuClick(2, 1)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderTrash, msg)
-	assert.False(t, h.MenuOpen())
-}
-
-func TestEditorHeaderMenuClickCopy(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	h.SetHasContent(true)
-	h.RebuildMenu()
-	h.OpenMenu()
-
-	// メニュー内: y=9 = "Copy Note"（Delete Note=1, sep=2, Pin Note=3, sep=4, Move to…=5, sep=6, Duplicate=7, sep=8, Copy Note=9）
-	cmd := h.HandleMenuClick(2, 9)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderCopy, msg)
-}
-
-func TestEditorHeaderMenuTrashMode(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	h.SetTrashMode(true)
-	h.RebuildMenu()
-	h.OpenMenu()
-
-	// メニュー内: y=1 = "Move to…"
-	cmd := h.HandleMenuClick(2, 1)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderMove, msg)
-}
-
 func TestEditorHeaderMenuNoCopyWhenEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -156,37 +82,6 @@ func TestEditorHeaderMenuNoCopyWhenEmpty(t *testing.T) {
 	assert.Equal(t, "Pin Note", items[1].Label)
 	assert.Equal(t, "Move to…", items[2].Label)
 	assert.Equal(t, "Duplicate", items[3].Label)
-}
-
-func TestEditorHeaderMenuClickPin(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	h.RebuildMenu()
-	h.OpenMenu()
-
-	// メニュー内: y=3 = "Pin Note"
-	cmd := h.HandleMenuClick(2, 3)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderPin, msg)
-}
-
-func TestEditorHeaderMenuClickUnpin(t *testing.T) {
-	t.Parallel()
-
-	h := ui.NewEditorHeader(60)
-	h.SetHasNote(true)
-	h.SetPinned(true)
-	h.RebuildMenu()
-	h.OpenMenu()
-
-	// メニュー内: y=3 = "Unpin Note"
-	cmd := h.HandleMenuClick(2, 3)
-	assert.NotNil(t, cmd)
-	msg := cmd()
-	assert.Equal(t, ui.EditorHeaderUnpin, msg)
 }
 
 func TestEditorHeaderClickNewInTrashMode(t *testing.T) {

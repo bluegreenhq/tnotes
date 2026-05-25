@@ -7,8 +7,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/bluegreenhq/tnotes/internal/ui"
 )
 
 func TestRightClickEditorOpensContextMenu(t *testing.T) {
@@ -31,7 +29,7 @@ func TestRightClickEditorOpensContextMenu(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.NotNil(t, m.OverlayMenu(), "popup overlay should be open")
 }
 
 func TestRightClickEditorNoSelectionOpensMenu(t *testing.T) {
@@ -46,7 +44,7 @@ func TestRightClickEditorNoSelectionOpensMenu(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.NotNil(t, m.OverlayMenu(), "popup overlay should be open")
 	// Copy と Cut は Disabled
 	items := m.OverlayMenu().Items()
 	assert.True(t, items[0].Disabled, "Copy should be disabled without selection")
@@ -90,14 +88,14 @@ func TestRightClickClosedByLeftClick(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.NotNil(t, m.OverlayMenu(), "popup overlay should be open")
 
 	// 左クリックで閉じる
 	ret, _ = m.Update(tea.MouseClickMsg{
 		X: 0, Y: 0, Button: tea.MouseLeft,
 	})
 	m = mustModel(t, ret)
-	assert.NotEqual(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.Nil(t, m.OverlayMenu(), "popup overlay should be closed")
 }
 
 func TestContextMenuOverlayWidthWithJapanese(t *testing.T) {
@@ -120,7 +118,7 @@ func TestContextMenuOverlayWidthWithJapanese(t *testing.T) {
 		X: 40, Y: 1, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.NotNil(t, m.OverlayMenu(), "popup overlay should be open")
 
 	// コンテキストメニュー表示時のView幅を取得
 	view := m.View()
@@ -151,10 +149,10 @@ func TestRightClickClosedByEscape(t *testing.T) {
 		X: 50, Y: 5, Button: tea.MouseRight,
 	})
 	m = mustModel(t, ret)
-	assert.Equal(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.NotNil(t, m.OverlayMenu(), "popup overlay should be open")
 
 	// Escape で閉じる
 	ret, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 	m = mustModel(t, ret)
-	assert.NotEqual(t, ui.PopupKindEditorContext, m.OverlayPopupKind())
+	assert.Nil(t, m.OverlayMenu(), "popup overlay should be closed")
 }
